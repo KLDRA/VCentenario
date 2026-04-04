@@ -504,6 +504,12 @@ HTML_PAGE = """<!doctype html>
       return `Confianza ${(value * 100).toFixed(0)}%`;
     }
 
+    function formatForecast(forecast) {
+      if (!forecast || forecast.predicted_score_next == null) return "Sin forecast";
+      const level = stateLabels[forecast.predicted_level_next] || forecast.predicted_level_next;
+      return `Próxima hora: ${level} · score ${forecast.predicted_score_next}`;
+    }
+
     function escapeHtml(text) {
       return String(text ?? "")
         .replaceAll("&", "&amp;")
@@ -645,6 +651,9 @@ HTML_PAGE = """<!doctype html>
               <div class="camera-meta">
                 ${escapeHtml(camera.road || "-")} · ${escapeHtml(formatKm(camera.km))} · ${escapeHtml(camera.direction || "sin dirección")}<br>
                 ${camera.vehicle_count != null ? `<b>🚗 ${camera.vehicle_count} vehículos</b><br>` : ""}
+                ${camera.vehicle_counts_by_direction && Object.keys(camera.vehicle_counts_by_direction).length
+                  ? Object.entries(camera.vehicle_counts_by_direction).map(([label, value]) => `${escapeHtml(label)}: <b>${escapeHtml(value)}</b>`).join(" · ") + "<br>"
+                  : ""}
                 HTTP ${escapeHtml(camera.http_status ?? "-")} · ${escapeHtml(camera.last_modified || camera.fetched_at || "sin fecha")}
               </div>
             </div>
@@ -685,13 +694,16 @@ HTML_PAGE = """<!doctype html>
       }
       byId("generatedAt").textContent = `Última lectura · ${formatDate(state.generated_at)}`;
       byId("heroSummary").textContent = stateLabels[state.traffic_level] || state.traffic_level;
-      byId("heroDetail").textContent = `Reversible: ${stateLabels[state.reversible_probable] || state.reversible_probable} · ${formatConfidence(state.confidence)}`;
+      byId("heroDetail").textContent = `Reversible: ${stateLabels[state.reversible_probable] || state.reversible_probable} · ${formatConfidence(state.confidence)} · ${formatForecast(state.forecast)}`;
       byId("trafficLevel").textContent = stateLabels[state.traffic_level] || state.traffic_level;
       byId("trafficScore").textContent = `Score ${state.traffic_score}`;
       byId("reversibleState").textContent = stateLabels[state.reversible_probable] || state.reversible_probable;
-      byId("reversibleConfidence").textContent = formatConfidence(state.confidence);
+      byId("reversibleConfidence").textContent = `${formatConfidence(state.confidence)} · ${formatForecast(state.forecast)}`;
       byId("evidenceCount").textContent = String((state.evidence || []).length);
-      byId("countsLine").textContent = `Paneles ${data.panels.length} · Incidencias ${data.incidents.length} · Cámaras ${data.cameras.length}`;
+      const sampleCount = state.learning_context && state.learning_context.sample_count != null
+        ? ` · muestras franja ${state.learning_context.sample_count}`
+        : "";
+      byId("countsLine").textContent = `Paneles ${data.panels.length} · Incidencias ${data.incidents.length} · Cámaras ${data.cameras.length}${sampleCount}`;
       renderEvidence(state.evidence);
       renderPanels(data.panels);
       renderIncidents(data.incidents);

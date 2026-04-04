@@ -1,10 +1,20 @@
 import unittest
+from datetime import datetime, timedelta, timezone
 
+from vcentenario.collectors.detectors import DetectorCollector
 from vcentenario.inference import classify_traffic_level, infer_bridge_state
 from vcentenario.models import CameraSnapshot, DetectorReading, Incident, PanelMessage
 
 
 class InferenceTests(unittest.TestCase):
+    def test_detector_collector_discards_stale_measurements(self) -> None:
+        collector = DetectorCollector(http=None)
+        stale = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        fresh = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+
+        self.assertTrue(collector._is_stale_measurement(stale))
+        self.assertFalse(collector._is_stale_measurement(fresh))
+
     def test_classify_traffic_level_ranges(self) -> None:
         self.assertEqual(classify_traffic_level(0), "fluido")
         self.assertEqual(classify_traffic_level(20), "denso")
@@ -93,6 +103,81 @@ class InferenceTests(unittest.TestCase):
         self.assertIn("detectors", state.breakdown)
         self.assertTrue(any(item.startswith("reversible:persistence:positive") for item in state.evidence))
         self.assertTrue(any(item.startswith("detectors:active:") for item in state.evidence))
+
+    def test_persistent_roadworks_and_heavy_vehicle_diversion_are_deweighted(self) -> None:
+        panels = [
+            PanelMessage(
+                situation_id="1",
+                record_id="r1",
+                location_id="GUID_PMV_166911",
+                road="SE-30",
+                km=13.5,
+                direction="negative",
+                pictograms=["roadworks"],
+                legends=["DESVIO OBLIGATORIO", "VEHICULO 20T"],
+                status="active",
+                created_at="2026-04-04T08:00:00+02:00",
+            )
+        ]
+        incidents = [
+            Incident(
+                situation_id="2",
+                record_id="r2",
+                road="SE-30",
+                direction="negative",
+                severity="medium",
+                validity_status="active",
+                start_time="2026-04-04T08:00:00+02:00",
+                end_time=None,
+                incident_type="weightRestrictionInOperation",
+                cause_type="roadMaintenance",
+                from_km=13.8,
+                to_km=14.3,
+                latitude=37.37,
+                longitude=-6.014,
+                municipality="Sevilla",
+                province="Sevilla",
+            )
+        ]
+        recent_states = [
+            {
+                "evidence": [
+                    "panel:GUID_PMV_166911:DESVIO OBLIGATORIO/VEHICULO 20T",
+                    "incident:SE-30:weightRestrictionInOperation",
+                ]
+            }
+            for _ in range(6)
+        ]
+
+        state = infer_bridge_state(panels, incidents, [], recent_states=recent_states)
+        self.assertLess(state.breakdown["panels"], 3.0)
+        self.assertLess(state.breakdown["incidents"], 3.5)
+        self.assertIn("baseline:GUID_PMV_166911:panel", state.evidence)
+        self.assertIn("baseline:weightRestrictionInOperation:incident", state.evidence)
+
+    def test_light_camera_traffic_does_not_escalate_to_retentions(self) -> None:
+        snapshots = [
+            CameraSnapshot(
+                camera_id="1337",
+                fetched_at="2026-04-04T08:02:00+02:00",
+                http_status=200,
+                content_length=70000,
+                sha256="abc",
+                image_path="/tmp/1337.jpg",
+                last_modified=None,
+                visual_change_score=0.1,
+                vehicle_count=15,
+                vehicle_counts_by_direction={"ascendente": 8, "descendente": 7},
+            )
+        ]
+        recent_states = [
+            {"breakdown": {"panels": 2.0, "incidents": 2.0, "vehicle_count": 10.0, "camera_change": 4.0}}
+            for _ in range(6)
+        ]
+
+        state = infer_bridge_state([], [], snapshots, recent_states=recent_states)
+        self.assertIn(state.traffic_level, {"fluido", "denso"})
+        self.assertLess(state.traffic_score, 35.0)
 
 
 if __name__ == "__main__":

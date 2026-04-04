@@ -149,7 +149,13 @@ Variables utiles:
 - `VCENTENARIO_KEEP_SNAPSHOTS_PER_CAMERA`
 - `VCENTENARIO_ENABLE_VISION`
 - `VCENTENARIO_YOLO_MODEL_PATH`
+- `VCENTENARIO_YOLO_CONFIDENCE`
+- `VCENTENARIO_YOLO_IMAGE_SIZE`
+- `VCENTENARIO_YOLO_ENABLE_TILING`
+- `VCENTENARIO_YOLO_TILE_OVERLAP`
 - `VCENTENARIO_USER_AGENT`
+
+Por defecto el proyecto usa `yolov8m.pt` como modelo de vision si el archivo existe en la raiz del proyecto.
 
 Ejemplo:
 

@@ -12,3 +12,5 @@ var/*.pid
 var/snapshots/*
 !var/snapshots/.gitkeep
 yolov8n.pt
+yolov8m.pt
+yolov8s.pt

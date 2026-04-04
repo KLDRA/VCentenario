@@ -5,7 +5,15 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
-from .config import KEEP_BATCHES, KEEP_COLLECTION_RUNS, KEEP_SNAPSHOTS_PER_CAMERA, KEEP_STATES
+from .config import (
+    KEEP_BATCHES,
+    KEEP_COLLECTION_RUNS,
+    KEEP_SNAPSHOTS_PER_CAMERA,
+    KEEP_STATES,
+    LOCAL_TIMEZONE,
+    PROFILE_EMA_ALPHA,
+)
+from .learning import build_forecast, ema, local_slot_from_iso
 from .models import (
     BridgeState,
     Camera,
@@ -126,7 +134,8 @@ class Storage:
                     image_path TEXT,
                     last_modified TEXT,
                     visual_change_score REAL,
-                    vehicle_count INTEGER
+                    vehicle_count INTEGER,
+                    vehicle_counts_by_direction_json TEXT NOT NULL DEFAULT '{}'
                 );
 
                 CREATE TABLE IF NOT EXISTS bridge_state (
@@ -138,7 +147,9 @@ class Storage:
                     confidence REAL NOT NULL,
                     official INTEGER NOT NULL,
                     evidence_json TEXT NOT NULL,
-                    breakdown_json TEXT NOT NULL
+                    breakdown_json TEXT NOT NULL,
+                    forecast_json TEXT NOT NULL DEFAULT '{}',
+                    learning_context_json TEXT NOT NULL DEFAULT '{}'
                 );
 
                 CREATE TABLE IF NOT EXISTS collection_runs (
@@ -147,6 +158,16 @@ class Storage:
                     counts_json TEXT NOT NULL,
                     source_status_json TEXT NOT NULL,
                     warnings_json TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS traffic_profiles (
+                    weekday INTEGER NOT NULL,
+                    hour INTEGER NOT NULL,
+                    sample_count INTEGER NOT NULL,
+                    ema_score REAL NOT NULL,
+                    ema_vehicle_count REAL NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (weekday, hour)
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_panel_messages_collected_at
@@ -164,6 +185,24 @@ class Storage:
                 CREATE INDEX IF NOT EXISTS idx_collection_runs_collected_at
                     ON collection_runs (collected_at DESC);
                 """
+            )
+            self._ensure_column(
+                con,
+                table_name="camera_snapshots",
+                column_name="vehicle_counts_by_direction_json",
+                column_definition="TEXT NOT NULL DEFAULT '{}'",
+            )
+            self._ensure_column(
+                con,
+                table_name="bridge_state",
+                column_name="forecast_json",
+                column_definition="TEXT NOT NULL DEFAULT '{}'",
+            )
+            self._ensure_column(
+                con,
+                table_name="bridge_state",
+                column_name="learning_context_json",
+                column_definition="TEXT NOT NULL DEFAULT '{}'",
             )
 
     def upsert_panel_locations(self, locations: Iterable[PanelLocation]) -> None:
@@ -316,9 +355,10 @@ class Storage:
                 """
                 INSERT INTO camera_snapshots (
                     fetched_at, camera_id, http_status, content_length, sha256,
-                    image_path, last_modified, visual_change_score, vehicle_count
+                    image_path, last_modified, visual_change_score, vehicle_count,
+                    vehicle_counts_by_direction_json
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -331,6 +371,7 @@ class Storage:
                         snapshot.last_modified,
                         snapshot.visual_change_score,
                         snapshot.vehicle_count,
+                        dumps_json(snapshot.vehicle_counts_by_direction),
                     )
                     for snapshot in snapshots
                 ],
@@ -342,9 +383,10 @@ class Storage:
                 """
                 INSERT INTO bridge_state (
                     generated_at, traffic_score, traffic_level, reversible_probable,
-                    confidence, official, evidence_json, breakdown_json
+                    confidence, official, evidence_json, breakdown_json,
+                    forecast_json, learning_context_json
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     state.generated_at,
@@ -355,6 +397,8 @@ class Storage:
                     int(state.official),
                     dumps_json(state.evidence),
                     dumps_json(state.breakdown),
+                    dumps_json(state.forecast),
+                    dumps_json(state.learning_context),
                 ),
             )
 
@@ -383,9 +427,12 @@ class Storage:
 
     def latest_state(self) -> Optional[sqlite3.Row]:
         with self.connect() as con:
-            return con.execute(
+            row = con.execute(
                 "SELECT * FROM bridge_state ORDER BY generated_at DESC LIMIT 1"
             ).fetchone()
+        if row is None:
+            return None
+        return self._decode_state_row(row)
 
     def latest_camera_payload(self, camera_id: str) -> Optional[bytes]:
         with self.connect() as con:
@@ -453,11 +500,7 @@ class Storage:
             ).fetchall()
         states: List[Dict[str, Any]] = []
         for row in reversed(rows):
-            data = dict(row)
-            data["official"] = bool(data["official"])
-            data["evidence"] = json.loads(data.pop("evidence_json"))
-            data["breakdown"] = json.loads(data.pop("breakdown_json"))
-            states.append(data)
+            states.append(self._decode_state_row(row))
         return states
 
     def latest_collection_run(self) -> Optional[Dict[str, Any]]:
@@ -544,7 +587,8 @@ class Storage:
                     s.image_path,
                     s.last_modified,
                     s.visual_change_score,
-                    s.vehicle_count
+                    s.vehicle_count,
+                    s.vehicle_counts_by_direction_json
                 FROM cameras c
                 LEFT JOIN camera_snapshots s
                     ON s.id = (
@@ -557,7 +601,14 @@ class Storage:
                 ORDER BY c.km ASC, c.camera_id ASC
                 """
             ).fetchall()
-        return [dict(row) for row in rows]
+        cameras: List[Dict[str, Any]] = []
+        for row in rows:
+            data = dict(row)
+            raw = data.get("vehicle_counts_by_direction_json") or "{}"
+            data["vehicle_counts_by_direction"] = json.loads(raw)
+            data.pop("vehicle_counts_by_direction_json", None)
+            cameras.append(data)
+        return cameras
 
     def latest_detector_readings(self, limit: int = 20) -> List[Dict[str, Any]]:
         with self.connect() as con:
@@ -577,6 +628,64 @@ class Storage:
                 (collected["collected_at"], limit),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def update_traffic_profile(self, state: BridgeState) -> Dict[str, Any]:
+        weekday, hour, local_time = local_slot_from_iso(state.generated_at, LOCAL_TIMEZONE)
+        vehicle_signal = float(state.breakdown.get("vehicle_count", 0.0))
+        with self.connect() as con:
+            existing = con.execute(
+                """
+                SELECT *
+                FROM traffic_profiles
+                WHERE weekday = ? AND hour = ?
+                """,
+                (weekday, hour),
+            ).fetchone()
+            sample_count = int(existing["sample_count"]) + 1 if existing else 1
+            ema_score = ema(float(existing["ema_score"]), state.traffic_score, PROFILE_EMA_ALPHA) if existing else state.traffic_score
+            ema_vehicle = ema(float(existing["ema_vehicle_count"]), vehicle_signal, PROFILE_EMA_ALPHA) if existing else vehicle_signal
+            con.execute(
+                """
+                INSERT INTO traffic_profiles (weekday, hour, sample_count, ema_score, ema_vehicle_count, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(weekday, hour) DO UPDATE SET
+                    sample_count = excluded.sample_count,
+                    ema_score = excluded.ema_score,
+                    ema_vehicle_count = excluded.ema_vehicle_count,
+                    updated_at = excluded.updated_at
+                """,
+                (weekday, hour, sample_count, ema_score, ema_vehicle, state.generated_at),
+            )
+        return {
+            "slot_weekday": weekday,
+            "slot_hour": hour,
+            "slot_local_time": local_time,
+            "sample_count": sample_count,
+            "ema_score": round(ema_score, 2),
+            "ema_vehicle_count": round(ema_vehicle, 2),
+        }
+
+    def traffic_profiles(self) -> Dict[tuple[int, int], Dict[str, Any]]:
+        with self.connect() as con:
+            rows = con.execute("SELECT * FROM traffic_profiles").fetchall()
+        return {
+            (int(row["weekday"]), int(row["hour"])): dict(row)
+            for row in rows
+        }
+
+    def predict_traffic(
+        self,
+        reference_time: str,
+        current_state: BridgeState,
+        recent_states: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        return build_forecast(
+            reference_time=reference_time,
+            current_score=current_state.traffic_score,
+            recent_states=recent_states,
+            profiles=self.traffic_profiles(),
+            timezone_name=LOCAL_TIMEZONE,
+        )
 
     def prune_history(
         self,
@@ -716,3 +825,27 @@ class Storage:
     def vacuum(self) -> None:
         with self.connect() as con:
             con.execute("VACUUM")
+
+    @staticmethod
+    def _ensure_column(
+        con: sqlite3.Connection,
+        table_name: str,
+        column_name: str,
+        column_definition: str,
+    ) -> None:
+        columns = {
+            row["name"]
+            for row in con.execute(f"PRAGMA table_info({table_name})").fetchall()
+        }
+        if column_name not in columns:
+            con.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}")
+
+    @staticmethod
+    def _decode_state_row(row: sqlite3.Row) -> Dict[str, Any]:
+        data = dict(row)
+        data["official"] = bool(data["official"])
+        data["evidence"] = json.loads(data.pop("evidence_json"))
+        data["breakdown"] = json.loads(data.pop("breakdown_json"))
+        data["forecast"] = json.loads(data.pop("forecast_json", "{}"))
+        data["learning_context"] = json.loads(data.pop("learning_context_json", "{}"))
+        return data

@@ -148,6 +148,12 @@ class VCentenarioService:
             detector_readings,
             recent_states=recent_states,
         )
+        state.learning_context = self.storage.update_traffic_profile(state)
+        state.forecast = self.storage.predict_traffic(
+            reference_time=state.generated_at,
+            current_state=state,
+            recent_states=recent_states + [asdict(state)],
+        )
         self.storage.insert_bridge_state(state)
 
         counts = {
@@ -172,14 +178,7 @@ class VCentenarioService:
         }
 
     def latest_state(self) -> Optional[Dict[str, object]]:
-        row = self.storage.latest_state()
-        if row is None:
-            return None
-        data = dict(row)
-        data["official"] = bool(data["official"])
-        data["evidence"] = json.loads(data.pop("evidence_json"))
-        data["breakdown"] = json.loads(data.pop("breakdown_json"))
-        return data
+        return self.storage.latest_state()
 
     def dashboard_data(self) -> Dict[str, object]:
         self.storage.init_db()
@@ -192,4 +191,5 @@ class VCentenarioService:
             "incidents": self.storage.latest_incidents(limit=24),
             "cameras": self.storage.latest_cameras(),
             "detectors": self.storage.latest_detector_readings(limit=24),
+            "traffic_profiles": list(self.storage.traffic_profiles().values()),
         }

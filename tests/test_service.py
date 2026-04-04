@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from vcentenario.models import Incident
@@ -51,6 +52,15 @@ class _EmptyDetectorCollector:
         return {}
 
     def fetch_bridge_measurements(self, inventory):
+        return []
+
+
+class _StaleDetectorCollector:
+    def fetch_inventory(self):
+        return {"det1": object()}
+
+    def fetch_bridge_measurements(self, inventory):
+        stale = datetime.now(timezone.utc) - timedelta(days=400)
         return []
 
 

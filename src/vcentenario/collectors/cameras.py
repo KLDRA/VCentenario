@@ -3,9 +3,20 @@ from __future__ import annotations
 import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence, Tuple
 
-from ..config import BRIDGE_AREA, CAMERAS_URL, COMMON_NS_V3, ENABLE_VISION, YOLO_MODEL_PATH
+from ..config import (
+    BRIDGE_AREA,
+    CAMERAS_URL,
+    CAMERA_DIRECTION_SPLITS,
+    COMMON_NS_V3,
+    ENABLE_VISION,
+    YOLO_CONFIDENCE,
+    YOLO_ENABLE_TILING,
+    YOLO_IMAGE_SIZE,
+    YOLO_MODEL_PATH,
+    YOLO_TILE_OVERLAP,
+)
 from ..http import HttpClient
 from ..models import Camera, CameraSnapshot
 from ..utils import ensure_dir, parse_float, sampled_byte_change_ratio, sha256_bytes, utc_now_iso, within_bbox
@@ -59,6 +70,105 @@ def compute_visual_metrics(previous_payload: bytes, current_payload: bytes) -> f
     except Exception:
         logger.exception("Fallo calculando métrica visual con OpenCV")
         return byte_change
+
+
+def _collect_vehicle_detections(result: object, x_offset: float = 0.0, y_offset: float = 0.0) -> List[Tuple[int, float, Tuple[float, float, float, float]]]:
+    detections: List[Tuple[int, float, Tuple[float, float, float, float]]] = []
+    for box in result.boxes:
+        cls = int(box.cls)
+        if cls not in (2, 3, 5, 7):
+            continue
+        x1, y1, x2, y2 = [float(value) for value in box.xyxy[0].tolist()]
+        detections.append((cls, float(box.conf), (x1 + x_offset, y1 + y_offset, x2 + x_offset, y2 + y_offset)))
+    return detections
+
+
+def _box_iou(a: Tuple[float, float, float, float], b: Tuple[float, float, float, float]) -> float:
+    ax1, ay1, ax2, ay2 = a
+    bx1, by1, bx2, by2 = b
+    inter_x1 = max(ax1, bx1)
+    inter_y1 = max(ay1, by1)
+    inter_x2 = min(ax2, bx2)
+    inter_y2 = min(ay2, by2)
+    if inter_x2 <= inter_x1 or inter_y2 <= inter_y1:
+        return 0.0
+    inter_area = (inter_x2 - inter_x1) * (inter_y2 - inter_y1)
+    area_a = max(0.0, ax2 - ax1) * max(0.0, ay2 - ay1)
+    area_b = max(0.0, bx2 - bx1) * max(0.0, by2 - by1)
+    union = area_a + area_b - inter_area
+    if union <= 0:
+        return 0.0
+    return inter_area / union
+
+
+def merge_vehicle_detections(
+    detections: Sequence[Tuple[int, float, Tuple[float, float, float, float]]],
+    iou_threshold: float = 0.45,
+) -> List[Tuple[int, float, Tuple[float, float, float, float]]]:
+    kept: List[Tuple[int, float, Tuple[float, float, float, float]]] = []
+    for detection in sorted(detections, key=lambda item: item[1], reverse=True):
+        cls, confidence, box = detection
+        if any(existing_cls == cls and _box_iou(box, existing_box) >= iou_threshold for existing_cls, _, existing_box in kept):
+            continue
+        kept.append((cls, confidence, box))
+    return kept
+
+
+def count_vehicles_with_yolo(model: object, file_path: Path) -> int:
+    return len(detect_vehicles_with_yolo(model, file_path))
+
+
+def detect_vehicles_with_yolo(
+    model: object,
+    file_path: Path,
+) -> List[Tuple[int, float, Tuple[float, float, float, float]]]:
+    from PIL import Image
+
+    detections: List[Tuple[int, float, Tuple[float, float, float, float]]] = []
+    full_results = model(str(file_path), verbose=False, conf=YOLO_CONFIDENCE, imgsz=YOLO_IMAGE_SIZE)
+    for result in full_results:
+        detections.extend(_collect_vehicle_detections(result))
+
+    if YOLO_ENABLE_TILING:
+        with Image.open(file_path) as image:
+            width, height = image.size
+            if width >= 1000 and height >= 600:
+                tile_width = max(width // 2, 1)
+                tile_height = max(height // 2, 1)
+                step_x = max(1, int(tile_width * (1.0 - YOLO_TILE_OVERLAP)))
+                step_y = max(1, int(tile_height * (1.0 - YOLO_TILE_OVERLAP)))
+                max_x = max(width - tile_width, 0)
+                max_y = max(height - tile_height, 0)
+                y_positions = sorted({0, step_y, max_y})
+                x_positions = sorted({0, step_x, max_x})
+                for y_offset in y_positions:
+                    for x_offset in x_positions:
+                        crop = image.crop((x_offset, y_offset, x_offset + tile_width, y_offset + tile_height))
+                        tile_results = model(crop, verbose=False, conf=YOLO_CONFIDENCE, imgsz=YOLO_IMAGE_SIZE)
+                        for result in tile_results:
+                            detections.extend(_collect_vehicle_detections(result, float(x_offset), float(y_offset)))
+
+    return merge_vehicle_detections(detections)
+
+
+def classify_vehicle_directions(
+    camera_id: str,
+    detections: Sequence[Tuple[int, float, Tuple[float, float, float, float]]],
+) -> Dict[str, int]:
+    profile = CAMERA_DIRECTION_SPLITS.get(camera_id)
+    if not profile:
+        return {}
+    split_y = float(profile["split_y"])
+    upper_label = str(profile["upper_label"])
+    lower_label = str(profile["lower_label"])
+    counts = {upper_label: 0, lower_label: 0}
+    for _, _, (x1, y1, x2, y2) in detections:
+        center_y = (y1 + y2) / 2.0
+        if center_y < split_y:
+            counts[upper_label] += 1
+        else:
+            counts[lower_label] += 1
+    return counts
 
 
 def get_yolo_model() -> Optional[object]:
@@ -140,6 +250,7 @@ class CameraCollector:
             image_path: Optional[str] = None
             sha256: Optional[str] = None
             visual_change_score: Optional[float] = None
+            vehicle_count = None
             content_length = len(response.body)
             if response.status == 200 and response.headers.get("content-type", "").startswith("image/"):
                 sha256 = sha256_bytes(response.body)
@@ -151,19 +262,19 @@ class CameraCollector:
                 if previous_payload is not None:
                     visual_change_score = compute_visual_metrics(previous_payload, response.body)
 
-                vehicle_count = None
                 model = get_yolo_model()
                 if model is not None:
                     try:
-                        results_yolo = model(str(file_path), verbose=False)
-                        vehicle_count = 0
-                        for r in results_yolo:
-                            # COCO classes: 2:car, 3:motorcycle, 5:bus, 7:truck
-                            for box in r.boxes:
-                                if int(box.cls) in (2, 3, 5, 7):
-                                    vehicle_count += 1
+                        detections = detect_vehicles_with_yolo(model, file_path)
+                        vehicle_count = len(detections)
+                        vehicle_counts_by_direction = classify_vehicle_directions(camera.camera_id, detections)
                     except Exception:
                         vehicle_count = None
+                        vehicle_counts_by_direction = {}
+                else:
+                    vehicle_counts_by_direction = {}
+            else:
+                vehicle_counts_by_direction = {}
             results.append(
                 CameraSnapshot(
                     camera_id=camera.camera_id,
@@ -175,6 +286,7 @@ class CameraCollector:
                     last_modified=response.headers.get("last-modified"),
                     visual_change_score=visual_change_score,
                     vehicle_count=vehicle_count,
+                    vehicle_counts_by_direction=vehicle_counts_by_direction,
                 )
             )
         return results

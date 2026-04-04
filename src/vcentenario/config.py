@@ -1,7 +1,8 @@
 import os
 from dataclasses import dataclass, field
+from datetime import timedelta
 from pathlib import Path
-from typing import Tuple
+from typing import Dict, Tuple
 
 
 @dataclass(frozen=True)
@@ -60,6 +61,7 @@ REQUEST_TIMEOUT = _env_int("VCENTENARIO_REQUEST_TIMEOUT", 30)
 HTTP_MAX_RETRIES = _env_int("VCENTENARIO_HTTP_MAX_RETRIES", 2)
 HTTP_RETRY_BACKOFF_SECONDS = _env_float("VCENTENARIO_HTTP_RETRY_BACKOFF_SECONDS", 1.5)
 USER_AGENT = os.getenv("VCENTENARIO_USER_AGENT", "VCentenario/0.2 (+https://nap.dgt.es)")
+LOCAL_TIMEZONE = os.getenv("VCENTENARIO_LOCAL_TIMEZONE", "Europe/Madrid")
 ENABLE_REFRESH_ENDPOINT = _env_bool("VCENTENARIO_ENABLE_REFRESH_ENDPOINT", False)
 REFRESH_TOKEN = os.getenv("VCENTENARIO_REFRESH_TOKEN", "").strip()
 REFRESH_MIN_INTERVAL_SECONDS = _env_int("VCENTENARIO_REFRESH_MIN_INTERVAL_SECONDS", 120)
@@ -68,12 +70,19 @@ REVERSIBLE_SCHEDULE = os.getenv(
     "VCENTENARIO_REVERSIBLE_SCHEDULE",
     "mon-fri@06:00-12:30=negative;mon-fri@15:00-21:00=positive",
 )
+DETECTOR_MAX_AGE_MINUTES = _env_int("VCENTENARIO_DETECTOR_MAX_AGE_MINUTES", 30)
+PROFILE_EMA_ALPHA = _env_float("VCENTENARIO_PROFILE_EMA_ALPHA", 0.18)
 KEEP_STATES = _env_int("VCENTENARIO_KEEP_STATES", 500)
 KEEP_COLLECTION_RUNS = _env_int("VCENTENARIO_KEEP_COLLECTION_RUNS", 500)
 KEEP_BATCHES = _env_int("VCENTENARIO_KEEP_BATCHES", 240)
 KEEP_SNAPSHOTS_PER_CAMERA = _env_int("VCENTENARIO_KEEP_SNAPSHOTS_PER_CAMERA", 72)
 ENABLE_VISION = _env_bool("VCENTENARIO_ENABLE_VISION", True)
-YOLO_MODEL_PATH = _env_path("VCENTENARIO_YOLO_MODEL_PATH", ROOT_DIR / "yolov8n.pt")
+YOLO_MODEL_PATH = _env_path("VCENTENARIO_YOLO_MODEL_PATH", ROOT_DIR / "yolov8m.pt")
+YOLO_CONFIDENCE = _env_float("VCENTENARIO_YOLO_CONFIDENCE", 0.1)
+YOLO_IMAGE_SIZE = _env_int("VCENTENARIO_YOLO_IMAGE_SIZE", 1280)
+YOLO_ENABLE_TILING = _env_bool("VCENTENARIO_YOLO_ENABLE_TILING", True)
+YOLO_TILE_OVERLAP = _env_float("VCENTENARIO_YOLO_TILE_OVERLAP", 0.2)
+DETECTOR_MAX_AGE = timedelta(minutes=max(1, DETECTOR_MAX_AGE_MINUTES))
 
 BRIDGE_AREA = BridgeArea(
     name="Puente del Centenario",
@@ -112,4 +121,12 @@ COMMON_NS_V3 = {
     "lse": "http://levelC/schema/3/locationReferencingSpanishExtension",
     "ns2": "http://levelC/schema/3/faultAndStatus",
     "sit": "http://levelC/schema/3/situation",
+}
+
+CAMERA_DIRECTION_SPLITS: Dict[str, Dict[str, object]] = {
+    "1337": {
+        "split_y": 250.0,
+        "upper_label": "ascendente",
+        "lower_label": "descendente",
+    }
 }

@@ -93,6 +93,7 @@ class CameraSnapshot:
     last_modified: Optional[str]
     visual_change_score: Optional[float]
     vehicle_count: Optional[int] = None
+    vehicle_counts_by_direction: Dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -105,3 +106,5 @@ class BridgeState:
     official: bool = False
     evidence: List[str] = field(default_factory=list)
     breakdown: Dict[str, float] = field(default_factory=dict)
+    forecast: Dict[str, object] = field(default_factory=dict)
+    learning_context: Dict[str, object] = field(default_factory=dict)

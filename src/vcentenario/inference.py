@@ -50,6 +50,8 @@ DETECTOR_FLOW_WEIGHT = 0.015
 DETECTOR_OCCUPANCY_WEIGHT = 0.35
 DETECTOR_SLOW_SPEED_WEIGHT = 0.7
 DETECTOR_DIRECTION_BIAS_WEIGHT = 10.0
+PERSISTENT_BASELINE_SCALE = 0.15
+CALIBRATION_EXCLUDED_SOURCES = {"camera_availability", "camera_change", "vehicle_count"}
 
 
 def infer_bridge_state(
@@ -70,6 +72,7 @@ def infer_bridge_state(
 
     for panel in panels:
         panel_score = 0.0
+        panel_evidence = f"panel:{panel.location_id}:{'/'.join(panel.legends[:2])}" if panel.legends else None
         for legend in panel.legends:
             upper = legend.upper()
             for keyword, weight in PANEL_KEYWORDS.items():
@@ -81,20 +84,27 @@ def infer_bridge_state(
             panel_score = 4.0
         if panel_score == 0:
             continue
+        if panel_evidence and is_persistent_operational_panel(panel, panel_evidence, recent_states):
+            panel_score *= PERSISTENT_BASELINE_SCALE
+            evidence.append(f"baseline:{panel.location_id}:panel")
         breakdown["panels"] += panel_score
         if panel.direction:
             direction_pressure[panel.direction] += panel_score
-        if panel.legends:
-            evidence.append(f"panel:{panel.location_id}:{'/'.join(panel.legends[:2])}")
+        if panel_evidence:
+            evidence.append(panel_evidence)
 
     for incident in incidents:
         incident_score = SEVERITY_WEIGHT.get((incident.severity or "").lower(), 8.0)
         incident_score += INCIDENT_TYPE_WEIGHT.get(incident.incident_type or "", 6.0)
+        incident_label = incident.incident_type or incident.cause_type or "incident"
+        incident_evidence = f"incident:{incident.road}:{incident_label}"
+        if is_persistent_operational_incident(incident, incident_evidence, recent_states):
+            incident_score *= PERSISTENT_BASELINE_SCALE
+            evidence.append(f"baseline:{incident_label}:incident")
         breakdown["incidents"] += incident_score
         if incident.direction:
             direction_pressure[incident.direction] += incident_score
-        label = incident.incident_type or incident.cause_type or "incident"
-        evidence.append(f"incident:{incident.road}:{label}")
+        evidence.append(incident_evidence)
 
     active_cameras = 0
     unavailable_cameras = 0
@@ -106,16 +116,17 @@ def infer_bridge_state(
             if snapshot.visual_change_score is not None:
                 visual_change_total += snapshot.visual_change_score * 12.0
             if snapshot.vehicle_count is not None:
-                vehicle_total += snapshot.vehicle_count
+                directional_counts = snapshot.vehicle_counts_by_direction or {}
+                vehicle_total += max(directional_counts.values(), default=snapshot.vehicle_count)
         else:
             unavailable_cameras += 1
     if active_cameras:
         breakdown["camera_availability"] += min(active_cameras * 2.0, 6.0)
     if visual_change_total:
-        breakdown["camera_change"] += min(visual_change_total, 12.0)
+        breakdown["camera_change"] += min(visual_change_total, 6.0)
         evidence.append("camera:visual-change")
     if vehicle_total:
-        breakdown["vehicle_count"] += min(vehicle_total * 2.5, 35.0)
+        breakdown["vehicle_count"] += score_camera_traffic(vehicle_total)
         evidence.append(f"camera:vehicles:{vehicle_total}")
     if unavailable_cameras:
         evidence.append(f"camera:unavailable:{unavailable_cameras}")
@@ -238,6 +249,47 @@ def score_detectors(detectors: Sequence[DetectorReading]) -> Tuple[float, List[s
     return score, evidence, direction_pressure
 
 
+def is_persistent_operational_panel(
+    panel: PanelMessage,
+    panel_evidence: str,
+    recent_states: Sequence[Dict[str, object]],
+) -> bool:
+    text = " ".join(panel.legends).upper()
+    looks_permanent = (
+        "OBRAS" in text
+        or ("DESVIO" in text and "20T" in text)
+        or ("OBLIGATORIO" in text and "20T" in text)
+        or "roadworks" in panel.pictograms
+    )
+    if not looks_permanent:
+        return False
+    return evidence_seen_frequently(panel_evidence, recent_states)
+
+
+def is_persistent_operational_incident(
+    incident: Incident,
+    incident_evidence: str,
+    recent_states: Sequence[Dict[str, object]],
+) -> bool:
+    looks_permanent = (incident.incident_type or "") in {
+        "roadworks",
+        "newRoadworksLayout",
+        "weightRestrictionInOperation",
+    } or (incident.cause_type or "") in {"roadMaintenance", "maintenanceWorks"}
+    if not looks_permanent:
+        return False
+    return evidence_seen_frequently(incident_evidence, recent_states)
+
+
+def evidence_seen_frequently(evidence_key: str, recent_states: Sequence[Dict[str, object]], threshold: int = 4) -> bool:
+    hits = 0
+    for state in recent_states[-8:]:
+        values = state.get("evidence", [])
+        if isinstance(values, list) and evidence_key in values:
+            hits += 1
+    return hits >= threshold
+
+
 def apply_historical_calibration(
     breakdown: Dict[str, float],
     recent_states: Sequence[Dict[str, object]],
@@ -247,6 +299,8 @@ def apply_historical_calibration(
         return
     calibration_delta = 0.0
     for source_name, current_score in list(breakdown.items()):
+        if source_name in CALIBRATION_EXCLUDED_SOURCES:
+            continue
         history_values = [
             float(state.get("breakdown", {}).get(source_name, 0.0))
             for state in recent_states
@@ -264,6 +318,22 @@ def apply_historical_calibration(
     if calibration_delta:
         breakdown["historical_calibration"] += round(calibration_delta, 2)
         evidence.append(f"calibration:delta:{calibration_delta:.2f}")
+
+
+def score_camera_traffic(vehicle_count: int) -> float:
+    if vehicle_count <= 2:
+        return 0.5
+    if vehicle_count <= 4:
+        return 1.5
+    if vehicle_count <= 6:
+        return 3.0
+    if vehicle_count <= 8:
+        return 5.0
+    if vehicle_count <= 12:
+        return 8.0
+    if vehicle_count <= 16:
+        return 12.0
+    return 16.0
 
 
 def get_persistence_bias(

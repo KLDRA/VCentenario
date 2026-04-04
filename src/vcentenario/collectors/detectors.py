@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from datetime import datetime
 import xml.etree.ElementTree as ET
 from typing import Dict, List
 
 from ..config import (
     BRIDGE_AREA,
+    DETECTOR_MAX_AGE,
     DETECTORS_INVENTORY_URL,
     DETECTORS_NS_V1,
     DETECTORS_URL,
@@ -60,11 +62,14 @@ class DetectorCollector:
             if not detector_id or detector_id not in inventory:
                 continue
             location = inventory[detector_id]
+            measured_at = self._find_text(node, ".//d:measurementTimeDefault") or None
+            if self._is_stale_measurement(measured_at):
+                continue
             flow_value = parse_float(self._find_text(node, ".//d:vehicleFlow"))
             readings.append(
                 DetectorReading(
                     detector_id=detector_id,
-                    measured_at=self._find_text(node, ".//d:measurementTimeDefault") or None,
+                    measured_at=measured_at,
                     road=location.road,
                     km=location.km,
                     direction=location.direction,
@@ -95,3 +100,16 @@ class DetectorCollector:
         if road == BRIDGE_AREA.road and km is not None and BRIDGE_AREA.km_min - 1.0 <= km <= BRIDGE_AREA.km_max + 1.0:
             return True
         return road == BRIDGE_AREA.road and within_bbox(latitude, longitude, BRIDGE_AREA.bbox)
+
+    @staticmethod
+    def _is_stale_measurement(measured_at: str | None) -> bool:
+        if not measured_at:
+            return True
+        try:
+            timestamp = datetime.fromisoformat(measured_at)
+        except ValueError:
+            return True
+        if timestamp.tzinfo is None:
+            return True
+        age = datetime.now(timestamp.tzinfo) - timestamp
+        return age > DETECTOR_MAX_AGE
