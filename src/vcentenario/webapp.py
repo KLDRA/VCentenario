@@ -207,13 +207,42 @@ HTML_PAGE = """<!doctype html>
       display: grid;
       gap: 10px;
     }
+    .trend-shell {
+      position: relative;
+      min-height: 164px;
+    }
     .timeline-bar {
       display: grid;
       grid-template-columns: repeat(16, minmax(0, 1fr));
       gap: 8px;
       align-items: end;
       min-height: 132px;
-      padding-top: 6px;
+      padding: 18px 0 0;
+      position: relative;
+      z-index: 1;
+    }
+    .trend-thresholds {
+      position: absolute;
+      inset: 0 0 22px 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .trend-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      border-top: 1px dashed rgba(31, 42, 46, 0.18);
+    }
+    .trend-line span {
+      position: absolute;
+      right: 0;
+      top: -10px;
+      padding-left: 8px;
+      background: linear-gradient(180deg, rgba(255, 252, 245, 0), rgba(255, 252, 245, 0.92) 42%, rgba(255, 252, 245, 0.92));
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
     .bar-wrap {
       display: grid;
@@ -227,10 +256,50 @@ HTML_PAGE = """<!doctype html>
       min-height: 12px;
       align-self: end;
     }
+    .bar.level-fluido {
+      background: linear-gradient(180deg, #2f9e44, #237032);
+    }
+    .bar.level-denso {
+      background: linear-gradient(180deg, #d97706, #b45309);
+    }
+    .bar.level-retenciones {
+      background: linear-gradient(180deg, #ea580c, #c2410c);
+    }
+    .bar.level-congestion_fuerte {
+      background: linear-gradient(180deg, #dc2626, #991b1b);
+    }
     .bar-label {
       font-size: 11px;
       color: var(--muted);
       text-align: center;
+    }
+    .bar-score {
+      font-size: 10px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1;
+    }
+    .trend-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .legend-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.65);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
     }
     .list {
       display: grid;
@@ -433,8 +502,21 @@ HTML_PAGE = """<!doctype html>
           <div class="subtle">Últimas ejecuciones guardadas</div>
         </div>
         <div class="timeline">
-          <div id="trendBars" class="timeline-bar"></div>
-          <div class="footer-note">La barra más alta indica más señales de tráfico o afectación operativa.</div>
+          <div class="trend-shell">
+            <div class="trend-thresholds">
+              <div class="trend-line" style="bottom:25%;"><span>Denso</span></div>
+              <div class="trend-line" style="bottom:58.33%;"><span>Retenciones</span></div>
+              <div class="trend-line" style="bottom:100%;"><span>Congestión</span></div>
+            </div>
+            <div id="trendBars" class="timeline-bar"></div>
+          </div>
+          <div class="trend-legend">
+            <span class="legend-pill"><span class="legend-dot" style="background:#237032;"></span>Fluido</span>
+            <span class="legend-pill"><span class="legend-dot" style="background:#b45309;"></span>Denso</span>
+            <span class="legend-pill"><span class="legend-dot" style="background:#c2410c;"></span>Retenciones</span>
+            <span class="legend-pill"><span class="legend-dot" style="background:#991b1b;"></span>Congestión fuerte</span>
+          </div>
+          <div class="footer-note">Cada barra representa un estado guardado. El color indica la etiqueta inferida y las líneas marcan los umbrales del score.</div>
         </div>
       </div>
       <div class="card panel-section">
@@ -672,9 +754,11 @@ HTML_PAGE = """<!doctype html>
       root.innerHTML = states.map((item) => {
         const height = Math.max(12, Math.round(((item.traffic_score || 0) / maxScore) * 96));
         const label = new Date(item.generated_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+        const levelClass = `level-${escapeHtml(item.traffic_level || "fluido")}`;
         return `
           <div class="bar-wrap">
-            <div class="bar" title="${escapeHtml(item.traffic_level)} · ${escapeHtml(item.traffic_score)}" style="height:${height}px;"></div>
+            <div class="bar-score">${escapeHtml(item.traffic_score ?? "-")}</div>
+            <div class="bar ${levelClass}" title="${escapeHtml(item.traffic_level)} · ${escapeHtml(item.traffic_score)}" style="height:${height}px;"></div>
             <div class="bar-label">${escapeHtml(label)}</div>
           </div>
         `;
