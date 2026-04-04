@@ -206,17 +206,22 @@ HTML_PAGE = """<!doctype html>
       min-height: 164px;
     }
     .timeline-bar {
-      display: grid;
-      grid-template-columns: repeat(16, minmax(0, 1fr));
+      display: flex;
       gap: 8px;
       align-items: end;
-      min-height: 180px;
-      padding: 18px 0 0;
+      min-height: 220px;
+      padding: 20px 12px 0;
       position: relative;
       z-index: 1;
+      overflow-x: auto;
+      width: 100%;
     }
-    .timeline-bar.wide-chart {
-      min-height: 220px;
+    .timeline-bar::-webkit-scrollbar {
+      height: 6px;
+    }
+    .timeline-bar::-webkit-scrollbar-thumb {
+      background: rgba(31, 42, 46, 0.25);
+      border-radius: 3px;
     }
     .trend-thresholds {
       position: absolute;
