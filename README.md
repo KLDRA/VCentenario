@@ -198,13 +198,21 @@ El script [`deploy.sh`](/home/kldra/descargas/VCentenario/deploy.sh) ahora:
 - crea `.venv` si no existe
 - instala el proyecto y extras opcionales
 - genera un `EnvironmentFile` para systemd en `/etc/default/vcentenario`
-- endurece la unidad systemd con restricciones basicas
+- crea una unidad `systemd` para la web y un `timer` que ejecuta `run-once` automaticamente
+- refresca datos, estado y predicciones cada 5 minutos por defecto
+- endurece las unidades `systemd` con restricciones basicas
 - configura Nginx como proxy inverso
 
 Ejemplo:
 
 ```bash
 sudo APP_HOST=127.0.0.1 APP_PORT=5000 PUBLIC_PORT=8088 ./deploy.sh
+```
+
+Si quieres cambiar la cadencia del refresco automatico:
+
+```bash
+sudo REFRESH_INTERVAL_MINUTES=5 ./deploy.sh
 ```
 
 Si quieres instalar dependencias de desarrollo o vision durante el bootstrap:

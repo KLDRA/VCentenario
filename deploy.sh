@@ -9,14 +9,20 @@ BOOTSTRAP_PYTHON="${BOOTSTRAP_PYTHON:-python3}"
 INSTALL_DEV_DEPS="${INSTALL_DEV_DEPS:-0}"
 INSTALL_VISION_DEPS="${INSTALL_VISION_DEPS:-0}"
 SERVICE_NAME="${SERVICE_NAME:-vcentenario}"
+REFRESH_SERVICE_NAME="${REFRESH_SERVICE_NAME:-${SERVICE_NAME}-refresh}"
+REFRESH_TIMER_NAME="${REFRESH_TIMER_NAME:-${REFRESH_SERVICE_NAME}.timer}"
 SERVICE_USER="${SERVICE_USER:-${SUDO_USER:-$USER}}"
 SERVICE_GROUP="${SERVICE_GROUP:-$SERVICE_USER}"
 APP_HOST="${APP_HOST:-127.0.0.1}"
 APP_PORT="${APP_PORT:-5000}"
 PUBLIC_PORT="${PUBLIC_PORT:-8088}"
 SERVER_NAME="${SERVER_NAME:-_}"
+REFRESH_INTERVAL_MINUTES="${REFRESH_INTERVAL_MINUTES:-5}"
+REFRESH_BOOT_DELAY_SECONDS="${REFRESH_BOOT_DELAY_SECONDS:-90}"
 ENV_FILE="${ENV_FILE:-/etc/default/${SERVICE_NAME}}"
 SVC_FILE="${SVC_FILE:-/etc/systemd/system/${SERVICE_NAME}.service}"
+REFRESH_SVC_FILE="${REFRESH_SVC_FILE:-/etc/systemd/system/${REFRESH_SERVICE_NAME}.service}"
+REFRESH_TIMER_FILE="${REFRESH_TIMER_FILE:-/etc/systemd/system/${REFRESH_TIMER_NAME}}"
 NGINX_AVAILABLE_DIR="${NGINX_AVAILABLE_DIR:-/etc/nginx/sites-available}"
 NGINX_ENABLED_DIR="${NGINX_ENABLED_DIR:-/etc/nginx/sites-enabled}"
 NGINX_CONF="${NGINX_CONF:-$NGINX_AVAILABLE_DIR/${SERVICE_NAME}.conf}"
@@ -29,6 +35,16 @@ fi
 
 if ! command -v "$BOOTSTRAP_PYTHON" >/dev/null 2>&1; then
   echo "No se encontró el intérprete base $BOOTSTRAP_PYTHON" >&2
+  exit 1
+fi
+
+if ! [[ "$REFRESH_INTERVAL_MINUTES" =~ ^[0-9]+$ ]] || [[ "$REFRESH_INTERVAL_MINUTES" -lt 1 ]]; then
+  echo "REFRESH_INTERVAL_MINUTES debe ser un entero positivo." >&2
+  exit 1
+fi
+
+if ! [[ "$REFRESH_BOOT_DELAY_SECONDS" =~ ^[0-9]+$ ]] || [[ "$REFRESH_BOOT_DELAY_SECONDS" -lt 0 ]]; then
+  echo "REFRESH_BOOT_DELAY_SECONDS debe ser un entero mayor o igual que cero." >&2
   exit 1
 fi
 
@@ -98,10 +114,51 @@ UMask=027
 WantedBy=multi-user.target
 EOF
 
+echo "Creando unidad de refresco en $REFRESH_SVC_FILE..."
+cat > "$REFRESH_SVC_FILE" <<EOF
+[Unit]
+Description=Actualizacion puntual de datos de VCentenario
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=$SERVICE_USER
+Group=$SERVICE_GROUP
+WorkingDirectory=$APP_DIR
+EnvironmentFile=-$ENV_FILE
+Environment=PYTHONPATH=$PYTHONPATH_VALUE
+ExecStart=$PYTHON_BIN -m vcentenario.cli run-once --json
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=$APP_DIR/var
+UMask=027
+EOF
+
+echo "Creando timer systemd en $REFRESH_TIMER_FILE..."
+cat > "$REFRESH_TIMER_FILE" <<EOF
+[Unit]
+Description=Refresco automatico cada ${REFRESH_INTERVAL_MINUTES} minutos para VCentenario
+
+[Timer]
+OnBootSec=${REFRESH_BOOT_DELAY_SECONDS}
+OnUnitActiveSec=${REFRESH_INTERVAL_MINUTES}min
+Persistent=true
+Unit=${REFRESH_SERVICE_NAME}.service
+
+[Install]
+WantedBy=timers.target
+EOF
+
 echo "Recargando y reiniciando $SERVICE_NAME..."
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
 systemctl restart "$SERVICE_NAME"
+systemctl enable "$REFRESH_TIMER_NAME"
+systemctl restart "$REFRESH_TIMER_NAME"
+systemctl start "$REFRESH_SERVICE_NAME"
 
 echo "Escribiendo configuración Nginx en $NGINX_CONF..."
 cat > "$NGINX_CONF" <<EOF
@@ -130,6 +187,8 @@ systemctl reload nginx
 
 echo "Despliegue completado."
 echo "Servicio: $SERVICE_NAME"
+echo "Servicio de refresco: $REFRESH_SERVICE_NAME"
+echo "Timer de refresco: $REFRESH_TIMER_NAME"
 echo "Aplicación interna: http://$APP_HOST:$APP_PORT"
 echo "Puerto público: $PUBLIC_PORT"
 echo "Archivo de entorno: $ENV_FILE"
