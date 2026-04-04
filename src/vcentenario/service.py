@@ -8,6 +8,7 @@ import threading
 from typing import Any, Dict, Optional
 
 from .collectors.cameras import CameraCollector
+from .collectors.detectors import DetectorCollector
 from .collectors.incidents import IncidentCollector
 from .collectors.panels import PanelCollector
 from .config import DEFAULT_DB_PATH, DEFAULT_SNAPSHOTS_DIR
@@ -27,6 +28,7 @@ class VCentenarioService:
         self.panel_collector = PanelCollector(http)
         self.incident_collector = IncidentCollector(http)
         self.camera_collector = CameraCollector(http)
+        self.detector_collector = DetectorCollector(http)
 
     def init_db(self) -> None:
         self.storage.init_db()
@@ -46,6 +48,8 @@ class VCentenarioService:
         incidents = []
         cameras = {}
         snapshots = []
+        detector_inventory = {}
+        detector_readings = []
 
         try:
             panel_inventory = self.panel_collector.fetch_inventory()
@@ -110,7 +114,40 @@ class VCentenarioService:
                 "error": "camera inventory unavailable",
             }
 
-        state = infer_bridge_state(panel_messages, incidents, snapshots)
+        try:
+            detector_inventory = self.detector_collector.fetch_inventory()
+            self.storage.upsert_detector_locations(detector_inventory.values())
+            source_status["detector_inventory"] = {"status": "ok", "count": len(detector_inventory)}
+        except Exception as exc:
+            message = f"detector_inventory: {exc}"
+            self.logger.exception("Fallo recogiendo inventario de detectores")
+            warnings.append(message)
+            source_status["detector_inventory"] = {"status": "error", "error": str(exc)}
+
+        if detector_inventory:
+            try:
+                detector_readings = self.detector_collector.fetch_bridge_measurements(detector_inventory)
+                self.storage.insert_detector_readings(collected_at, detector_readings)
+                source_status["detector_readings"] = {"status": "ok", "count": len(detector_readings)}
+            except Exception as exc:
+                message = f"detector_readings: {exc}"
+                self.logger.exception("Fallo recogiendo lecturas de detectores")
+                warnings.append(message)
+                source_status["detector_readings"] = {"status": "error", "error": str(exc)}
+        else:
+            source_status["detector_readings"] = {
+                "status": "skipped",
+                "error": "detector inventory unavailable",
+            }
+
+        recent_states = self.storage.recent_states(limit=48)
+        state = infer_bridge_state(
+            panel_messages,
+            incidents,
+            snapshots,
+            detector_readings,
+            recent_states=recent_states,
+        )
         self.storage.insert_bridge_state(state)
 
         counts = {
@@ -119,6 +156,8 @@ class VCentenarioService:
             "incidents": len(incidents),
             "cameras": len(cameras),
             "snapshots": len(snapshots),
+            "detector_locations": len(detector_inventory),
+            "detector_readings": len(detector_readings),
         }
         self.storage.insert_collection_run(collected_at, counts, source_status, warnings)
         cleanup = self.storage.prune_history()
@@ -152,4 +191,5 @@ class VCentenarioService:
             "panels": self.storage.latest_panel_messages(limit=24),
             "incidents": self.storage.latest_incidents(limit=24),
             "cameras": self.storage.latest_cameras(),
+            "detectors": self.storage.latest_detector_readings(limit=24),
         }

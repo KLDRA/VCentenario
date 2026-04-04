@@ -13,6 +13,7 @@ class BridgeArea:
     bbox: Tuple[float, float, float, float]
     panel_location_ids: Tuple[str, ...] = field(default_factory=tuple)
     preferred_camera_ids: Tuple[str, ...] = field(default_factory=tuple)
+    preferred_detector_ids: Tuple[str, ...] = field(default_factory=tuple)
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -62,6 +63,11 @@ USER_AGENT = os.getenv("VCENTENARIO_USER_AGENT", "VCentenario/0.2 (+https://nap.
 ENABLE_REFRESH_ENDPOINT = _env_bool("VCENTENARIO_ENABLE_REFRESH_ENDPOINT", False)
 REFRESH_TOKEN = os.getenv("VCENTENARIO_REFRESH_TOKEN", "").strip()
 REFRESH_MIN_INTERVAL_SECONDS = _env_int("VCENTENARIO_REFRESH_MIN_INTERVAL_SECONDS", 120)
+REVERSIBLE_PERSISTENCE_WINDOW = _env_int("VCENTENARIO_REVERSIBLE_PERSISTENCE_WINDOW", 8)
+REVERSIBLE_SCHEDULE = os.getenv(
+    "VCENTENARIO_REVERSIBLE_SCHEDULE",
+    "mon-fri@06:00-12:30=negative;mon-fri@15:00-21:00=positive",
+)
 KEEP_STATES = _env_int("VCENTENARIO_KEEP_STATES", 500)
 KEEP_COLLECTION_RUNS = _env_int("VCENTENARIO_KEEP_COLLECTION_RUNS", 500)
 KEEP_BATCHES = _env_int("VCENTENARIO_KEEP_BATCHES", 240)
@@ -77,13 +83,26 @@ BRIDGE_AREA = BridgeArea(
     bbox=(37.36, 37.38, -6.03, -6.00),
     panel_location_ids=("GUID_PMV_60621", "GUID_PMV_60859", "GUID_PMV_166911"),
     preferred_camera_ids=("1337", "167841"),
+    preferred_detector_ids=(
+        "GUID_DET_132943",
+        "GUID_DET_132946",
+        "GUID_DET_133803",
+        "GUID_DET_133805",
+        "GUID_DET_133806",
+        "GUID_DET_133801",
+        "GUID_DET_132918",
+        "GUID_DET_132914",
+    ),
 )
 
+DETECTORS_URL = "https://infocar.dgt.es/datex2/dgt/MeasuredDataPublication/detectores/content.xml"
+DETECTORS_INVENTORY_URL = "https://infocar.dgt.es/datex2/dgt/PredefinedLocationsPublication/detectores/content.xml"
 PANELS_URL = "https://infocar.dgt.es/datex2/dgt/SituationPublication/paneles/content.xml"
 PANELS_INVENTORY_URL = "https://infocar.dgt.es/datex2/dgt/PredefinedLocationsPublication/paneles/content.xml"
 INCIDENTS_URL = "https://nap.dgt.es/datex2/v3/dgt/SituationPublication/datex2_v36.xml"
 CAMERAS_URL = "https://nap.dgt.es/datex2/v3/dgt/DevicePublication/camaras_datex2_v36.xml"
 
+DETECTORS_NS_V1 = {"d": "http://datex2.eu/schema/1_0/1_0"}
 PANELS_NS_V1 = {"d": "http://datex2.eu/schema/1_0/1_0"}
 COMMON_NS_V3 = {
     "com": "http://levelC/schema/3/common",

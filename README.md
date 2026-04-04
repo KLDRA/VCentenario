@@ -5,6 +5,7 @@ MVP en Python para monitorizar el entorno del Puente del Centenario con fuentes 
 - paneles VMS activos en la zona de la SE-30
 - incidencias DATEX2 v3.6 cercanas al puente
 - inventario de camaras y snapshots de las camaras cercanas
+- intensidades y velocidad media de detectores DGT cercanos al puente
 - un estado agregado del puente con una inferencia inicial de `trafico_puente` y `reversible_probable`
 
 La salida del proyecto es una **estimacion operativa**, no una fuente oficial del estado del carril reversible.
@@ -15,6 +16,8 @@ La salida del proyecto es una **estimacion operativa**, no una fuente oficial de
 - Inventario de paneles: `https://infocar.dgt.es/datex2/dgt/PredefinedLocationsPublication/paneles/content.xml`
 - Incidencias DGT DATEX2 v3.6: `https://nap.dgt.es/datex2/v3/dgt/SituationPublication/datex2_v36.xml`
 - Inventario de camaras: `https://nap.dgt.es/datex2/v3/dgt/DevicePublication/camaras_datex2_v36.xml`
+- Detectores DGT tiempo real: `https://infocar.dgt.es/datex2/dgt/MeasuredDataPublication/detectores/content.xml`
+- Inventario de detectores: `https://infocar.dgt.es/datex2/dgt/PredefinedLocationsPublication/detectores/content.xml`
 
 ## Requisitos
 
@@ -101,12 +104,23 @@ El sistema combina varias senales:
 - mensajes VMS activos alrededor del km 13-15 de la SE-30
 - incidencias en la SE-30 dentro del entorno del puente
 - disponibilidad de camaras y cambios entre snapshots
+- detectores de la zona con velocidad media, flujo y ocupacion cuando hay datos
 
 La inferencia del reversible es deliberadamente conservadora:
 
 - `positive` / `negative` corresponden a la direccion DATEX2 `directionRelative`
 - si no hay evidencia suficiente, el sistema devuelve `indeterminado`
 - la confianza solo sube cuando coinciden varias senales en el mismo sentido
+- existe persistencia temporal para evitar saltos bruscos entre sentidos consecutivos
+- existe un sesgo horario configurable para patrones recurrentes del puente
+
+## Calibracion Historica
+
+El motor ajusta parte del score con el historico reciente persistido en SQLite:
+
+- compara la contribucion actual de cada fuente con su baseline historico local
+- aplica una correccion limitada para no sobrerreaccionar cuando una fuente se sale de su patron reciente
+- registra ese ajuste en `breakdown.historical_calibration`
 
 ## Robustez Operativa
 
@@ -127,6 +141,8 @@ Variables utiles:
 - `VCENTENARIO_ENABLE_REFRESH_ENDPOINT`
 - `VCENTENARIO_REFRESH_TOKEN`
 - `VCENTENARIO_REFRESH_MIN_INTERVAL_SECONDS`
+- `VCENTENARIO_REVERSIBLE_PERSISTENCE_WINDOW`
+- `VCENTENARIO_REVERSIBLE_SCHEDULE`
 - `VCENTENARIO_KEEP_STATES`
 - `VCENTENARIO_KEEP_COLLECTION_RUNS`
 - `VCENTENARIO_KEEP_BATCHES`
@@ -146,9 +162,10 @@ PYTHONPATH=src python3 -m vcentenario.cli run-once --json
 ## Limitaciones actuales
 
 - No existe una fuente publica oficial con el estado del carril reversible.
-- Los detectores DGT de la zona no estan integrados en este MVP porque la investigacion previa sugiere datos obsoletos.
-- La metrica de camaras es basica: mide disponibilidad y cambio visual entre snapshots, no conteo de vehiculos.
+- Los detectores DGT se integran como segunda fuente, pero algunos siguen llegando con retraso o sin datos.
+- La metrica visual de camaras mejora con OpenCV, pero sigue siendo una estimacion ligera, no tracking completo.
 - La equivalencia de `positive` y `negative` con los sentidos fisicos del puente puede ajustarse mas adelante en configuracion.
+- La calibracion historica usa el historico local del servicio, no etiquetas oficiales externas.
 - La UI sigue siendo una app server-side muy compacta; la API y el frontend aun viven en el mismo modulo.
 
 ## Produccion
@@ -202,9 +219,8 @@ sudo INSTALL_DEV_DEPS=1 INSTALL_VISION_DEPS=1 ./deploy.sh
 
 ## Siguientes pasos recomendados
 
-- integrar una segunda fuente de trafico por tramo o intensidad
-- calibrar los pesos de inferencia con historico real
-- mejorar la metrica visual de camaras con OpenCV
-- anadir reglas horarias y persistencia temporal para el reversible
+- incorporar etiquetas externas u observacion manual para calibracion supervisada real
+- reforzar la metrica visual con tracking o segmentacion si YOLO se queda corto
+- afinar las reglas horarias del reversible con operacion real del puente
 - exponer autenticacion o rate limiting si el dashboard se publica en Internet
 - separar frontend/API en modulos distintos si la interfaz sigue creciendo

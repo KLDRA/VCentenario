@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from vcentenario.models import BridgeState, CameraSnapshot, Incident, PanelMessage
+from vcentenario.models import BridgeState, CameraSnapshot, DetectorReading, Incident, PanelMessage
 from vcentenario.storage import Storage
 
 
@@ -170,6 +170,40 @@ class StorageTests(unittest.TestCase):
                     )
                 ],
             )
+            storage.insert_detector_readings(
+                "2026-04-04T08:00:00+00:00",
+                [
+                    DetectorReading(
+                        detector_id="det1",
+                        measured_at="2026-04-04T08:00:00+00:00",
+                        road="SE-30",
+                        km=14.1,
+                        direction="negative",
+                        latitude=None,
+                        longitude=None,
+                        average_speed=40.0,
+                        vehicle_flow=1000,
+                        occupancy=14.0,
+                    )
+                ],
+            )
+            storage.insert_detector_readings(
+                "2026-04-04T09:00:00+00:00",
+                [
+                    DetectorReading(
+                        detector_id="det1",
+                        measured_at="2026-04-04T09:00:00+00:00",
+                        road="SE-30",
+                        km=14.1,
+                        direction="negative",
+                        latitude=None,
+                        longitude=None,
+                        average_speed=20.0,
+                        vehicle_flow=1600,
+                        occupancy=24.0,
+                    )
+                ],
+            )
             storage.insert_camera_snapshots(
                 [
                     CameraSnapshot(
@@ -207,12 +241,15 @@ class StorageTests(unittest.TestCase):
                 run_count = con.execute("SELECT COUNT(*) FROM collection_runs").fetchone()[0]
                 message_count = con.execute("SELECT COUNT(*) FROM panel_messages").fetchone()[0]
                 incident_count = con.execute("SELECT COUNT(*) FROM incidents").fetchone()[0]
+                detector_count = con.execute("SELECT COUNT(*) FROM detector_readings").fetchone()[0]
                 snapshot_count = con.execute("SELECT COUNT(*) FROM camera_snapshots").fetchone()[0]
             self.assertEqual(state_count, 1)
             self.assertEqual(run_count, 1)
             self.assertEqual(message_count, 1)
             self.assertEqual(incident_count, 1)
+            self.assertEqual(detector_count, 1)
             self.assertEqual(snapshot_count, 1)
+            self.assertEqual(result["detector_readings_deleted"], 1)
             self.assertEqual(result["snapshots_deleted"], 1)
             self.assertFalse(old_snapshot.exists())
             self.assertTrue(new_snapshot.exists())

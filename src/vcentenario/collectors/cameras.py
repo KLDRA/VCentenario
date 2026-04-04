@@ -13,6 +13,52 @@ from ..utils import ensure_dir, parse_float, sampled_byte_change_ratio, sha256_b
 _yolo_model = None
 _yolo_load_attempted = False
 logger = logging.getLogger(__name__)
+_cv2_module = None
+_cv2_load_attempted = False
+
+
+def get_cv2_module() -> Optional[object]:
+    global _cv2_load_attempted, _cv2_module
+    if _cv2_load_attempted:
+        return _cv2_module
+    _cv2_load_attempted = True
+    try:
+        import cv2
+
+        _cv2_module = cv2
+    except ImportError:
+        _cv2_module = None
+    return _cv2_module
+
+
+def compute_visual_metrics(previous_payload: bytes, current_payload: bytes) -> float:
+    byte_change = sampled_byte_change_ratio(previous_payload, current_payload)
+    cv2 = get_cv2_module()
+    if cv2 is None:
+        return byte_change
+    try:
+        import numpy as np
+
+        previous_img = cv2.imdecode(np.frombuffer(previous_payload, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
+        current_img = cv2.imdecode(np.frombuffer(current_payload, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
+        if previous_img is None or current_img is None:
+            return byte_change
+        height = min(previous_img.shape[0], current_img.shape[0], 256)
+        width = min(previous_img.shape[1], current_img.shape[1], 256)
+        if height <= 0 or width <= 0:
+            return byte_change
+        previous_img = cv2.resize(previous_img, (width, height))
+        current_img = cv2.resize(current_img, (width, height))
+        frame_delta = cv2.absdiff(previous_img, current_img)
+        motion_ratio = float(frame_delta.mean()) / 255.0
+        prev_edges = cv2.Canny(previous_img, 80, 160)
+        curr_edges = cv2.Canny(current_img, 80, 160)
+        edge_delta = cv2.absdiff(prev_edges, curr_edges)
+        edge_ratio = float(edge_delta.mean()) / 255.0
+        return max(0.0, min(1.0, (byte_change * 0.35) + (motion_ratio * 0.4) + (edge_ratio * 0.25)))
+    except Exception:
+        logger.exception("Fallo calculando métrica visual con OpenCV")
+        return byte_change
 
 
 def get_yolo_model() -> Optional[object]:
@@ -103,7 +149,7 @@ class CameraCollector:
                 image_path = str(file_path)
                 previous_payload = previous_payloads.get(camera.camera_id)
                 if previous_payload is not None:
-                    visual_change_score = sampled_byte_change_ratio(previous_payload, response.body)
+                    visual_change_score = compute_visual_metrics(previous_payload, response.body)
 
                 vehicle_count = None
                 model = get_yolo_model()

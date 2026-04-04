@@ -46,6 +46,14 @@ class _EmptyCameraCollector:
         return []
 
 
+class _EmptyDetectorCollector:
+    def fetch_inventory(self):
+        return {}
+
+    def fetch_bridge_measurements(self, inventory):
+        return []
+
+
 class ServiceTests(unittest.TestCase):
     def test_run_once_tolerates_partial_source_failures(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -54,6 +62,7 @@ class ServiceTests(unittest.TestCase):
             service.panel_collector = _FailingPanelCollector()
             service.incident_collector = _StaticIncidentCollector()
             service.camera_collector = _EmptyCameraCollector()
+            service.detector_collector = _EmptyDetectorCollector()
 
             result = service.run_once()
             latest_run = service.storage.latest_collection_run()
@@ -62,6 +71,7 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(result["source_status"]["panel_inventory"]["status"], "error")
         self.assertEqual(result["source_status"]["panel_messages"]["status"], "skipped")
         self.assertEqual(result["source_status"]["incidents"]["status"], "ok")
+        self.assertEqual(result["source_status"]["detector_readings"]["status"], "skipped")
         self.assertEqual(result["state"]["reversible_probable"], "negative")
         self.assertTrue(result["warnings"])
         self.assertIsNotNone(latest_run)

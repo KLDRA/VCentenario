@@ -6,7 +6,16 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 from .config import KEEP_BATCHES, KEEP_COLLECTION_RUNS, KEEP_SNAPSHOTS_PER_CAMERA, KEEP_STATES
-from .models import BridgeState, Camera, CameraSnapshot, Incident, PanelLocation, PanelMessage
+from .models import (
+    BridgeState,
+    Camera,
+    CameraSnapshot,
+    DetectorLocation,
+    DetectorReading,
+    Incident,
+    PanelLocation,
+    PanelMessage,
+)
 from .utils import dumps_json, ensure_dir
 
 
@@ -82,6 +91,31 @@ class Storage:
                     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
                 );
 
+                CREATE TABLE IF NOT EXISTS detector_locations (
+                    detector_id TEXT PRIMARY KEY,
+                    road TEXT,
+                    km REAL,
+                    direction TEXT,
+                    latitude REAL,
+                    longitude REAL,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS detector_readings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    collected_at TEXT NOT NULL,
+                    detector_id TEXT NOT NULL,
+                    measured_at TEXT,
+                    road TEXT,
+                    km REAL,
+                    direction TEXT,
+                    latitude REAL,
+                    longitude REAL,
+                    average_speed REAL,
+                    vehicle_flow INTEGER,
+                    occupancy REAL
+                );
+
                 CREATE TABLE IF NOT EXISTS camera_snapshots (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     fetched_at TEXT NOT NULL,
@@ -123,6 +157,8 @@ class Storage:
                     ON camera_snapshots (camera_id, fetched_at DESC);
                 CREATE INDEX IF NOT EXISTS idx_camera_snapshots_fetched_at
                     ON camera_snapshots (fetched_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_detector_readings_collected_at
+                    ON detector_readings (collected_at DESC);
                 CREATE INDEX IF NOT EXISTS idx_bridge_state_generated_at
                     ON bridge_state (generated_at DESC);
                 CREATE INDEX IF NOT EXISTS idx_collection_runs_collected_at
@@ -227,6 +263,51 @@ class Storage:
                     updated_at=CURRENT_TIMESTAMP
                 """,
                 [camera.__dict__ for camera in cameras],
+            )
+
+    def upsert_detector_locations(self, locations: Iterable[DetectorLocation]) -> None:
+        with self.connect() as con:
+            con.executemany(
+                """
+                INSERT INTO detector_locations (detector_id, road, km, direction, latitude, longitude)
+                VALUES (:detector_id, :road, :km, :direction, :latitude, :longitude)
+                ON CONFLICT(detector_id) DO UPDATE SET
+                    road=excluded.road,
+                    km=excluded.km,
+                    direction=excluded.direction,
+                    latitude=excluded.latitude,
+                    longitude=excluded.longitude,
+                    updated_at=CURRENT_TIMESTAMP
+                """,
+                [location.__dict__ for location in locations],
+            )
+
+    def insert_detector_readings(self, collected_at: str, readings: Iterable[DetectorReading]) -> None:
+        with self.connect() as con:
+            con.executemany(
+                """
+                INSERT INTO detector_readings (
+                    collected_at, detector_id, measured_at, road, km, direction, latitude,
+                    longitude, average_speed, vehicle_flow, occupancy
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        collected_at,
+                        reading.detector_id,
+                        reading.measured_at,
+                        reading.road,
+                        reading.km,
+                        reading.direction,
+                        reading.latitude,
+                        reading.longitude,
+                        reading.average_speed,
+                        reading.vehicle_flow,
+                        reading.occupancy,
+                    )
+                    for reading in readings
+                ],
             )
 
     def insert_camera_snapshots(self, snapshots: Iterable[CameraSnapshot]) -> None:
@@ -478,6 +559,25 @@ class Storage:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def latest_detector_readings(self, limit: int = 20) -> List[Dict[str, Any]]:
+        with self.connect() as con:
+            collected = con.execute(
+                "SELECT MAX(collected_at) AS collected_at FROM detector_readings"
+            ).fetchone()
+            if not collected or not collected["collected_at"]:
+                return []
+            rows = con.execute(
+                """
+                SELECT *
+                FROM detector_readings
+                WHERE collected_at = ?
+                ORDER BY km ASC, detector_id ASC
+                LIMIT ?
+                """,
+                (collected["collected_at"], limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def prune_history(
         self,
         keep_states: int = KEEP_STATES,
@@ -569,6 +669,23 @@ class Storage:
                 (keep_batches,),
             ).rowcount
 
+            deleted_detector_readings = con.execute(
+                """
+                DELETE FROM detector_readings
+                WHERE collected_at NOT IN (
+                    SELECT collected_at
+                    FROM (
+                        SELECT collected_at
+                        FROM detector_readings
+                        GROUP BY collected_at
+                        ORDER BY collected_at DESC
+                        LIMIT ?
+                    )
+                )
+                """,
+                (keep_batches,),
+            ).rowcount
+
             deleted_incidents = con.execute(
                 """
                 DELETE FROM incidents
@@ -590,6 +707,7 @@ class Storage:
             "states_deleted": deleted_states,
             "collection_runs_deleted": deleted_runs,
             "panel_messages_deleted": deleted_panel_messages,
+            "detector_readings_deleted": deleted_detector_readings,
             "incidents_deleted": deleted_incidents,
             "snapshots_deleted": len(snapshot_ids),
             "snapshot_files_deleted": removed_snapshot_files,

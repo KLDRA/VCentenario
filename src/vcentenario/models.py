@@ -59,6 +59,30 @@ class Camera:
 
 
 @dataclass
+class DetectorLocation:
+    detector_id: str
+    road: Optional[str]
+    km: Optional[float]
+    direction: Optional[str]
+    latitude: Optional[float]
+    longitude: Optional[float]
+
+
+@dataclass
+class DetectorReading:
+    detector_id: str
+    measured_at: Optional[str]
+    road: Optional[str]
+    km: Optional[float]
+    direction: Optional[str]
+    latitude: Optional[float]
+    longitude: Optional[float]
+    average_speed: Optional[float]
+    vehicle_flow: Optional[int]
+    occupancy: Optional[float]
+
+
+@dataclass
 class CameraSnapshot:
     camera_id: str
     fetched_at: str

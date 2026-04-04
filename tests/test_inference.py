@@ -1,7 +1,7 @@
 import unittest
 
 from vcentenario.inference import classify_traffic_level, infer_bridge_state
-from vcentenario.models import CameraSnapshot, Incident, PanelMessage
+from vcentenario.models import CameraSnapshot, DetectorReading, Incident, PanelMessage
 
 
 class InferenceTests(unittest.TestCase):
@@ -59,10 +59,40 @@ class InferenceTests(unittest.TestCase):
             )
         ]
 
-        state = infer_bridge_state(panels, incidents, snapshots)
+        state = infer_bridge_state(panels, incidents, snapshots, recent_states=[])
         self.assertGreater(state.traffic_score, 0)
         self.assertEqual(state.reversible_probable, "negative")
         self.assertGreaterEqual(state.confidence, 0.4)
+
+    def test_infer_bridge_state_uses_detectors_and_persistence(self) -> None:
+        detectors = [
+            DetectorReading(
+                detector_id="GUID_DET_132943",
+                measured_at="2026-04-04T08:00:00+02:00",
+                road="SE-30",
+                km=14.1,
+                direction="positive",
+                latitude=37.37,
+                longitude=-6.013,
+                average_speed=28.0,
+                vehicle_flow=1800,
+                occupancy=34.0,
+            )
+        ]
+        recent_states = [
+            {"reversible_probable": "positive", "confidence": 0.62, "breakdown": {"detectors": 20.0}},
+            {"reversible_probable": "positive", "confidence": 0.58, "breakdown": {"detectors": 18.0}},
+            {"reversible_probable": "negative", "confidence": 0.31, "breakdown": {"detectors": 11.0}},
+            {"reversible_probable": "positive", "confidence": 0.61, "breakdown": {"detectors": 22.0}},
+            {"reversible_probable": "positive", "confidence": 0.64, "breakdown": {"detectors": 24.0}},
+            {"reversible_probable": "positive", "confidence": 0.66, "breakdown": {"detectors": 19.0}},
+        ]
+
+        state = infer_bridge_state([], [], [], detectors, recent_states=recent_states)
+        self.assertEqual(state.reversible_probable, "positive")
+        self.assertIn("detectors", state.breakdown)
+        self.assertTrue(any(item.startswith("reversible:persistence:positive") for item in state.evidence))
+        self.assertTrue(any(item.startswith("detectors:active:") for item in state.evidence))
 
 
 if __name__ == "__main__":
