@@ -1,0 +1,14 @@
+__pycache__/
+.pytest_cache/
+.venv/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+src/*.egg-info/
+var/*.db
+var/*.log
+var/*.pid
+var/snapshots/*
+!var/snapshots/.gitkeep
+yolov8n.pt
