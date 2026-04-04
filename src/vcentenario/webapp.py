@@ -771,7 +771,8 @@ HTML_PAGE = """<!doctype html>
       renderPanels(data.panels);
       renderIncidents(data.incidents);
       renderCameras(data.cameras);
-      renderTrend(data.recent_states);
+      const trendSource = (data.trend_states && data.trend_states.length) ? data.trend_states : data.recent_states;
+      renderTrend(trendSource);
       if (latestRun && latestRun.warnings && latestRun.warnings.length > 0) {
         warningBox.style.display = "block";
         warningBox.innerHTML = latestRun.warnings.map((item) => escapeHtml(item)).join("<br>");

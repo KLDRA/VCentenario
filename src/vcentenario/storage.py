@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -502,6 +503,31 @@ class Storage:
         for row in reversed(rows):
             states.append(self._decode_state_row(row))
         return states
+
+    def recent_states_since(self, minutes: int = 1440, limit: int = 288) -> List[Dict[str, Any]]:
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+        with self.connect() as con:
+            rows = con.execute(
+                """
+                SELECT *
+                FROM bridge_state
+                ORDER BY generated_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        states: List[Dict[str, Any]] = []
+        for row in rows:
+            state = self._decode_state_row(row)
+            try:
+                generated = datetime.fromisoformat(state["generated_at"])
+            except (ValueError, KeyError):
+                continue
+            if generated >= cutoff:
+                states.append(state)
+            else:
+                break
+        return list(reversed(states))
 
     def latest_collection_run(self) -> Optional[Dict[str, Any]]:
         with self.connect() as con:
