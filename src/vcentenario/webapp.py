@@ -215,6 +215,10 @@ HTML_PAGE = """<!doctype html>
       z-index: 1;
       overflow-x: auto;
       width: 100%;
+      scrollbar-width: thin;
+    }
+    .card.panel-section {
+      overflow: hidden;
     }
     .timeline-bar::-webkit-scrollbar {
       height: 6px;
@@ -247,9 +251,12 @@ HTML_PAGE = """<!doctype html>
       text-transform: uppercase;
     }
     .bar-wrap {
-      display: grid;
-      gap: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
       justify-items: center;
+      flex: 0 0 auto;
+      min-width: 48px;
     }
     .bar {
       width: 100%;
