@@ -31,14 +31,25 @@ class _FakeYOLO:
 class CameraCollectorTests(unittest.TestCase):
     def test_classify_vehicle_directions_for_camera_1337(self) -> None:
         detections = [
-            (2, 0.9, (100.0, 100.0, 140.0, 140.0)),
-            (2, 0.8, (460.0, 300.0, 520.0, 360.0)),
-            (7, 0.7, (420.0, 120.0, 480.0, 180.0)),
+            (2, 0.9, (60.0, 260.0, 120.0, 320.0)),
+            (2, 0.8, (355.0, 205.0, 385.0, 235.0)),
+            (7, 0.7, (430.0, 210.0, 470.0, 250.0)),
         ]
 
         counts = classify_vehicle_directions("1337", detections)
 
         self.assertEqual(counts["ascendente"], 2)
+        self.assertEqual(counts["descendente"], 1)
+
+    def test_classify_vehicle_directions_for_camera_1337_falls_back_outside_polygons(self) -> None:
+        detections = [
+            (2, 0.8, (700.0, 80.0, 740.0, 120.0)),
+            (2, 0.7, (80.0, 80.0, 120.0, 120.0)),
+        ]
+
+        counts = classify_vehicle_directions("1337", detections)
+
+        self.assertEqual(counts["ascendente"], 1)
         self.assertEqual(counts["descendente"], 1)
 
     def test_merge_vehicle_detections_deduplicates_overlapping_boxes(self) -> None:
@@ -67,8 +78,8 @@ class CameraCollectorTests(unittest.TestCase):
         original_detect_vehicles_with_yolo = cameras_module.detect_vehicles_with_yolo
         cameras_module.get_yolo_model = lambda: _FakeYOLO()
         cameras_module.detect_vehicles_with_yolo = lambda model, file_path: [
-            (2, 0.9, (100.0, 100.0, 140.0, 140.0)),
-            (2, 0.8, (460.0, 300.0, 520.0, 360.0)),
+            (2, 0.9, (60.0, 260.0, 120.0, 320.0)),
+            (2, 0.8, (430.0, 210.0, 470.0, 250.0)),
         ]
         try:
             cameras = {

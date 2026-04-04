@@ -129,5 +129,15 @@ CAMERA_DIRECTION_SPLITS: Dict[str, Dict[str, object]] = {
         "split": 320.0,
         "low_label": "descendente",
         "high_label": "ascendente",
+        "zones": [
+            {
+                "label": "descendente",
+                "polygon": [(0.0, 480.0), (0.0, 210.0), (150.0, 150.0), (345.0, 218.0), (268.0, 480.0)],
+            },
+            {
+                "label": "ascendente",
+                "polygon": [(238.0, 480.0), (348.0, 218.0), (470.0, 180.0), (545.0, 210.0), (530.0, 480.0)],
+            },
+        ],
     }
 }

@@ -114,6 +114,22 @@ def merge_vehicle_detections(
     return kept
 
 
+def _point_in_polygon(x: float, y: float, polygon: Sequence[Tuple[float, float]]) -> bool:
+    inside = False
+    if len(polygon) < 3:
+        return False
+    j = len(polygon) - 1
+    for i, (xi, yi) in enumerate(polygon):
+        xj, yj = polygon[j]
+        intersects = ((yi > y) != (yj > y)) and (
+            x < ((xj - xi) * (y - yi) / ((yj - yi) or 1e-9)) + xi
+        )
+        if intersects:
+            inside = not inside
+        j = i
+    return inside
+
+
 def count_vehicles_with_yolo(model: object, file_path: Path) -> int:
     return len(detect_vehicles_with_yolo(model, file_path))
 
@@ -163,8 +179,21 @@ def classify_vehicle_directions(
     low_label = str(profile["low_label"])
     high_label = str(profile["high_label"])
     counts = {low_label: 0, high_label: 0}
+    zones = profile.get("zones", [])
     for _, _, (x1, y1, x2, y2) in detections:
-        center = ((x1 + x2) / 2.0) if axis == "x" else ((y1 + y2) / 2.0)
+        center_x = (x1 + x2) / 2.0
+        center_y = (y1 + y2) / 2.0
+        assigned = False
+        for zone in zones:
+            polygon = zone.get("polygon", [])
+            label = str(zone.get("label", ""))
+            if label in counts and _point_in_polygon(center_x, center_y, polygon):
+                counts[label] += 1
+                assigned = True
+                break
+        if assigned:
+            continue
+        center = center_x if axis == "x" else center_y
         if center < split:
             counts[low_label] += 1
         else:
