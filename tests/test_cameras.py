@@ -32,8 +32,8 @@ class CameraCollectorTests(unittest.TestCase):
     def test_classify_vehicle_directions_for_camera_1337(self) -> None:
         detections = [
             (2, 0.9, (100.0, 100.0, 140.0, 140.0)),
-            (2, 0.8, (100.0, 300.0, 160.0, 360.0)),
-            (7, 0.7, (200.0, 120.0, 260.0, 180.0)),
+            (2, 0.8, (460.0, 300.0, 520.0, 360.0)),
+            (7, 0.7, (420.0, 120.0, 480.0, 180.0)),
         ]
 
         counts = classify_vehicle_directions("1337", detections)
@@ -58,7 +58,7 @@ class CameraCollectorTests(unittest.TestCase):
         cameras_module.get_yolo_model = lambda: _FakeYOLO()
         cameras_module.detect_vehicles_with_yolo = lambda model, file_path: [
             (2, 0.9, (100.0, 100.0, 140.0, 140.0)),
-            (2, 0.8, (100.0, 300.0, 160.0, 360.0)),
+            (2, 0.8, (460.0, 300.0, 520.0, 360.0)),
         ]
         try:
             cameras = {

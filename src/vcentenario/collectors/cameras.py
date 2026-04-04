@@ -158,16 +158,17 @@ def classify_vehicle_directions(
     profile = CAMERA_DIRECTION_SPLITS.get(camera_id)
     if not profile:
         return {}
-    split_y = float(profile["split_y"])
-    upper_label = str(profile["upper_label"])
-    lower_label = str(profile["lower_label"])
-    counts = {upper_label: 0, lower_label: 0}
+    axis = str(profile.get("axis", "y")).lower()
+    split = float(profile["split"])
+    low_label = str(profile["low_label"])
+    high_label = str(profile["high_label"])
+    counts = {low_label: 0, high_label: 0}
     for _, _, (x1, y1, x2, y2) in detections:
-        center_y = (y1 + y2) / 2.0
-        if center_y < split_y:
-            counts[upper_label] += 1
+        center = ((x1 + x2) / 2.0) if axis == "x" else ((y1 + y2) / 2.0)
+        if center < split:
+            counts[low_label] += 1
         else:
-            counts[lower_label] += 1
+            counts[high_label] += 1
     return counts
 
 

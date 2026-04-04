@@ -125,8 +125,9 @@ COMMON_NS_V3 = {
 
 CAMERA_DIRECTION_SPLITS: Dict[str, Dict[str, object]] = {
     "1337": {
-        "split_y": 250.0,
-        "upper_label": "ascendente",
-        "lower_label": "descendente",
+        "axis": "x",
+        "split": 320.0,
+        "low_label": "descendente",
+        "high_label": "ascendente",
     }
 }
