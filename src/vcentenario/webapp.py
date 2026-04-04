@@ -207,13 +207,14 @@ HTML_PAGE = """<!doctype html>
     }
     .timeline-bar {
       display: flex;
+      flex-wrap: wrap;
       gap: 6px;
-      align-items: end;
+      align-items: flex-end;
       min-height: 220px;
       padding: 20px 12px 0;
       position: relative;
       z-index: 1;
-      overflow-x: auto;
+      overflow-x: hidden;
       width: 100%;
       scrollbar-width: thin;
     }
