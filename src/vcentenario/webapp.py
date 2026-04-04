@@ -207,7 +207,7 @@ HTML_PAGE = """<!doctype html>
     }
     .timeline-bar {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       align-items: end;
       min-height: 220px;
       padding: 20px 12px 0;
@@ -254,9 +254,9 @@ HTML_PAGE = """<!doctype html>
       display: flex;
       flex-direction: column;
       gap: 6px;
-      justify-items: center;
+      align-items: center;
       flex: 0 0 auto;
-      min-width: 48px;
+      min-width: 30px;
     }
     .bar {
       width: 100%;
