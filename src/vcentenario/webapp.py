@@ -108,12 +108,6 @@ HTML_PAGE = """<!doctype html>
       font-size: 15px;
       line-height: 1.5;
     }
-    .hero-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 22px;
-    }
     button {
       border: 0;
       border-radius: 999px;
@@ -422,11 +416,6 @@ HTML_PAGE = """<!doctype html>
       color: var(--muted);
       font-size: 13px;
     }
-    .flash {
-      min-height: 22px;
-      color: var(--accent);
-      font-weight: 600;
-    }
     .warning-box {
       margin-top: 18px;
       padding: 14px 16px;
@@ -455,11 +444,7 @@ HTML_PAGE = """<!doctype html>
           Vista sencilla para entender el estado del puente, las señales activas de DGT
           y la inferencia del carril reversible sin perder de vista la confianza real de la estimación.
         </p>
-        <div class="hero-actions">
-          <button id="refreshBtn" class="btn-primary">Actualizar ahora</button>
-          <button id="reloadBtn" class="btn-secondary">Recargar panel</button>
-        </div>
-        <div id="flash" class="flash"></div>
+        <div class="metric-note" style="margin-top:22px;">Actualización automática del servidor cada 5 minutos. La página se refresca sola para mostrar el último estado guardado.</div>
         <div id="runWarnings" class="warning-box"></div>
       </div>
       <div class="card hero-side">
@@ -772,7 +757,7 @@ HTML_PAGE = """<!doctype html>
       if (!state) {
         byId("generatedAt").textContent = "Sin ejecuciones";
         byId("heroSummary").textContent = "Sin datos";
-        byId("heroDetail").textContent = "Pulsa actualizar para lanzar una recogida.";
+        byId("heroDetail").textContent = "Esperando a la primera ejecución automática.";
         warningBox.style.display = "none";
         return;
       }
@@ -809,32 +794,12 @@ HTML_PAGE = """<!doctype html>
       renderDashboard(data);
     }
 
-    async function refreshDashboard() {
-      const flash = byId("flash");
-      const button = byId("refreshBtn");
-      button.disabled = true;
-      flash.textContent = "Actualizando feeds de DGT...";
-      try {
-        const response = await fetch("/api/refresh", { method: "POST" });
-        if (!response.ok) throw new Error("No se pudo refrescar");
-        const data = await response.json();
-        renderDashboard(data);
-        flash.textContent = "Datos actualizados.";
-      } catch (error) {
-        flash.textContent = `Error: ${error.message}`;
-      } finally {
-        button.disabled = false;
-        setTimeout(() => {
-          if (flash.textContent === "Datos actualizados.") flash.textContent = "";
-        }, 2500);
-      }
-    }
-
-    byId("refreshBtn").addEventListener("click", refreshDashboard);
-    byId("reloadBtn").addEventListener("click", loadDashboard);
     loadDashboard().catch((error) => {
-      byId("flash").textContent = `Error inicial: ${error.message}`;
+      byId("heroDetail").textContent = `Error inicial: ${error.message}`;
     });
+    window.setInterval(() => {
+      loadDashboard().catch(() => {});
+    }, 60000);
   </script>
 </body>
 </html>
