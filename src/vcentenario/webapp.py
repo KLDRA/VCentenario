@@ -206,27 +206,22 @@ HTML_PAGE = """<!doctype html>
       min-height: 164px;
     }
     .timeline-bar {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(30px, 1fr));
       gap: 6px;
-      align-items: flex-end;
+      align-items: end;
       min-height: 220px;
       padding: 20px 12px 0;
       position: relative;
       z-index: 1;
-      overflow-x: hidden;
       width: 100%;
-      scrollbar-width: thin;
+      overflow: hidden;
     }
     .card.panel-section {
       overflow: hidden;
     }
     .timeline-bar::-webkit-scrollbar {
-      height: 6px;
-    }
-    .timeline-bar::-webkit-scrollbar-thumb {
-      background: rgba(31, 42, 46, 0.25);
-      border-radius: 3px;
+      display: none;
     }
     .trend-thresholds {
       position: absolute;
