@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import logging
 import xml.etree.ElementTree as ET
 from typing import Dict, List
 
@@ -14,6 +15,7 @@ from ..config import (
 from ..http import HttpClient
 from ..models import DetectorLocation, DetectorReading
 from ..utils import km_from_meters, parse_float, within_bbox
+logger = logging.getLogger(__name__)
 
 
 class DetectorCollector:
@@ -79,6 +81,12 @@ class DetectorCollector:
                     vehicle_flow=int(flow_value) if flow_value is not None else None,
                     occupancy=parse_float(self._find_text(node, ".//d:occupancy")),
                 )
+            )
+        if not readings:
+            logger.warning(
+                "Detector feed %s devolvió 0 mediciones (última comprobación %s)",
+                DETECTORS_URL,
+                datetime.now().isoformat(),
             )
         return readings
 

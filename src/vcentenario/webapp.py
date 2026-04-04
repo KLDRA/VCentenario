@@ -177,7 +177,7 @@ HTML_PAGE = """<!doctype html>
       color: var(--muted);
     }
     .grid {
-      grid-template-columns: 1.15fr 0.85fr;
+      grid-template-columns: 1fr;
     }
     .panel-section {
       padding: 22px;
@@ -210,10 +210,13 @@ HTML_PAGE = """<!doctype html>
       grid-template-columns: repeat(16, minmax(0, 1fr));
       gap: 8px;
       align-items: end;
-      min-height: 132px;
+      min-height: 180px;
       padding: 18px 0 0;
       position: relative;
       z-index: 1;
+    }
+    .timeline-bar.wide-chart {
+      min-height: 220px;
     }
     .trend-thresholds {
       position: absolute;
@@ -493,7 +496,7 @@ HTML_PAGE = """<!doctype html>
               <div class="trend-line" style="bottom:58.33%;"><span>Retenciones</span></div>
               <div class="trend-line" style="bottom:100%;"><span>Congestión</span></div>
             </div>
-            <div id="trendBars" class="timeline-bar"></div>
+            <div id="trendBars" class="timeline-bar wide-chart"></div>
           </div>
           <div class="trend-legend">
             <span class="legend-pill"><span class="legend-dot" style="background:#237032;"></span>Fluido</span>
@@ -503,13 +506,6 @@ HTML_PAGE = """<!doctype html>
           </div>
           <div class="footer-note">Cada barra representa un estado guardado. El color indica la etiqueta inferida y las líneas marcan los umbrales del score.</div>
         </div>
-      </div>
-      <div class="card panel-section">
-        <div class="section-head">
-          <h2>Por Qué Dice Eso</h2>
-          <div class="subtle">Rastros usados en la inferencia</div>
-        </div>
-        <div id="evidenceList" class="list"></div>
       </div>
     </section>
 
