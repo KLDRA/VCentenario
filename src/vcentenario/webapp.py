@@ -718,9 +718,6 @@ HTML_PAGE = """<!doctype html>
               <div class="camera-meta">
                 ${escapeHtml(camera.road || "-")} · ${escapeHtml(formatKm(camera.km))} · ${escapeHtml(camera.direction || "sin dirección")}<br>
                 ${camera.vehicle_count != null ? `<b>🚗 ${camera.vehicle_count} vehículos</b><br>` : ""}
-                ${camera.vehicle_counts_by_direction && Object.keys(camera.vehicle_counts_by_direction).length
-                  ? Object.entries(camera.vehicle_counts_by_direction).map(([label, value]) => `${escapeHtml(label)}: <b>${escapeHtml(value)}</b>`).join(" · ") + "<br>"
-                  : ""}
                 HTTP ${escapeHtml(camera.http_status ?? "-")} · ${escapeHtml(camera.last_modified || camera.fetched_at || "sin fecha")}
               </div>
             </div>

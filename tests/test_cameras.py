@@ -52,6 +52,16 @@ class CameraCollectorTests(unittest.TestCase):
 
         self.assertEqual(len(merged), 2)
 
+    def test_merge_vehicle_detections_deduplicates_overlapping_boxes_across_classes(self) -> None:
+        detections = [
+            (2, 0.31, (370.0, 208.0, 384.0, 224.0)),
+            (7, 0.28, (369.0, 207.0, 385.0, 225.0)),
+        ]
+
+        merged = merge_vehicle_detections(detections)
+
+        self.assertEqual(len(merged), 1)
+
     def test_fetch_snapshots_does_not_reuse_vehicle_count_after_http_error(self) -> None:
         original_get_yolo_model = cameras_module.get_yolo_model
         original_detect_vehicles_with_yolo = cameras_module.detect_vehicles_with_yolo

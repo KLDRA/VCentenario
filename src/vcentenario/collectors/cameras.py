@@ -108,7 +108,7 @@ def merge_vehicle_detections(
     kept: List[Tuple[int, float, Tuple[float, float, float, float]]] = []
     for detection in sorted(detections, key=lambda item: item[1], reverse=True):
         cls, confidence, box = detection
-        if any(existing_cls == cls and _box_iou(box, existing_box) >= iou_threshold for existing_cls, _, existing_box in kept):
+        if any(_box_iou(box, existing_box) >= iou_threshold for _, _, existing_box in kept):
             continue
         kept.append((cls, confidence, box))
     return kept

@@ -118,14 +118,15 @@ def infer_bridge_state(
                 # so it should only add light pressure on its own.
                 visual_change_total += snapshot.visual_change_score * 8.0
             if snapshot.vehicle_count is not None:
-                directional_counts = snapshot.vehicle_counts_by_direction or {}
-                vehicle_total += max(directional_counts.values(), default=snapshot.vehicle_count)
+                # Directional counts are still experimental for this camera, so
+                # use only the coarse total as a weak occupancy hint.
+                vehicle_total += snapshot.vehicle_count
         else:
             unavailable_cameras += 1
     if active_cameras:
         breakdown["camera_availability"] += min(active_cameras * 2.0, 6.0)
     if visual_change_total:
-        breakdown["camera_change"] += min(visual_change_total, 3.0)
+        breakdown["camera_change"] += min(visual_change_total, 2.5)
         evidence.append("camera:visual-change")
     if vehicle_total:
         breakdown["vehicle_count"] += score_camera_traffic(vehicle_total)
@@ -331,16 +332,16 @@ def score_camera_traffic(vehicle_count: int) -> float:
     if vehicle_count <= 2:
         return 0.5
     if vehicle_count <= 4:
-        return 1.0
+        return 0.5
     if vehicle_count <= 6:
-        return 2.0
+        return 0.75
     if vehicle_count <= 8:
-        return 3.0
+        return 1.25
     if vehicle_count <= 12:
-        return 5.0
+        return 2.0
     if vehicle_count <= 16:
-        return 8.0
-    return 12.0
+        return 3.0
+    return 4.0
 
 
 def get_persistence_bias(
