@@ -55,8 +55,8 @@ if [[ ! -x "$PYTHON_BIN" ]]; then
   "$BOOTSTRAP_PYTHON" -m venv "$APP_DIR/.venv"
 fi
 
-echo "Actualizando pip, setuptools y wheel..."
-"$PYTHON_BIN" -m pip install --upgrade pip setuptools wheel
+echo "Actualizando pip, setuptools<82 y wheel..."
+"$PYTHON_BIN" -m pip install --upgrade pip "setuptools<82" wheel
 
 INSTALL_TARGET="."
 if [[ "$INSTALL_DEV_DEPS" == "1" && "$INSTALL_VISION_DEPS" == "1" ]]; then
