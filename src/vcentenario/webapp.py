@@ -625,6 +625,7 @@ HTML_PAGE = """<!doctype html>
 
     function renderEvidence(evidence) {
       const root = byId("evidenceList");
+      if (!root) return;
       if (!evidence || evidence.length === 0) {
         root.innerHTML = '<div class="empty">Todavía no hay evidencia persistida.</div>';
         return;
