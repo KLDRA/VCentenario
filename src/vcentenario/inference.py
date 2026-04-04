@@ -114,7 +114,9 @@ def infer_bridge_state(
         if snapshot.http_status == 200:
             active_cameras += 1
             if snapshot.visual_change_score is not None:
-                visual_change_total += snapshot.visual_change_score * 12.0
+                # Visual change is noisy with lighting and compression artifacts,
+                # so it should only add light pressure on its own.
+                visual_change_total += snapshot.visual_change_score * 8.0
             if snapshot.vehicle_count is not None:
                 directional_counts = snapshot.vehicle_counts_by_direction or {}
                 vehicle_total += max(directional_counts.values(), default=snapshot.vehicle_count)
@@ -123,7 +125,7 @@ def infer_bridge_state(
     if active_cameras:
         breakdown["camera_availability"] += min(active_cameras * 2.0, 6.0)
     if visual_change_total:
-        breakdown["camera_change"] += min(visual_change_total, 6.0)
+        breakdown["camera_change"] += min(visual_change_total, 3.0)
         evidence.append("camera:visual-change")
     if vehicle_total:
         breakdown["vehicle_count"] += score_camera_traffic(vehicle_total)
@@ -255,11 +257,16 @@ def is_persistent_operational_panel(
     recent_states: Sequence[Dict[str, object]],
 ) -> bool:
     text = " ".join(panel.legends).upper()
+    is_informational_bridge_panel = (
+        "CENTENARIO" in text
+        and not any(keyword in text for keyword in ("RETENCION", "RETENCIONES", "CONGESTION", "ACCIDENT", "CORTADO"))
+    )
     looks_permanent = (
         "OBRAS" in text
         or ("DESVIO" in text and "20T" in text)
         or ("OBLIGATORIO" in text and "20T" in text)
         or "roadworks" in panel.pictograms
+        or is_informational_bridge_panel
     )
     if not looks_permanent:
         return False
@@ -324,16 +331,16 @@ def score_camera_traffic(vehicle_count: int) -> float:
     if vehicle_count <= 2:
         return 0.5
     if vehicle_count <= 4:
-        return 1.5
+        return 1.0
     if vehicle_count <= 6:
-        return 3.0
+        return 2.0
     if vehicle_count <= 8:
-        return 5.0
+        return 3.0
     if vehicle_count <= 12:
-        return 8.0
+        return 5.0
     if vehicle_count <= 16:
-        return 12.0
-    return 16.0
+        return 8.0
+    return 12.0
 
 
 def get_persistence_bias(

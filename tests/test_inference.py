@@ -179,6 +179,95 @@ class InferenceTests(unittest.TestCase):
         self.assertIn(state.traffic_level, {"fluido", "denso"})
         self.assertLess(state.traffic_score, 35.0)
 
+    def test_persistent_operational_signals_with_normal_camera_flow_stay_fluid(self) -> None:
+        panels = [
+            PanelMessage(
+                situation_id="1",
+                record_id="r1",
+                location_id="GUID_PMV_60519",
+                road="SE-30",
+                km=14.1,
+                direction="negative",
+                pictograms=[],
+                legends=["EN PUENTE", " CENTENARIO"],
+                status="active",
+                created_at="2026-04-04T08:00:00+02:00",
+            ),
+            PanelMessage(
+                situation_id="2",
+                record_id="r2",
+                location_id="GUID_PMV_166911",
+                road="SE-30",
+                km=13.5,
+                direction="negative",
+                pictograms=["roadworks"],
+                legends=["DESVIO OBLIGATORIO", "VEHICULO 20T"],
+                status="active",
+                created_at="2026-04-04T08:00:00+02:00",
+            ),
+        ]
+        incidents = [
+            Incident(
+                situation_id="3",
+                record_id="r3",
+                road="SE-30",
+                direction="negative",
+                severity="medium",
+                validity_status="active",
+                start_time="2026-04-04T08:00:00+02:00",
+                end_time=None,
+                incident_type="weightRestrictionInOperation",
+                cause_type="roadMaintenance",
+                from_km=13.8,
+                to_km=14.3,
+                latitude=37.37,
+                longitude=-6.014,
+                municipality="Sevilla",
+                province="Sevilla",
+            )
+        ]
+        snapshots = [
+            CameraSnapshot(
+                camera_id="1337",
+                fetched_at="2026-04-04T08:02:00+02:00",
+                http_status=200,
+                content_length=70000,
+                sha256="abc",
+                image_path="/tmp/1337.jpg",
+                last_modified=None,
+                visual_change_score=0.39,
+                vehicle_count=9,
+                vehicle_counts_by_direction={"ascendente": 5, "descendente": 4},
+            ),
+            CameraSnapshot(
+                camera_id="167841",
+                fetched_at="2026-04-04T08:02:00+02:00",
+                http_status=503,
+                content_length=0,
+                sha256=None,
+                image_path=None,
+                last_modified=None,
+                visual_change_score=None,
+                vehicle_count=None,
+            ),
+        ]
+        recent_states = [
+            {
+                "evidence": [
+                    "panel:GUID_PMV_60519:EN PUENTE/ CENTENARIO",
+                    "panel:GUID_PMV_166911:DESVIO OBLIGATORIO/VEHICULO 20T",
+                    "incident:SE-30:weightRestrictionInOperation",
+                ],
+                "breakdown": {"panels": 2.7, "incidents": 2.1},
+            }
+            for _ in range(6)
+        ]
+
+        state = infer_bridge_state(panels, incidents, snapshots, recent_states=recent_states)
+
+        self.assertEqual(state.traffic_level, "fluido")
+        self.assertLess(state.traffic_score, 15.0)
+
 
 if __name__ == "__main__":
     unittest.main()
