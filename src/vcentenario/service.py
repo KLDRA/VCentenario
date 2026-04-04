@@ -183,7 +183,7 @@ class VCentenarioService:
     def dashboard_data(self) -> Dict[str, object]:
         self.storage.init_db()
         state = self.latest_state()
-        trend_states = self.storage.recent_states_since(minutes=1440, limit=288)
+        trend_states = self.storage.recent_states_since(minutes=720, limit=144)
         return {
             "state": state,
             "latest_run": self.storage.latest_collection_run(),
