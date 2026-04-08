@@ -45,6 +45,10 @@ class Incident:
     longitude: Optional[float]
     municipality: Optional[str]
     province: Optional[str]
+    source: str = "dgt"
+    magnitude: Optional[int] = None
+    delay_seconds: Optional[int] = None
+    length_meters: Optional[int] = None
 
 
 @dataclass
@@ -80,6 +84,8 @@ class DetectorReading:
     average_speed: Optional[float]
     vehicle_flow: Optional[int]
     occupancy: Optional[float]
+    source: str = "dgt"
+    free_flow_speed: Optional[float] = None
 
 
 @dataclass

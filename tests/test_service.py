@@ -87,6 +87,16 @@ class ServiceTests(unittest.TestCase):
         self.assertIsNotNone(latest_run)
         self.assertEqual(latest_run["source_status"]["panel_inventory"]["status"], "error")
 
+    def test_alert_system_integration(self) -> None:
+        # Test that alert system is instantiated and can be called without error
+        with tempfile.TemporaryDirectory() as tmp:
+            service = VCentenarioService(db_path=Path(tmp) / "test.db")
+            # Mock alert system to avoid sending emails
+            service.alert_system.enabled = False
+            result = service.run_once()
+            # Should not raise error
+            self.assertIn("state", result)
+
 
 if __name__ == "__main__":
     unittest.main()

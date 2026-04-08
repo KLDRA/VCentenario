@@ -4,6 +4,15 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Dict, Tuple
 
+# Carga automática de .env (sin dependencias externas)
+_env_file = Path(__file__).resolve().parents[2] / ".env"
+if _env_file.exists():
+    for _line in _env_file.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _, _v = _line.partition("=")
+            os.environ.setdefault(_k.strip(), _v.strip())
+
 
 @dataclass(frozen=True)
 class BridgeArea:
@@ -83,6 +92,21 @@ YOLO_IMAGE_SIZE = _env_int("VCENTENARIO_YOLO_IMAGE_SIZE", 1280)
 YOLO_ENABLE_TILING = _env_bool("VCENTENARIO_YOLO_ENABLE_TILING", True)
 YOLO_TILE_OVERLAP = _env_float("VCENTENARIO_YOLO_TILE_OVERLAP", 0.2)
 DETECTOR_MAX_AGE = timedelta(minutes=max(1, DETECTOR_MAX_AGE_MINUTES))
+TOMTOM_API_KEY = os.getenv("VCENTENARIO_TOMTOM_API_KEY", "").strip()
+TOMTOM_FLOW_URL = "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json"
+TOMTOM_INCIDENTS_URL = "https://api.tomtom.com/traffic/services/4/incidentDetails/s3/{bbox}/10/-1/json"
+TOMTOM_SPEED_CAMERAS_URL = "https://api.tomtom.com/traffic/services/4/speedLimitInfo/s3/{bbox}/10/-1/json"
+TOMTOM_CALIBRATED_FREE_FLOW = 60.0
+
+# Alert settings
+ALERT_EMAIL_ENABLED = _env_bool("VCENTENARIO_ALERT_EMAIL_ENABLED", False)
+ALERT_EMAIL_SMTP_SERVER = os.getenv("VCENTENARIO_ALERT_EMAIL_SMTP_SERVER", "smtp.gmail.com")
+ALERT_EMAIL_SMTP_PORT = _env_int("VCENTENARIO_ALERT_EMAIL_SMTP_PORT", 587)
+ALERT_EMAIL_USER = os.getenv("VCENTENARIO_ALERT_EMAIL_USER", "")
+ALERT_EMAIL_PASSWORD = os.getenv("VCENTENARIO_ALERT_EMAIL_PASSWORD", "")
+ALERT_EMAIL_RECIPIENTS = os.getenv("VCENTENARIO_ALERT_EMAIL_RECIPIENTS", "").split(",") if os.getenv("VCENTENARIO_ALERT_EMAIL_RECIPIENTS") else []
+ALERT_TRAFFIC_SCORE_THRESHOLD = _env_float("VCENTENARIO_ALERT_TRAFFIC_SCORE_THRESHOLD", 50.0)
+ALERT_INCIDENT_SEVERITY_THRESHOLD = os.getenv("VCENTENARIO_ALERT_INCIDENT_SEVERITY_THRESHOLD", "high")
 
 BRIDGE_AREA = BridgeArea(
     name="Puente del Centenario",
@@ -90,9 +114,13 @@ BRIDGE_AREA = BridgeArea(
     km_min=13.0,
     km_max=15.0,
     bbox=(37.36, 37.38, -6.03, -6.00),
-    panel_location_ids=("GUID_PMV_60621", "GUID_PMV_60859", "GUID_PMV_166911"),
-    preferred_camera_ids=("1337", "167841"),
+    panel_location_ids=("60621", "60859", "166911", "60512", "60513", "60516", "60517",
+                        "GUID_PMV_60621", "GUID_PMV_60859", "GUID_PMV_166911",
+                        "GUID_PMV_60512", "GUID_PMV_60513", "GUID_PMV_60516", "GUID_PMV_60517"),
+    preferred_camera_ids=("1337", "167841", "1336", "1339"),
     preferred_detector_ids=(
+        "131070", "133796", "131165", "131267",
+        "GUID_DET_131070", "GUID_DET_133796", "GUID_DET_131165", "GUID_DET_131267",
         "GUID_DET_132943",
         "GUID_DET_132946",
         "GUID_DET_133803",

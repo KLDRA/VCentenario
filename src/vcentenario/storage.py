@@ -529,6 +529,10 @@ class Storage:
                 break
         return list(reversed(states))
 
+    def get_recent_states(self, days: int) -> List[Dict[str, Any]]:
+        minutes = days * 24 * 60
+        return self.recent_states_since(minutes, limit=1000)
+
     def latest_collection_run(self) -> Optional[Dict[str, Any]]:
         with self.connect() as con:
             row = con.execute(

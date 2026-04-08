@@ -55,6 +55,24 @@ class LearningTests(unittest.TestCase):
         self.assertEqual(latest["learning_context"]["sample_count"], 1)
         self.assertIn("predicted_level_next", latest["forecast"])
 
+    def test_ml_predictor(self) -> None:
+        try:
+            from vcentenario.learning import MLPredictor
+            predictor = MLPredictor(None)
+            features = {
+                'hour': 9,
+                'avg_speed_north': 40.0,
+                'avg_speed_south': 50.0,
+                'incident_count': 1,
+                'panel_score': 20.0,
+            }
+            level = predictor.predict_traffic_level(features)
+            direction = predictor.predict_reversible_direction(features)
+            self.assertIn(level, ['fluido', 'denso', 'retenciones', 'congestion_fuerte', 'unknown'])
+            self.assertIn(direction, ['positive', 'negative', 'indeterminado'])
+        except ImportError:
+            self.skipTest("ML dependencies not available")
+
 
 if __name__ == "__main__":
     unittest.main()

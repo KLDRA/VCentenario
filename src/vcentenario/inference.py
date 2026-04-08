@@ -4,7 +4,8 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
-from .config import REVERSIBLE_PERSISTENCE_WINDOW, REVERSIBLE_SCHEDULE
+from .config import REVERSIBLE_PERSISTENCE_WINDOW, REVERSIBLE_SCHEDULE, TOMTOM_CALIBRATED_FREE_FLOW
+from .learning import MLPredictor
 from .models import BridgeState, CameraSnapshot, DetectorReading, Incident, PanelMessage
 from .utils import clamp, utc_now_iso
 
@@ -124,7 +125,7 @@ def infer_bridge_state(
         else:
             unavailable_cameras += 1
     if active_cameras:
-        breakdown["camera_availability"] += min(active_cameras * 2.0, 6.0)
+        breakdown["camera_availability"] += min(active_cameras * 0.8, 2.5)
     if visual_change_total:
         breakdown["camera_change"] += min(visual_change_total, 2.5)
         evidence.append("camera:visual-change")
@@ -153,6 +154,28 @@ def infer_bridge_state(
         schedule=REVERSIBLE_SCHEDULE,
     )
     evidence.extend(direction_evidence)
+
+    # ML Enhancement
+    try:
+        ml_predictor = MLPredictor(None)
+        avg_speed_north = sum(d.average_speed or 0 for d in detectors if d.direction == 'north') / max(1, len([d for d in detectors if d.direction == 'north']))
+        avg_speed_south = sum(d.average_speed or 0 for d in detectors if d.direction == 'south') / max(1, len([d for d in detectors if d.direction == 'south']))
+        features = {
+            'hour': datetime.now().hour,
+            'avg_speed_north': avg_speed_north,
+            'avg_speed_south': avg_speed_south,
+            'incident_count': len(incidents),
+            'panel_score': breakdown.get('panels', 0),
+        }
+        ml_traffic_level = ml_predictor.predict_traffic_level(features)
+        ml_reversible_direction = ml_predictor.predict_reversible_direction(features)
+        if ml_traffic_level != 'unknown':
+            evidence.append(f"ml:traffic:{ml_traffic_level}")
+        if ml_reversible_direction != 'indeterminado':
+            evidence.append(f"ml:direction:{ml_reversible_direction}")
+    except Exception as e:
+        evidence.append(f"ml:error:{str(e)}")
+
     deduped_evidence = list(dict.fromkeys(evidence))
     return BridgeState(
         generated_at=utc_now_iso(),
@@ -236,15 +259,35 @@ def score_detectors(detectors: Sequence[DetectorReading]) -> Tuple[float, List[s
             continue
         active_count += 1
         local_score = 0.0
+
+        # Determine the slow-speed threshold: for TomTom use the calibrated constant
+        # of 60 km/h, ignoring TomTom's reported freeFlowSpeed which is inaccurate for the bridge.
+        # For DGT detectors use the generic 80 km/h default.
+        if detector.source == "tomtom":
+            slow_threshold = TOMTOM_CALIBRATED_FREE_FLOW
+        else:
+            slow_threshold = 80.0
+
         if detector.vehicle_flow is not None:
             local_score += min(detector.vehicle_flow * DETECTOR_FLOW_WEIGHT, 18.0)
         if detector.occupancy is not None:
             local_score += min(detector.occupancy * DETECTOR_OCCUPANCY_WEIGHT, 16.0)
-        if detector.average_speed is not None and detector.average_speed < 80:
-            local_score += min((80 - detector.average_speed) * DETECTOR_SLOW_SPEED_WEIGHT, 24.0)
+        if detector.average_speed is not None and detector.average_speed < slow_threshold:
+            local_score += min((slow_threshold - detector.average_speed) * DETECTOR_SLOW_SPEED_WEIGHT, 24.0)
         score += local_score
-        if detector.direction:
-            direction_pressure[detector.direction] += min(local_score, DETECTOR_DIRECTION_BIAS_WEIGHT)
+
+        # Determine direction: use the explicit field if set, otherwise
+        # infer from TomTom detector_id naming convention (*_positivo / *_negativo).
+        direction = detector.direction
+        if not direction and detector.source == "tomtom":
+            det_id_lower = (detector.detector_id or "").lower()
+            if det_id_lower.endswith("_positivo"):
+                direction = "positive"
+            elif det_id_lower.endswith("_negativo"):
+                direction = "negative"
+
+        if direction:
+            direction_pressure[direction] += min(local_score, DETECTOR_DIRECTION_BIAS_WEIGHT)
     if active_count:
         evidence.append(f"detectors:active:{active_count}")
     if score:

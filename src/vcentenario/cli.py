@@ -1,9 +1,19 @@
 from __future__ import annotations
 
 import argparse
-import sys
+import os
 from pathlib import Path
+import sys
 from typing import List, Optional
+
+# Carga automática de variables de entorno desde .env si existe
+_env_file = Path(__file__).resolve().parents[3] / ".env"
+if _env_file.exists():
+    for _line in _env_file.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _, _v = _line.partition("=")
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 from .config import (
     DEFAULT_DB_PATH,

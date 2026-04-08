@@ -7,11 +7,12 @@ from pathlib import Path
 import threading
 from typing import Any, Dict, Optional
 
+from .alerts import AlertSystem, check_and_alert
 from .collectors.cameras import CameraCollector
-from .collectors.detectors import DetectorCollector
-from .collectors.incidents import IncidentCollector
+from .collectors.detectors import DetectorCollector, TomTomFlowCollector
+from .collectors.incidents import IncidentCollector, TomTomIncidentCollector
 from .collectors.panels import PanelCollector
-from .config import DEFAULT_DB_PATH, DEFAULT_SNAPSHOTS_DIR
+from .config import DEFAULT_DB_PATH, DEFAULT_SNAPSHOTS_DIR, TOMTOM_API_KEY
 from .http import HttpClient
 from .inference import infer_bridge_state
 from .storage import Storage
@@ -27,8 +28,11 @@ class VCentenarioService:
         http = HttpClient()
         self.panel_collector = PanelCollector(http)
         self.incident_collector = IncidentCollector(http)
+        self.tomtom_incident_collector = TomTomIncidentCollector(http)
         self.camera_collector = CameraCollector(http)
         self.detector_collector = DetectorCollector(http)
+        self.tomtom_collector = TomTomFlowCollector(http)
+        self.alert_system = AlertSystem()
 
     def init_db(self) -> None:
         self.storage.init_db()
@@ -36,6 +40,9 @@ class VCentenarioService:
     def run_once(self) -> Dict[str, object]:
         with self._run_lock:
             return self._run_once_locked()
+
+    def get_history(self, days: int = 7) -> List[Dict[str, object]]:
+        return self.storage.get_recent_states(days)
 
     def _run_once_locked(self) -> Dict[str, object]:
         self.storage.init_db()
@@ -79,6 +86,9 @@ class VCentenarioService:
 
         try:
             incidents = self.incident_collector.fetch_bridge_incidents()
+            if TOMTOM_API_KEY:
+                tomtom_incidents = self.tomtom_incident_collector.fetch_bridge_incidents()
+                incidents.extend(tomtom_incidents)
             self.storage.insert_incidents(collected_at, incidents)
             source_status["incidents"] = {"status": "ok", "count": len(incidents)}
         except Exception as exc:
@@ -140,6 +150,27 @@ class VCentenarioService:
                 "error": "detector inventory unavailable",
             }
 
+        # TomTom Flow — complementa detectores DGT cuando están caídos o ausentes
+        if TOMTOM_API_KEY:
+            # Puntos estratégicos: ambos sentidos del puente (KM ~13.5) y dos accesos
+            tomtom_points = [
+                (37.3727, -6.0168, "tomtom_puente_positivo"),   # Puente, sentido creciente
+                (37.3720, -6.0150, "tomtom_puente_negativo"),   # Puente, sentido decreciente
+                (37.3612, -6.0050, "tomtom_sur_positivo"),      # Acceso sur KM ~10
+                (37.3840, -5.9980, "tomtom_norte_negativo"),    # Acceso norte KM ~17
+            ]
+            tomtom_readings = []
+            for lat, lon, det_id in tomtom_points:
+                reading = self.tomtom_collector.fetch_flow_at_point(lat, lon, det_id)
+                if reading:
+                    tomtom_readings.append(reading)
+            detector_readings.extend(tomtom_readings)
+            if tomtom_readings:
+                self.storage.insert_detector_readings(collected_at, tomtom_readings)
+            source_status["tomtom_flow"] = {"status": "ok", "count": len(tomtom_readings)}
+        else:
+            source_status["tomtom_flow"] = {"status": "skipped", "error": "api key not set"}
+
         recent_states = self.storage.recent_states(limit=48)
         state = infer_bridge_state(
             panel_messages,
@@ -155,6 +186,7 @@ class VCentenarioService:
             recent_states=recent_states + [asdict(state)],
         )
         self.storage.insert_bridge_state(state)
+        check_and_alert(state, incidents, self.alert_system)
 
         counts = {
             "panel_locations": len(panel_inventory),

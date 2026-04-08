@@ -21,6 +21,306 @@ from .service import VCentenarioService
 from .utils import dumps_json
 
 
+def get_simple_dashboard():
+    """Devuelve un dashboard HTML simple con un Canvas chart."""
+    return """<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>VCentenario Traffic Monitor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .header {
+            background: white;
+            border-radius: 12px 12px 0 0;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header h1 { 
+            color: #0f766e; 
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+        .status {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 6px 12px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .content {
+            background: white;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #chart { 
+            border: 1px solid #e0e0e0; 
+            background: #fafafa; 
+            margin: 20px 0; 
+            display: block;
+            border-radius: 8px;
+        }
+        .footer {
+            background: white;
+            border-radius: 0 0 12px 12px;
+            padding: 15px 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-top: 1px solid #e0e0e0;
+            font-size: 12px;
+            color: #999;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .debug-box { 
+            background: #f5f5f5; 
+            border: 1px solid #ddd; 
+            padding: 12px; 
+            margin-top: 15px; 
+            font-size: 11px; 
+            max-height: 300px; 
+            overflow-y: auto;
+            border-radius: 6px;
+            font-family: "Monaco", "Courier New", monospace;
+            color: #333;
+        }
+        .debug-box strong { color: #0f766e; }
+        .refresh-notice { font-size: 12px; color: #0f766e; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌉 VCentenario Traffic Monitor</h1>
+            <p>Puente del Centenario - Real-time traffic analysis</p>
+            <div class="status">● Active · Last update: <span id="lastUpdate">--:--</span></div>
+        </div>
+        
+        <div class="content">
+            <h2 style="margin-bottom: 10px; color: #333;">Traffic Score Trend</h2>
+            <p style="margin-bottom: 15px; font-size: 13px; color: #999;">Last 16 monitoring cycles</p>
+            <canvas id="chart" width="900" height="350"></canvas>
+            <div class="debug-box">
+                <strong>System Status:</strong><br>
+                <pre id="debug">Initializing...</pre>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <span class="refresh-notice">⟳ Auto-refresh every 30 seconds</span>
+            <span id="statsInfo">Loading...</span>
+        </div>
+    </div>
+
+    <script>
+        let debugLog = [];
+        function log(msg) {
+            debugLog.push(msg);
+            console.log(msg);
+            const debug = document.getElementById('debug');
+            if (debug) debug.textContent = debugLog.slice(-10).join('\\n');
+        }
+        
+        function updateLastUpdate() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const mins = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('lastUpdate').textContent = hours + ':' + mins;
+        }
+        
+        async function loadChart() {
+            try {
+                log('Fetching /api/dashboard...');
+                const res = await fetch('/api/dashboard');
+                if (!res.ok) {
+                    log('Error: HTTP ' + res.status);
+                    return;
+                }
+                const data = await res.json();
+                log('✓ Response received');
+                const states = data.recent_states || [];
+                log('✓ States: ' + states.length);
+                
+                if (states.length > 0) {
+                    const lastScore = states[states.length - 1].traffic_score;
+                    const avgScore = (states.reduce((a, s) => a + parseFloat(s.traffic_score || 0), 0) / states.length).toFixed(1);
+                    document.getElementById('statsInfo').textContent = 
+                        'Current: ' + lastScore.toFixed(1) + ' | Average: ' + avgScore;
+                }
+                
+                drawChart(states);
+                updateLastUpdate();
+            } catch (e) {
+                log('✗ Error: ' + e.message);
+            }
+        }
+        
+        function drawChart(states) {
+            const canvas = document.getElementById('chart');
+            if (!canvas) {
+                log('✗ Canvas not found!');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                log('✗ Canvas context not available!');
+                return;
+            }
+            
+            // Clear canvas
+            ctx.fillStyle = '#fafafa';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            
+            if (!states || states.length === 0) {
+                log('✗ No states to draw');
+                ctx.fillStyle = '#333';
+                ctx.font = 'bold 16px Arial';
+                ctx.fillText('No data available', 20, 50);
+                return;
+            }
+            
+            // Extract scores
+            const scores = states.map(s => {
+                const val = parseFloat(s.traffic_score);
+                return isNaN(val) ? 0 : val;
+            });
+            log('✓ Parsed ' + scores.length + ' scores');
+            
+            if (scores.length < 1) {
+                log('✗ No valid scores parsed');
+                ctx.fillStyle = '#333';
+                ctx.font = 'bold 16px Arial';
+                ctx.fillText('No valid scores', 20, 50);
+                return;
+            }
+            
+            // Calculate dimensions
+            const maxScore = Math.max(...scores, 50);
+            const minScore = Math.min(...scores, 0);
+            const range = maxScore - minScore || 1;
+            const padding = 60;
+            const w = canvas.width - 2 * padding;
+            const h = canvas.height - 2 * padding;
+            log('✓ Range: ' + minScore.toFixed(1) + ' - ' + maxScore.toFixed(1));
+            
+            // Draw grid lines
+            ctx.strokeStyle = '#f0f0f0';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = padding + (h / 5) * i;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(canvas.width - padding, y);
+                ctx.stroke();
+            }
+            
+            // Draw chart line
+            ctx.strokeStyle = '#0f766e';
+            ctx.lineWidth = 3;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            
+            scores.forEach((score, i) => {
+                const x = padding + (i / Math.max(scores.length - 1, 1)) * w;
+                const y = canvas.height - padding - ((score - minScore) / range) * h;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            
+            // Draw area under line (fill)
+            ctx.fillStyle = 'rgba(15, 118, 110, 0.1)';
+            ctx.beginPath();
+            scores.forEach((score, i) => {
+                const x = padding + (i / Math.max(scores.length - 1, 1)) * w;
+                const y = canvas.height - padding - ((score - minScore) / range) * h;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.lineTo(canvas.width - padding, canvas.height - padding);
+            ctx.lineTo(padding, canvas.height - padding);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Draw points
+            ctx.fillStyle = '#0f766e';
+            scores.forEach((score, i) => {
+                const x = padding + (i / Math.max(scores.length - 1, 1)) * w;
+                const y = canvas.height - padding - ((score - minScore) / range) * h;
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw point border
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+            
+            // Draw labels
+            ctx.fillStyle = '#666';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            
+            // X-axis labels
+            const step = Math.ceil(scores.length / 5);
+            for (let i = 0; i < scores.length; i += step) {
+                const x = padding + (i / Math.max(scores.length - 1, 1)) * w;
+                ctx.fillText('#' + (i + 1), x, canvas.height - 15);
+            }
+            
+            // Y-axis labels
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#999';
+            for (let i = 0; i <= 5; i++) {
+                const val = (minScore + (range / 5) * i).toFixed(1);
+                const y = canvas.height - padding - (h / 5) * i;
+                ctx.fillText(val, padding - 15, y + 4);
+            }
+            
+            // Draw Y-axis label
+            ctx.save();
+            ctx.translate(15, canvas.height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#999';
+            ctx.font = '11px Arial';
+            ctx.fillText('Traffic Score', 0, 0);
+            ctx.restore();
+            
+            log('✓ Chart rendered with ' + scores.length + ' points');
+        }
+        
+        log('Page loaded');
+        loadChart();
+        setInterval(loadChart, 30000);
+    </script>
+</body>
+</html>"""
+
+
 HTML_PAGE = """<!doctype html>
 <html lang="es">
 <head>
@@ -203,25 +503,41 @@ HTML_PAGE = """<!doctype html>
     }
     .trend-shell {
       position: relative;
-      min-height: 164px;
+      min-height: 250px;
+      overflow: visible;
     }
     .timeline-bar {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(30px, 1fr));
+      display: flex;
       gap: 6px;
-      align-items: end;
+      align-items: flex-end;
       min-height: 220px;
-      padding: 20px 12px 0;
-      position: relative;
+      padding: 20px 12px;
+      position: absolute;
       z-index: 1;
-      width: 100%;
-      overflow: hidden;
+      top: 0;
+      left: 0;
+      right: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
     }
     .card.panel-section {
-      overflow: hidden;
+      overflow: visible;
     }
     .timeline-bar::-webkit-scrollbar {
-      display: none;
+      height: 10px;
+    }
+    .timeline-bar::-webkit-scrollbar-track {
+      background: #f0f0f0;
+      border-radius: 4px;
+    }
+    .timeline-bar::-webkit-scrollbar-thumb {
+      background: #0f766e;
+      border-radius: 4px;
+    }
+    .timeline-bar {
+      scrollbar-color: #0f766e #f0f0f0;
+      scrollbar-width: thin;
     }
     .trend-thresholds {
       position: absolute;
@@ -251,8 +567,9 @@ HTML_PAGE = """<!doctype html>
       flex-direction: column;
       gap: 6px;
       align-items: center;
-      flex: 0 0 auto;
-      min-width: 30px;
+      flex: 0 0 40px;
+      min-width: 40px;
+      white-space: normal;
     }
     .bar {
       width: 100%;

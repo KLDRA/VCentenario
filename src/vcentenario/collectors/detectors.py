@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
 import logging
 import xml.etree.ElementTree as ET
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from ..config import (
     BRIDGE_AREA,
@@ -11,6 +12,8 @@ from ..config import (
     DETECTORS_INVENTORY_URL,
     DETECTORS_NS_V1,
     DETECTORS_URL,
+    TOMTOM_API_KEY,
+    TOMTOM_FLOW_URL,
 )
 from ..http import HttpClient
 from ..models import DetectorLocation, DetectorReading
@@ -121,3 +124,46 @@ class DetectorCollector:
             return True
         age = datetime.now(timestamp.tzinfo) - timestamp
         return age > DETECTOR_MAX_AGE
+
+
+class TomTomFlowCollector:
+    def __init__(self, http: HttpClient) -> None:
+        self.http = http
+
+    def fetch_flow_at_point(self, lat: float, lon: float, detector_id: str) -> Optional[DetectorReading]:
+        if not TOMTOM_API_KEY:
+            logger.warning("TomTom API Key no configurada, saltando recolección de flujo")
+            return None
+
+        url = f"{TOMTOM_FLOW_URL}?point={lat},{lon}&unit=KMPH&key={TOMTOM_API_KEY}"
+        response = self.http.get(url, accept="application/json")
+        if response.status != 200:
+            logger.error("Error en TomTom Flow API (HTTP %d): %s", response.status, response.error)
+            return None
+
+        try:
+            data = json.loads(response.body)
+            flow = data.get("flowSegmentData")
+            if not flow:
+                return None
+
+            current_speed = parse_float(str(flow.get("currentSpeed")))
+            free_flow_speed = parse_float(str(flow.get("freeFlowSpeed")))
+
+            return DetectorReading(
+                detector_id=detector_id,
+                measured_at=datetime.now().isoformat(),
+                road="SE-30",
+                km=None,
+                direction=None,
+                latitude=lat,
+                longitude=lon,
+                average_speed=current_speed,
+                vehicle_flow=None,
+                occupancy=None,
+                source="tomtom",
+                free_flow_speed=free_flow_speed,
+            )
+        except (json.JSONDecodeError, KeyError, ValueError) as exc:
+            logger.error("Error al procesar respuesta de TomTom Flow: %s", exc)
+            return None
