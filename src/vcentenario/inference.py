@@ -47,10 +47,13 @@ PICTOGRAM_WEIGHT = {
     "blankVoid": 0.0,
 }
 
+# Detector weights calibrated for realistic traffic classification:
+# - LOW velocities (30-60 km/h) on a 60 km/h bridge = congestion, but not extreme
+# - Weight reduced from 0.7 to 0.12 to prevent over-scoring (e.g., 30 km/h difference should contribute ~3.6 to score, not 21)
 DETECTOR_FLOW_WEIGHT = 0.015
-DETECTOR_OCCUPANCY_WEIGHT = 0.35
-DETECTOR_SLOW_SPEED_WEIGHT = 0.7
-DETECTOR_DIRECTION_BIAS_WEIGHT = 10.0
+DETECTOR_OCCUPANCY_WEIGHT = 0.08  # Reduced from 0.35: occupancy alone shouldn't drive score
+DETECTOR_SLOW_SPEED_WEIGHT = 0.12  # Reduced from 0.7: slower penalty, max ~7 per detector
+DETECTOR_DIRECTION_BIAS_WEIGHT = 3.0  # Reduced from 10.0
 PERSISTENT_BASELINE_SCALE = 0.15
 CALIBRATION_EXCLUDED_SOURCES = {"camera_availability", "camera_change", "vehicle_count"}
 
@@ -190,11 +193,13 @@ def infer_bridge_state(
 
 
 def classify_traffic_level(score: float) -> str:
-    if score < 15:
+    # Thresholds calibrated for normalized detector weights
+    # With updated detector weights, max realistic score is ~20 for all detectors combined
+    if score < 10:
         return "fluido"
-    if score < 35:
+    if score < 20:
         return "denso"
-    if score < 60:
+    if score < 30:
         return "retenciones"
     return "congestion_fuerte"
 
@@ -269,11 +274,11 @@ def score_detectors(detectors: Sequence[DetectorReading]) -> Tuple[float, List[s
             slow_threshold = 80.0
 
         if detector.vehicle_flow is not None:
-            local_score += min(detector.vehicle_flow * DETECTOR_FLOW_WEIGHT, 18.0)
+            local_score += min(detector.vehicle_flow * DETECTOR_FLOW_WEIGHT, 10.0)
         if detector.occupancy is not None:
-            local_score += min(detector.occupancy * DETECTOR_OCCUPANCY_WEIGHT, 16.0)
+            local_score += min(detector.occupancy * DETECTOR_OCCUPANCY_WEIGHT, 4.0)
         if detector.average_speed is not None and detector.average_speed < slow_threshold:
-            local_score += min((slow_threshold - detector.average_speed) * DETECTOR_SLOW_SPEED_WEIGHT, 24.0)
+            local_score += min((slow_threshold - detector.average_speed) * DETECTOR_SLOW_SPEED_WEIGHT, 7.0)
         score += local_score
 
         # Determine direction: use the explicit field if set, otherwise
@@ -309,12 +314,14 @@ def is_persistent_operational_panel(
         "OBRAS" in text
         or ("DESVIO" in text and "20T" in text)
         or ("OBLIGATORIO" in text and "20T" in text)
+        or "RESTRICCION" in text  # Weight restrictions
         or "roadworks" in panel.pictograms
         or is_informational_bridge_panel
     )
     if not looks_permanent:
         return False
-    return evidence_seen_frequently(panel_evidence, recent_states)
+    # For operational/permanent infrastructure messages, reduce score immediately without waiting for history
+    return True
 
 
 def is_persistent_operational_incident(
@@ -329,10 +336,13 @@ def is_persistent_operational_incident(
     } or (incident.cause_type or "") in {"roadMaintenance", "maintenanceWorks"}
     if not looks_permanent:
         return False
-    return evidence_seen_frequently(incident_evidence, recent_states)
+    # For operational/permanent infrastructure incidents, reduce score immediately without waiting for history
+    return True
 
 
-def evidence_seen_frequently(evidence_key: str, recent_states: Sequence[Dict[str, object]], threshold: int = 4) -> bool:
+def evidence_seen_frequently(evidence_key: str, recent_states: Sequence[Dict[str, object]], threshold: int = 2) -> bool:
+    # Threshold reduced from 4 to 2 to detect persistent operational events faster
+    # (especially after DB cleanup or service restart)
     hits = 0
     for state in recent_states[-8:]:
         values = state.get("evidence", [])
