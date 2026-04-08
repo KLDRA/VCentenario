@@ -128,9 +128,9 @@ def infer_bridge_state(
         else:
             unavailable_cameras += 1
     if active_cameras:
-        breakdown["camera_availability"] += min(active_cameras * 0.8, 2.5)
+        breakdown["camera_availability"] += min(active_cameras * 0.2, 1.0)
     if visual_change_total:
-        breakdown["camera_change"] += min(visual_change_total, 2.5)
+        breakdown["camera_change"] += min(visual_change_total, 1.0)
         evidence.append("camera:visual-change")
     if vehicle_total:
         breakdown["vehicle_count"] += score_camera_traffic(vehicle_total)
@@ -194,12 +194,12 @@ def infer_bridge_state(
 
 def classify_traffic_level(score: float) -> str:
     # Thresholds calibrated for normalized detector weights
-    # With updated detector weights, max realistic score is ~20 for all detectors combined
-    if score < 10:
+    # With updated detector weights and reduced camera contribution, score reflects real traffic
+    if score < 12:
         return "fluido"
-    if score < 20:
+    if score < 24:
         return "denso"
-    if score < 30:
+    if score < 36:
         return "retenciones"
     return "congestion_fuerte"
 
