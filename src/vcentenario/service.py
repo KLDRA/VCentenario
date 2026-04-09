@@ -154,8 +154,8 @@ class VCentenarioService:
         if TOMTOM_API_KEY:
             # Puntos estratégicos: ambos sentidos del puente (KM ~13.5) y dos accesos
             tomtom_points = [
-                (37.3727, -6.0168, "tomtom_puente_positivo"),   # Puente, sentido creciente
-                (37.3720, -6.0150, "tomtom_puente_negativo"),   # Puente, sentido decreciente
+                (37.3727, -6.0168, "tomtom_puente_positivo"),   # Puente, sentido creciente (→ Cádiz)
+                (37.3722, -6.0173, "tomtom_puente_negativo"),   # Puente, sentido decreciente (→ Sevilla) — centrado en tablero
                 (37.3612, -6.0050, "tomtom_sur_positivo"),      # Acceso sur KM ~10
                 (37.3840, -5.9980, "tomtom_norte_negativo"),    # Acceso norte KM ~17
             ]
@@ -225,5 +225,6 @@ class VCentenarioService:
             "incidents": self.storage.latest_incidents(limit=24),
             "cameras": self.storage.latest_cameras(),
             "detectors": self.storage.latest_detector_readings(limit=24),
+            "tomtom_speed_history": self.storage.tomtom_speed_history(hours=6),
             "traffic_profiles": list(self.storage.traffic_profiles().values()),
         }

@@ -122,7 +122,8 @@ class Storage:
                     longitude REAL,
                     average_speed REAL,
                     vehicle_flow INTEGER,
-                    occupancy REAL
+                    occupancy REAL,
+                    free_flow_speed REAL
                 );
 
                 CREATE TABLE IF NOT EXISTS camera_snapshots (
@@ -181,6 +182,13 @@ class Storage:
                     ON camera_snapshots (fetched_at DESC);
                 CREATE INDEX IF NOT EXISTS idx_detector_readings_collected_at
                     ON detector_readings (collected_at DESC);
+                """
+            )
+            # Migración: añadir free_flow_speed si no existe (BD anterior)
+            cols = {row[1] for row in con.execute("PRAGMA table_info(detector_readings)")}
+            if "free_flow_speed" not in cols:
+                con.execute("ALTER TABLE detector_readings ADD COLUMN free_flow_speed REAL")
+            con.executescript("""
                 CREATE INDEX IF NOT EXISTS idx_bridge_state_generated_at
                     ON bridge_state (generated_at DESC);
                 CREATE INDEX IF NOT EXISTS idx_collection_runs_collected_at
@@ -328,9 +336,9 @@ class Storage:
                 """
                 INSERT INTO detector_readings (
                     collected_at, detector_id, measured_at, road, km, direction, latitude,
-                    longitude, average_speed, vehicle_flow, occupancy
+                    longitude, average_speed, vehicle_flow, occupancy, free_flow_speed
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -345,6 +353,7 @@ class Storage:
                         reading.average_speed,
                         reading.vehicle_flow,
                         reading.occupancy,
+                        reading.free_flow_speed,
                     )
                     for reading in readings
                 ],
@@ -656,6 +665,21 @@ class Storage:
                 LIMIT ?
                 """,
                 (collected["collected_at"], limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def tomtom_speed_history(self, hours: int = 6) -> List[Dict[str, Any]]:
+        with self.connect() as con:
+            rows = con.execute(
+                """
+                SELECT collected_at, detector_id, direction, km, average_speed, free_flow_speed, vehicle_flow
+                FROM detector_readings
+                WHERE detector_id LIKE 'tomtom_%'
+                  AND average_speed IS NOT NULL
+                  AND collected_at >= datetime('now', ?)
+                ORDER BY collected_at ASC, km ASC
+                """,
+                (f"-{hours} hours",),
             ).fetchall()
         return [dict(row) for row in rows]
 

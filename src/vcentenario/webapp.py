@@ -28,103 +28,127 @@ def get_simple_dashboard():
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>VCentenario Traffic Monitor</title>
+    <title>VCentenario · Traffic Monitor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        body {
+            font-family: "Space Grotesk", system-ui, sans-serif;
+            background: #000000;
+            color: #E8E8E8;
             min-height: 100vh;
-            padding: 20px;
+            padding: 32px 20px;
         }
-        .container { max-width: 1000px; margin: 0 auto; }
-        .header {
-            background: white;
-            border-radius: 12px 12px 0 0;
-            padding: 25px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .header h1 { 
-            color: #0f766e; 
-            font-size: 28px;
-            margin-bottom: 5px;
-        }
-        .header p {
-            color: #666;
-            font-size: 14px;
-        }
-        .status {
-            display: inline-block;
-            margin-top: 10px;
-            padding: 6px 12px;
-            background: #e8f5e9;
-            color: #2e7d32;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-        .content {
-            background: white;
-            padding: 25px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        #chart { 
-            border: 1px solid #e0e0e0; 
-            background: #fafafa; 
-            margin: 20px 0; 
-            display: block;
-            border-radius: 8px;
-        }
-        .footer {
-            background: white;
-            border-radius: 0 0 12px 12px;
-            padding: 15px 25px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            border-top: 1px solid #e0e0e0;
-            font-size: 12px;
-            color: #999;
+        .shell { max-width: 960px; margin: 0 auto; }
+        .nd-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #222222;
+            margin-bottom: 32px;
         }
-        .debug-box { 
-            background: #f5f5f5; 
-            border: 1px solid #ddd; 
-            padding: 12px; 
-            margin-top: 15px; 
-            font-size: 11px; 
-            max-height: 300px; 
+        .nd-eyebrow {
+            font-family: "Space Mono", monospace;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #999999;
+        }
+        .nd-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: #FFFFFF;
+            margin-top: 6px;
+        }
+        .nd-status { text-align: right; }
+        .nd-status-dot {
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #4A9E5C;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            border: 1px solid #222222;
+            background: #000000;
+        }
+        .nd-stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #222222;
+        }
+        .nd-debug {
+            margin-top: 24px;
+            border: 1px solid #222222;
+            background: #111111;
+        }
+        .nd-debug-header {
+            padding: 8px 12px;
+            border-bottom: 1px solid #222222;
+            font-family: "Space Mono", monospace;
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #666666;
+        }
+        #debug {
+            padding: 12px;
+            font-family: "Space Mono", monospace;
+            font-size: 11px;
+            color: #666666;
+            max-height: 200px;
             overflow-y: auto;
-            border-radius: 6px;
-            font-family: "Monaco", "Courier New", monospace;
-            color: #333;
+            white-space: pre-wrap;
+            line-height: 1.6;
         }
-        .debug-box strong { color: #0f766e; }
-        .refresh-notice { font-size: 12px; color: #0f766e; font-weight: 600; }
+        .nd-footer {
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid #222222;
+            display: flex;
+            justify-content: space-between;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🌉 VCentenario Traffic Monitor</h1>
-            <p>Puente del Centenario - Real-time traffic analysis</p>
-            <div class="status">● Active · Last update: <span id="lastUpdate">--:--</span></div>
-        </div>
-        
-        <div class="content">
-            <h2 style="margin-bottom: 10px; color: #333;">Traffic Score Trend</h2>
-            <p style="margin-bottom: 15px; font-size: 13px; color: #999;">Last 16 monitoring cycles</p>
-            <canvas id="chart" width="900" height="350"></canvas>
-            <div class="debug-box">
-                <strong>System Status:</strong><br>
-                <pre id="debug">Initializing...</pre>
+    <div class="shell">
+        <header class="nd-header">
+            <div>
+                <div class="nd-eyebrow">Monitor Operativo · Puente del Centenario</div>
+                <div class="nd-title">VCentenario</div>
+            </div>
+            <div class="nd-status">
+                <div class="nd-eyebrow"><span class="nd-status-dot"></span>Activo</div>
+                <div class="nd-eyebrow" style="margin-top:6px;">Actualización: <span id="lastUpdate">--:--</span></div>
+            </div>
+        </header>
+
+        <div>
+            <div class="nd-eyebrow" style="margin-bottom:12px;">Traffic Score · Últimas 16 lecturas</div>
+            <canvas id="chart" width="900" height="320"></canvas>
+            <div class="nd-stats-row">
+                <span class="nd-eyebrow">Auto-refresh cada 30 s</span>
+                <span class="nd-eyebrow" id="statsInfo">Cargando...</span>
             </div>
         </div>
-        
-        <div class="footer">
-            <span class="refresh-notice">⟳ Auto-refresh every 30 seconds</span>
-            <span id="statsInfo">Loading...</span>
+
+        <div class="nd-debug">
+            <div class="nd-debug-header">System log</div>
+            <pre id="debug">Inicializando...</pre>
         </div>
+
+        <footer class="nd-footer">
+            <span class="nd-eyebrow">Puente del Centenario · Sevilla</span>
+            <span class="nd-eyebrow">vcentenario</span>
+        </footer>
     </div>
 
     <script>
@@ -135,184 +159,106 @@ def get_simple_dashboard():
             const debug = document.getElementById('debug');
             if (debug) debug.textContent = debugLog.slice(-10).join('\\n');
         }
-        
+
         function updateLastUpdate() {
             const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const mins = String(now.getMinutes()).padStart(2, '0');
-            document.getElementById('lastUpdate').textContent = hours + ':' + mins;
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('lastUpdate').textContent = h + ':' + m;
         }
-        
+
         async function loadChart() {
             try {
                 log('Fetching /api/dashboard...');
                 const res = await fetch('/api/dashboard');
-                if (!res.ok) {
-                    log('Error: HTTP ' + res.status);
-                    return;
-                }
+                if (!res.ok) { log('Error: HTTP ' + res.status); return; }
                 const data = await res.json();
-                log('✓ Response received');
+                log('Response received');
                 const states = data.recent_states || [];
-                log('✓ States: ' + states.length);
-                
+                log('States: ' + states.length);
                 if (states.length > 0) {
                     const lastScore = states[states.length - 1].traffic_score;
-                    const avgScore = (states.reduce((a, s) => a + parseFloat(s.traffic_score || 0), 0) / states.length).toFixed(1);
-                    document.getElementById('statsInfo').textContent = 
-                        'Current: ' + lastScore.toFixed(1) + ' | Average: ' + avgScore;
+                    const avg = (states.reduce((a, s) => a + parseFloat(s.traffic_score || 0), 0) / states.length).toFixed(1);
+                    document.getElementById('statsInfo').textContent =
+                        'Actual: ' + parseFloat(lastScore).toFixed(1) + ' · Promedio: ' + avg;
                 }
-                
                 drawChart(states);
                 updateLastUpdate();
-            } catch (e) {
-                log('✗ Error: ' + e.message);
-            }
+            } catch (e) { log('Error: ' + e.message); }
         }
-        
+
         function drawChart(states) {
             const canvas = document.getElementById('chart');
-            if (!canvas) {
-                log('✗ Canvas not found!');
-                return;
-            }
-            
+            if (!canvas) { log('Canvas not found'); return; }
             const ctx = canvas.getContext('2d');
-            if (!ctx) {
-                log('✗ Canvas context not available!');
-                return;
-            }
-            
-            // Clear canvas
-            ctx.fillStyle = '#fafafa';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.strokeStyle = '#e0e0e0';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(0, 0, canvas.width, canvas.height);
-            
+            if (!ctx) { log('Canvas context unavailable'); return; }
+
+            const W = canvas.width, H = canvas.height;
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, W, H);
+
             if (!states || states.length === 0) {
-                log('✗ No states to draw');
-                ctx.fillStyle = '#333';
-                ctx.font = 'bold 16px Arial';
-                ctx.fillText('No data available', 20, 50);
+                ctx.fillStyle = '#333333';
+                ctx.font = '700 13px "Space Mono"';
+                ctx.fillText('[SIN DATOS]', 20, 40);
                 return;
             }
-            
-            // Extract scores
-            const scores = states.map(s => {
-                const val = parseFloat(s.traffic_score);
-                return isNaN(val) ? 0 : val;
-            });
-            log('✓ Parsed ' + scores.length + ' scores');
-            
-            if (scores.length < 1) {
-                log('✗ No valid scores parsed');
-                ctx.fillStyle = '#333';
-                ctx.font = 'bold 16px Arial';
-                ctx.fillText('No valid scores', 20, 50);
-                return;
-            }
-            
-            // Calculate dimensions
+
+            const scores = states.map(s => { const v = parseFloat(s.traffic_score); return isNaN(v) ? 0 : v; });
             const maxScore = Math.max(...scores, 50);
             const minScore = Math.min(...scores, 0);
             const range = maxScore - minScore || 1;
-            const padding = 60;
-            const w = canvas.width - 2 * padding;
-            const h = canvas.height - 2 * padding;
-            log('✓ Range: ' + minScore.toFixed(1) + ' - ' + maxScore.toFixed(1));
-            
-            // Draw grid lines
-            ctx.strokeStyle = '#f0f0f0';
+            const pad = { top: 40, right: 32, bottom: 40, left: 56 };
+            const w = W - pad.left - pad.right;
+            const h = H - pad.top - pad.bottom;
+
+            // Grid lines
+            ctx.strokeStyle = '#1A1A1A';
             ctx.lineWidth = 1;
-            for (let i = 0; i <= 5; i++) {
-                const y = padding + (h / 5) * i;
-                ctx.beginPath();
-                ctx.moveTo(padding, y);
-                ctx.lineTo(canvas.width - padding, y);
-                ctx.stroke();
+            for (let i = 0; i <= 4; i++) {
+                const y = pad.top + (h / 4) * i;
+                ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+                ctx.fillStyle = '#666666';
+                ctx.font = '400 10px "Space Mono"';
+                ctx.textAlign = 'right';
+                ctx.fillText((maxScore - (range / 4) * i).toFixed(0), pad.left - 8, y + 4);
             }
-            
-            // Draw chart line
-            ctx.strokeStyle = '#0f766e';
-            ctx.lineWidth = 3;
-            ctx.lineJoin = 'round';
-            ctx.lineCap = 'round';
+
+            // Line - square caps (percussive, mechanical)
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 1.5;
+            ctx.lineJoin = 'miter';
+            ctx.lineCap = 'square';
             ctx.beginPath();
-            
             scores.forEach((score, i) => {
-                const x = padding + (i / Math.max(scores.length - 1, 1)) * w;
-                const y = canvas.height - padding - ((score - minScore) / range) * h;
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
+                const x = pad.left + (i / Math.max(scores.length - 1, 1)) * w;
+                const y = pad.top + h - ((score - minScore) / range) * h;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             });
             ctx.stroke();
-            
-            // Draw area under line (fill)
-            ctx.fillStyle = 'rgba(15, 118, 110, 0.1)';
-            ctx.beginPath();
+
+            // Points - square, mechanical
             scores.forEach((score, i) => {
-                const x = padding + (i / Math.max(scores.length - 1, 1)) * w;
-                const y = canvas.height - padding - ((score - minScore) / range) * h;
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
+                const x = pad.left + (i / Math.max(scores.length - 1, 1)) * w;
+                const y = pad.top + h - ((score - minScore) / range) * h;
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(x - 3, y - 3, 6, 6);
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(x - 1, y - 1, 2, 2);
             });
-            ctx.lineTo(canvas.width - padding, canvas.height - padding);
-            ctx.lineTo(padding, canvas.height - padding);
-            ctx.closePath();
-            ctx.fill();
-            
-            // Draw points
-            ctx.fillStyle = '#0f766e';
-            scores.forEach((score, i) => {
-                const x = padding + (i / Math.max(scores.length - 1, 1)) * w;
-                const y = canvas.height - padding - ((score - minScore) / range) * h;
-                ctx.beginPath();
-                ctx.arc(x, y, 5, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Draw point border
-                ctx.strokeStyle = 'white';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(x, y, 5, 0, Math.PI * 2);
-                ctx.stroke();
-            });
-            
-            // Draw labels
-            ctx.fillStyle = '#666';
-            ctx.font = '12px Arial';
+
+            // X labels
+            ctx.fillStyle = '#666666';
+            ctx.font = '400 9px "Space Mono"';
             ctx.textAlign = 'center';
-            
-            // X-axis labels
-            const step = Math.ceil(scores.length / 5);
+            const step = Math.ceil(scores.length / 6);
             for (let i = 0; i < scores.length; i += step) {
-                const x = padding + (i / Math.max(scores.length - 1, 1)) * w;
-                ctx.fillText('#' + (i + 1), x, canvas.height - 15);
+                const x = pad.left + (i / Math.max(scores.length - 1, 1)) * w;
+                ctx.fillText('#' + (i + 1), x, H - pad.bottom + 16);
             }
-            
-            // Y-axis labels
-            ctx.textAlign = 'right';
-            ctx.fillStyle = '#999';
-            for (let i = 0; i <= 5; i++) {
-                const val = (minScore + (range / 5) * i).toFixed(1);
-                const y = canvas.height - padding - (h / 5) * i;
-                ctx.fillText(val, padding - 15, y + 4);
-            }
-            
-            // Draw Y-axis label
-            ctx.save();
-            ctx.translate(15, canvas.height / 2);
-            ctx.rotate(-Math.PI / 2);
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#999';
-            ctx.font = '11px Arial';
-            ctx.fillText('Traffic Score', 0, 0);
-            ctx.restore();
-            
-            log('✓ Chart rendered with ' + scores.length + ' points');
+            log('Chart rendered · ' + scores.length + ' pts');
         }
-        
+
         log('Page loaded');
         loadChart();
         setInterval(loadChart, 30000);
@@ -327,537 +273,651 @@ HTML_PAGE = """<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VCentenario Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Doto:ROND@0&family=Space+Grotesk:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #f5efe1;
-      --panel: rgba(255, 252, 245, 0.84);
-      --panel-strong: #fff8eb;
-      --ink: #1f2a2e;
-      --muted: #5f6c71;
-      --accent: #0f766e;
-      --accent-soft: #d8efe8;
-      --alert: #c2410c;
-      --warn: #b45309;
-      --good: #15803d;
-      --line: rgba(31, 42, 46, 0.12);
-      --shadow: 0 18px 40px rgba(68, 60, 40, 0.12);
-      --radius: 22px;
+      --black: #000000;
+      --surface: #111111;
+      --surface-raised: #1A1A1A;
+      --border: #222222;
+      --border-visible: #333333;
+      --text-disabled: #666666;
+      --text-secondary: #999999;
+      --text-primary: #E8E8E8;
+      --text-display: #FFFFFF;
+      --accent: #D71921;
+      --accent-subtle: rgba(215,25,33,0.15);
+      --success: #4A9E5C;
+      --warning: #D4A843;
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 32px;
+      --space-2xl: 48px;
+      --space-3xl: 64px;
     }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      margin: 0;
-      font-family: "Avenir Next", "Segoe UI", sans-serif;
-      color: var(--ink);
-      background:
-        radial-gradient(circle at top left, rgba(15, 118, 110, 0.18), transparent 34%),
-        radial-gradient(circle at top right, rgba(194, 65, 12, 0.14), transparent 28%),
-        linear-gradient(180deg, #f9f3e6 0%, var(--bg) 100%);
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      background: var(--black);
+      color: var(--text-primary);
       min-height: 100vh;
     }
-    .shell {
+    .nd-shell {
       max-width: 1280px;
       margin: 0 auto;
-      padding: 28px 20px 40px;
+      padding: var(--space-xl) var(--space-md) var(--space-2xl);
     }
-    .hero {
-      display: grid;
-      gap: 18px;
-      grid-template-columns: 1.5fr 1fr;
-      align-items: stretch;
-      margin-bottom: 24px;
-    }
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(10px);
-    }
-    .hero-main {
-      padding: 28px;
-      position: relative;
-      overflow: hidden;
-    }
-    .hero-main::after {
-      content: "";
-      position: absolute;
-      inset: auto -40px -60px auto;
-      width: 220px;
-      height: 220px;
-      border-radius: 999px;
-      background: radial-gradient(circle, rgba(15,118,110,0.18), transparent 70%);
-    }
-    .eyebrow {
-      letter-spacing: 0.14em;
+
+    /* ---- Typography helpers ---- */
+    .nd-eyebrow {
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: var(--accent);
+      color: var(--text-secondary);
+    }
+    .nd-label {
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    .nd-meta {
+      font-family: "Space Mono", monospace;
       font-size: 12px;
-      font-weight: 700;
-      margin-bottom: 10px;
+      color: var(--text-secondary);
+      line-height: 1.6;
     }
-    h1 {
-      margin: 0;
-      font-size: clamp(32px, 6vw, 56px);
-      line-height: 0.92;
-      max-width: 10ch;
+
+    /* ---- Header ---- */
+    .nd-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: var(--space-xl);
+      border-bottom: 1px solid var(--border);
+      margin-bottom: var(--space-2xl);
     }
-    .hero-copy {
-      margin-top: 16px;
-      max-width: 56ch;
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.5;
+    .nd-header-title {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text-display);
+      margin-top: var(--space-sm);
     }
-    button {
-      border: 0;
-      border-radius: 999px;
-      padding: 13px 18px;
-      font: inherit;
-      cursor: pointer;
-      transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
-    }
-    button:hover { transform: translateY(-1px); }
-    button:disabled { opacity: 0.65; cursor: wait; transform: none; }
-    .btn-primary { background: var(--accent); color: white; }
-    .btn-secondary { background: var(--accent-soft); color: var(--ink); }
-    .hero-side {
-      padding: 24px;
-      display: grid;
-      gap: 16px;
-      align-content: space-between;
-      background:
-        linear-gradient(180deg, rgba(255,248,235,0.95) 0%, rgba(244,240,228,0.85) 100%);
-    }
-    .status-badge {
+    .nd-header-right { text-align: right; }
+    .nd-status-indicator {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      border-radius: 999px;
-      background: rgba(15, 118, 110, 0.1);
-      width: fit-content;
-      font-weight: 700;
-    }
-    .status-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 0 6px rgba(15, 118, 110, 0.12);
-    }
-    .mini-grid, .grid {
-      display: grid;
-      gap: 18px;
-    }
-    .mini-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      margin-bottom: 18px;
-    }
-    .metric {
-      padding: 18px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      box-shadow: var(--shadow);
-    }
-    .metric-label {
-      font-size: 12px;
+      gap: var(--space-sm);
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: var(--muted);
+      color: var(--success);
     }
-    .metric-value {
-      margin-top: 10px;
-      font-size: clamp(26px, 4vw, 40px);
-      font-weight: 800;
+    .nd-status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--success);
     }
-    .metric-note {
-      margin-top: 8px;
+
+    /* ---- Hero ---- */
+    .nd-hero {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: var(--space-2xl);
+      align-items: flex-end;
+      margin-bottom: var(--space-2xl);
+      padding-bottom: var(--space-2xl);
+      border-bottom: 1px solid var(--border);
+    }
+    .nd-hero-score {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-md);
+      margin: var(--space-md) 0;
+    }
+    .nd-display {
+      font-family: "Doto", "Space Mono", monospace;
+      font-size: 96px;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      color: var(--text-display);
+    }
+    .nd-score-unit {
+      font-family: "Space Mono", monospace;
       font-size: 14px;
-      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
     }
-    .grid {
-      grid-template-columns: 1fr;
+    .nd-hero-right {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      align-items: flex-end;
     }
-    .panel-section {
-      padding: 22px;
+    .nd-level-badge {
+      font-family: "Space Grotesk", system-ui;
+      font-size: 28px;
+      font-weight: 400;
+      color: var(--text-display);
     }
-    .section-head {
+    .nd-warning {
+      margin-top: var(--space-md);
+      padding: var(--space-md);
+      border: 1px solid var(--accent);
+      background: var(--accent-subtle);
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      color: var(--text-primary);
+      line-height: 1.5;
+      display: none;
+    }
+
+    /* ---- Metrics grid ---- */
+    .nd-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      margin-bottom: var(--space-2xl);
+    }
+    .nd-metric-card {
+      background: var(--surface);
+      padding: var(--space-lg) var(--space-md);
+    }
+    .nd-metric-value {
+      font-family: "Space Grotesk", system-ui;
+      font-size: 32px;
+      font-weight: 400;
+      color: var(--text-display);
+      margin-top: var(--space-md);
+      line-height: 1.1;
+    }
+    .nd-metric-note {
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      color: var(--text-disabled);
+      margin-top: var(--space-sm);
+      letter-spacing: 0.04em;
+    }
+
+    /* ---- Sections ---- */
+    .nd-section {
+      margin-bottom: var(--space-2xl);
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .nd-section-header {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      gap: 12px;
-      margin-bottom: 16px;
+      padding: var(--space-md) var(--space-lg);
+      border-bottom: 1px solid var(--border);
     }
-    h2 {
-      margin: 0;
-      font-size: 21px;
-    }
-    .subtle {
-      color: var(--muted);
-      font-size: 14px;
-    }
-    .timeline {
-      display: grid;
-      gap: 10px;
-    }
-    .trend-shell {
-      position: relative;
-      min-height: 250px;
-      overflow: visible;
-    }
-    .timeline-bar {
-      display: flex;
-      gap: 6px;
-      align-items: flex-end;
-      min-height: 220px;
-      padding: 20px 12px;
-      position: absolute;
-      z-index: 1;
-      top: 0;
-      left: 0;
-      right: 0;
+    .nd-section-body { padding: var(--space-lg); }
+
+    /* ---- Trend bars ---- */
+    .nd-bars-wrap {
       overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-    }
-    .card.panel-section {
-      overflow: visible;
-    }
-    .timeline-bar::-webkit-scrollbar {
-      height: 10px;
-    }
-    .timeline-bar::-webkit-scrollbar-track {
-      background: #f0f0f0;
-      border-radius: 4px;
-    }
-    .timeline-bar::-webkit-scrollbar-thumb {
-      background: #0f766e;
-      border-radius: 4px;
-    }
-    .timeline-bar {
-      scrollbar-color: #0f766e #f0f0f0;
       scrollbar-width: thin;
+      scrollbar-color: var(--border-visible) var(--surface);
     }
-    .trend-thresholds {
-      position: absolute;
-      inset: 0 0 22px 0;
-      pointer-events: none;
-      z-index: 0;
+    .nd-bars {
+      display: flex;
+      gap: 3px;
+      align-items: flex-end;
+      min-height: 140px;
+      padding: var(--space-md) 0 var(--space-sm);
     }
-    .trend-line {
-      position: absolute;
-      left: 0;
-      right: 0;
-      border-top: 1px dashed rgba(31, 42, 46, 0.18);
+    .nd-bar-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex: 0 0 34px;
+      min-width: 34px;
     }
-    .trend-line span {
-      position: absolute;
-      right: 0;
-      top: -10px;
-      padding-left: 8px;
-      background: linear-gradient(180deg, rgba(255, 252, 245, 0), rgba(255, 252, 245, 0.92) 42%, rgba(255, 252, 245, 0.92));
-      color: var(--muted);
+    .nd-bar {
+      width: 100%;
+      background: var(--text-display);
+      min-height: 4px;
+      /* Square ends - no border-radius, mechanical */
+    }
+    .nd-bar.level-fluido { background: var(--success); }
+    .nd-bar.level-denso { background: var(--warning); }
+    .nd-bar.level-retenciones { background: var(--accent); }
+    .nd-bar.level-congestion_fuerte { background: var(--accent); opacity: 0.7; }
+    .nd-bar-score {
+      font-family: "Space Mono", monospace;
+      font-size: 9px;
+      color: var(--text-disabled);
+    }
+    .nd-bar-label {
+      font-family: "Space Mono", monospace;
+      font-size: 9px;
+      color: var(--text-secondary);
+      text-align: center;
+      white-space: nowrap;
+    }
+    .nd-trend-legend {
+      display: flex;
+      gap: var(--space-lg);
+      flex-wrap: wrap;
+      padding: var(--space-md) var(--space-lg);
+      border-top: 1px solid var(--border);
+    }
+    .nd-legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      font-family: "Space Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    .nd-legend-color { width: 14px; height: 3px; }
+
+    /* ---- Two-column layout ---- */
+    .nd-two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      margin-bottom: var(--space-2xl);
+    }
+    .nd-two-col > section {
+      background: var(--surface);
+    }
+
+    /* ---- VMS Panels ---- */
+    .nd-vms-list { display: grid; gap: 1px; background: var(--border); }
+    .nd-vms-item { background: var(--surface); padding: var(--space-lg); }
+    .nd-vms-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: var(--space-xs);
+    }
+    .nd-vms-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-display);
+    }
+    .nd-vms-km {
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .nd-vms-dir {
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-md);
+    }
+    .nd-vms-display {
+      background: #0a0a0a;
+      border: 1px solid var(--border-visible);
+      padding: var(--space-md);
+      font-family: "Space Mono", monospace;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      text-align: center;
+      color: #ffb800;
+      line-height: 1.5;
+      letter-spacing: 0.08em;
+    }
+    .nd-vms-pictos {
+      display: flex;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+      margin-top: var(--space-sm);
+    }
+
+    /* ---- Incidents list ---- */
+    .nd-list { display: grid; gap: 1px; background: var(--border); }
+    .nd-list-item { background: var(--surface); padding: var(--space-md) var(--space-lg); }
+    .nd-list-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+    .nd-list-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-display);
+    }
+    .nd-list-km {
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .nd-list-sub {
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-sm);
+    }
+    .nd-chips { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
+    .nd-chip {
+      font-family: "Space Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border: 1px solid var(--border-visible);
+      color: var(--text-secondary);
+    }
+    .nd-chip.warn { border-color: var(--warning); color: var(--warning); }
+    .nd-chip.alert { border-color: var(--accent); color: var(--accent); }
+    .nd-chip.good { border-color: var(--success); color: var(--success); }
+
+    /* ---- Tags ---- */
+    .nd-tag {
+      font-family: "Space Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border: 1px solid var(--border-visible);
+      color: var(--text-secondary);
+    }
+    .nd-tag.warn { border-color: var(--warning); color: var(--warning); }
+
+    /* ---- Cameras ---- */
+    .nd-camera-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1px;
+      background: var(--border);
+    }
+    .nd-camera { background: var(--surface); overflow: hidden; }
+    .nd-camera img { display: block; width: 100%; aspect-ratio: 16/10; object-fit: cover; }
+    .nd-camera-placeholder {
+      aspect-ratio: 16/10;
+      display: grid;
+      place-items: center;
+      font-family: "Space Mono", monospace;
       font-size: 10px;
       letter-spacing: 0.08em;
       text-transform: uppercase;
+      color: var(--text-disabled);
+      background: var(--surface-raised);
     }
-    .bar-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      align-items: center;
-      flex: 0 0 40px;
-      min-width: 40px;
-      white-space: normal;
+    .nd-camera-body {
+      padding: var(--space-md);
+      border-top: 1px solid var(--border);
     }
-    .bar {
-      width: 100%;
-      border-radius: 14px 14px 6px 6px;
-      background: linear-gradient(180deg, #0f766e, #134e4a);
-      min-height: 12px;
-      align-self: end;
-    }
-    .bar.level-fluido {
-      background: linear-gradient(180deg, #2f9e44, #237032);
-    }
-    .bar.level-denso {
-      background: linear-gradient(180deg, #d97706, #b45309);
-    }
-    .bar.level-retenciones {
-      background: linear-gradient(180deg, #ea580c, #c2410c);
-    }
-    .bar.level-congestion_fuerte {
-      background: linear-gradient(180deg, #dc2626, #991b1b);
-    }
-    .bar-label {
+    .nd-camera-id {
+      font-family: "Space Mono", monospace;
       font-size: 11px;
-      color: var(--muted);
-      text-align: center;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-display);
+      margin-bottom: 4px;
     }
-    .bar-score {
+    .nd-camera-meta {
+      font-family: "Space Mono", monospace;
       font-size: 10px;
-      color: var(--muted);
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .nd-camera-count { color: var(--text-primary); font-weight: 700; }
+
+    /* ---- Empty states ---- */
+    .nd-empty {
+      padding: var(--space-2xl) var(--space-lg);
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-disabled);
       text-align: center;
-      line-height: 1;
     }
-    .trend-legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 4px;
-    }
-    .legend-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.65);
-      border: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .legend-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-    }
-    .list {
-      display: grid;
-      gap: 12px;
-    }
-    .item {
-      padding: 14px 16px;
-      border-radius: 18px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.5);
-    }
-    .item-head {
+
+    /* ---- Footer ---- */
+    .nd-footer {
+      padding-top: var(--space-xl);
+      border-top: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 8px;
-      font-weight: 700;
     }
-    .chips {
+
+
+    /* ---- Tabs ---- */
+    .nd-tab-nav {
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 10px;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      margin-bottom: var(--space-2xl);
     }
-    .chip {
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      background: rgba(15,118,110,0.1);
-      color: var(--ink);
-    }
-    .chip.warn { background: rgba(180, 83, 9, 0.14); }
-    .chip.alert { background: rgba(194, 65, 12, 0.14); }
-    .chip.good { background: rgba(21, 128, 61, 0.12); }
-    .evidence-item {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-      padding: 12px 14px;
-      border-radius: 14px;
-      background: #ffffff;
-      border: 1px solid var(--line);
-      line-height: 1.4;
-    }
-    .evidence-icon {
-      font-size: 18px;
-      flex-shrink: 0;
-    }
-    .vms-container {
-      display: grid;
-      gap: 14px;
-    }
-    .vms-item {
-      padding: 18px;
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      background: var(--panel);
-      box-shadow: var(--shadow);
-    }
-    .vms-panel {
-      margin-top: 12px;
-      background: #0d0d0d;
-      color: #ffb800;
-      padding: 14px;
-      border-radius: 12px;
-      font-family: "Courier New", Courier, monospace;
-      font-weight: 800;
+    .nd-tab {
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      text-align: center;
-      border: 2px solid #222;
-      box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-      line-height: 1.4;
-      font-size: 14px;
+      padding: 12px 20px;
+      background: var(--surface);
+      color: var(--text-secondary);
+      border: none;
+      cursor: pointer;
+      transition: color 150ms, background 150ms;
     }
-    .vms-pictos {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      margin-top: 8px;
-    }
-    .camera-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-    }
-    .camera {
-      overflow: hidden;
-      border-radius: 18px;
-      border: 1px solid var(--line);
-      background: #fffdf8;
-    }
-    .camera img {
-      display: block;
-      width: 100%;
-      aspect-ratio: 16 / 10;
-      object-fit: cover;
-      background: linear-gradient(135deg, #d8efe8, #efe2c8);
-    }
-    .camera-body {
-      padding: 14px;
-    }
-    .camera-title {
-      font-weight: 800;
-      margin-bottom: 6px;
-    }
-    .camera-meta {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-    .empty {
-      padding: 18px;
-      border: 1px dashed var(--line);
-      border-radius: 18px;
-      color: var(--muted);
-      background: rgba(255,255,255,0.42);
-    }
-    .footer-note {
-      margin-top: 18px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-    .warning-box {
-      margin-top: 18px;
-      padding: 14px 16px;
-      border-radius: 16px;
-      border: 1px solid rgba(180, 83, 9, 0.25);
-      background: rgba(180, 83, 9, 0.08);
-      color: #7c2d12;
-      display: none;
-      line-height: 1.45;
-    }
-    @media (max-width: 980px) {
-      .hero, .grid { grid-template-columns: 1fr; }
-      .mini-grid, .camera-grid { grid-template-columns: 1fr; }
-      .shell { padding: 18px 14px 28px; }
-      .hero-main, .hero-side, .panel-section, .metric { padding: 18px; }
+    .nd-tab:hover { color: var(--text-primary); }
+    .nd-tab.active { background: var(--surface-raised); color: var(--text-display); }
+    /* ---- Responsive ---- */
+    @media (max-width: 800px) {
+      .nd-hero { grid-template-columns: 1fr; }
+      .nd-hero-right { text-align: left; align-items: flex-start; }
+      .nd-display { font-size: 72px; }
+      .nd-metrics { grid-template-columns: 1fr; }
+      .nd-two-col { grid-template-columns: 1fr; }
+      .nd-camera-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <section class="hero">
-      <div class="card hero-main">
-        <div class="eyebrow">Monitor Operativo</div>
-        <h1>Puente del Centenario</h1>
-        <p class="hero-copy">
-          Vista sencilla para entender el estado del puente, las señales activas de DGT
-          y la inferencia del carril reversible sin perder de vista la confianza real de la estimación.
-        </p>
-        <div class="metric-note" style="margin-top:22px;">Actualización automática del servidor cada 5 minutos. La página se refresca sola para mostrar el último estado guardado.</div>
-        <div id="runWarnings" class="warning-box"></div>
+  <div class="nd-shell">
+
+    <!-- Header -->
+    <header class="nd-header">
+      <div>
+        <div class="nd-eyebrow">Monitor Operativo · Puente del Centenario</div>
+        <div class="nd-header-title">VCentenario</div>
       </div>
-      <div class="card hero-side">
+      <div class="nd-header-right">
+        <div class="nd-status-indicator">
+          <span class="nd-status-dot"></span>
+          <span>Activo</span>
+        </div>
+        <div class="nd-eyebrow" id="generatedAt" style="margin-top:8px;">Sin datos</div>
+      </div>
+    </header>
+
+    <!-- Tab navigation -->
+    <nav class="nd-tab-nav">
+      <button class="nd-tab active" id="btn-estado" onclick="showTab('estado')">[ ESTADO ]</button>
+      <button class="nd-tab" id="btn-velocidades" onclick="showTab('velocidades')">VELOCIDADES</button>
+    </nav>
+
+    <div id="tab-estado">
+    <!-- Hero: Score (primary) + Level (secondary) + Meta (tertiary) -->
+    <section class="nd-hero">
+      <div>
+        <div class="nd-eyebrow">Tráfico · Score actual</div>
+        <div class="nd-hero-score">
+          <div class="nd-display" id="heroScoreNum">--</div>
+          <div class="nd-score-unit">pts</div>
+        </div>
+        <div id="heroDetail" class="nd-meta">Ejecuta una recogida para poblar el panel.</div>
+        <div id="runWarnings" class="nd-warning"></div>
+      </div>
+      <div class="nd-hero-right">
+        <div class="nd-eyebrow">Estado inferido</div>
+        <div id="heroSummary" class="nd-level-badge">Esperando datos</div>
+      </div>
+    </section>
+
+    <!-- Metrics -->
+    <section class="nd-metrics">
+      <article class="nd-metric-card">
+        <div class="nd-label">Tráfico del puente</div>
+        <div id="trafficLevel" class="nd-metric-value">-</div>
+        <div id="trafficScore" class="nd-metric-note">Score -</div>
+      </article>
+      <article class="nd-metric-card">
+        <div class="nd-label">Carril reversible</div>
+        <div id="reversibleState" class="nd-metric-value">-</div>
+        <div id="reversibleConfidence" class="nd-metric-note">Confianza -</div>
+      </article>
+      <article class="nd-metric-card">
+        <div class="nd-label">Evidencia visible</div>
+        <div id="evidenceCount" class="nd-metric-value">0</div>
+        <div id="countsLine" class="nd-metric-note">Paneles 0 · Incidencias 0 · Cámaras 0</div>
+      </article>
+    </section>
+
+    <!-- Trend -->
+    <section class="nd-section">
+      <div class="nd-section-header">
+        <span class="nd-label">Pulso reciente</span>
+        <span class="nd-meta">Últimas ejecuciones guardadas</span>
+      </div>
+      <div class="nd-section-body">
+        <div class="nd-bars-wrap">
+          <div id="trendBars" class="nd-bars"></div>
+        </div>
+      </div>
+      <div class="nd-trend-legend">
+        <div class="nd-legend-item">
+          <div class="nd-legend-color" style="background:var(--success);"></div>Fluido
+        </div>
+        <div class="nd-legend-item">
+          <div class="nd-legend-color" style="background:var(--warning);"></div>Denso
+        </div>
+        <div class="nd-legend-item">
+          <div class="nd-legend-color" style="background:var(--accent);"></div>Retenciones
+        </div>
+        <div class="nd-legend-item">
+          <div class="nd-legend-color" style="background:var(--accent); opacity:0.7;"></div>Congestión fuerte
+        </div>
+      </div>
+    </section>
+
+    <!-- Panels + Incidents -->
+    <div class="nd-two-col">
+      <section>
+        <div class="nd-section-header">
+          <span class="nd-label">Paneles activos</span>
+          <span class="nd-meta">Mensajes VMS de la zona</span>
+        </div>
+        <div id="panelsList"></div>
+      </section>
+      <section style="border-left: 1px solid var(--border);">
+        <div class="nd-section-header">
+          <span class="nd-label">Incidencias cercanas</span>
+          <span class="nd-meta">Eventos DATEX2 filtrados</span>
+        </div>
+        <div id="incidentsList"></div>
+      </section>
+    </div>
+
+    <!-- Cameras -->
+    <section class="nd-section">
+      <div class="nd-section-header">
+        <span class="nd-label">Cámaras</span>
+        <span class="nd-meta">Último snapshot disponible</span>
+      </div>
+      <div id="cameraGrid" class="nd-camera-grid"></div>
+    </section>
+
+    </div><!-- /tab-estado -->
+
+    <!-- Velocidades TomTom -->
+    <div id="tab-velocidades" style="display:none;">
+
+      <section class="nd-hero" style="margin-top:0;">
         <div>
-          <div class="status-badge">
-            <span class="status-dot"></span>
-            <span id="generatedAt">Sin datos</span>
+          <div class="nd-eyebrow">Velocidad media · Puente del Centenario</div>
+          <div class="nd-hero-score">
+            <div class="nd-display" id="spd-hero">--</div>
+            <div class="nd-score-unit">km/h</div>
+          </div>
+          <div id="spd-hero-meta" class="nd-meta">Media de los sensores activos del puente</div>
+          <div class="nd-meta" style="margin-top:8px; color:var(--text-disabled);">Velocidad real GPS (probe data) \xb7 l\xedmite 60 km/h</div>
+        </div>
+        <div class="nd-hero-right">
+          <div class="nd-eyebrow">Fuente</div>
+          <div class="nd-level-badge" style="font-size:20px;">TomTom Flow</div>
+        </div>
+      </section>
+
+      <!-- Speed by direction -->
+      <section class="nd-metrics" style="grid-template-columns:1fr 1fr;">
+        <article class="nd-metric-card">
+          <div class="nd-label">Hacia Cádiz (+)</div>
+          <div id="spd-positivo" class="nd-metric-value">-</div>
+          <div id="spd-positivo-note" class="nd-metric-note">km/h · puente_positivo</div>
+        </article>
+        <article class="nd-metric-card">
+          <div class="nd-label">Hacia Sevilla (-)</div>
+          <div id="spd-negativo" class="nd-metric-value">-</div>
+          <div id="spd-negativo-note" class="nd-metric-note">km/h · puente_negativo</div>
+        </article>
+      </section>
+
+      <!-- Speed history chart -->
+      <section class="nd-section">
+        <div class="nd-section-header">
+          <span class="nd-label">Historial de velocidad · Últimas 6 h</span>
+          <span class="nd-meta" id="spd-sensor-count">-</span>
+        </div>
+        <div class="nd-section-body" style="padding:0;">
+          <canvas id="spd-chart" width="900" height="280" style="display:block;width:100%;background:#000;"></canvas>
+        </div>
+        <div class="nd-trend-legend">
+          <div class="nd-legend-item">
+            <div class="nd-legend-color" style="background:#4A9E5C;"></div>Hacia Cádiz (+)
+          </div>
+          <div class="nd-legend-item">
+            <div class="nd-legend-color" style="background:#D4A843;"></div>Hacia Sevilla (-)
           </div>
         </div>
-        <div>
-          <div class="subtle">Lectura actual</div>
-          <div id="heroSummary" class="metric-value" style="font-size:34px; margin-top:8px;">Esperando datos</div>
-          <div id="heroDetail" class="metric-note">Ejecuta una recogida para poblar el panel.</div>
-        </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="mini-grid">
-      <article class="metric">
-        <div class="metric-label">Tráfico del puente</div>
-        <div id="trafficLevel" class="metric-value">-</div>
-        <div id="trafficScore" class="metric-note">Score -</div>
-      </article>
-      <article class="metric">
-        <div class="metric-label">Carril reversible</div>
-        <div id="reversibleState" class="metric-value">-</div>
-        <div id="reversibleConfidence" class="metric-note">Confianza -</div>
-      </article>
-      <article class="metric">
-        <div class="metric-label">Evidencia visible</div>
-        <div id="evidenceCount" class="metric-value">0</div>
-        <div id="countsLine" class="metric-note">Paneles 0 · Incidencias 0 · Cámaras 0</div>
-      </article>
-    </section>
+      <!-- All 4 TomTom points table -->
+      <section class="nd-section">
+        <div class="nd-section-header">
+          <span class="nd-label">Sensores TomTom activos</span>
+          <span class="nd-meta" id="spd-collected-at">-</span>
+        </div>
+        <div id="spd-table"></div>
+      </section>
 
-    <section class="grid">
-      <div class="card panel-section">
-        <div class="section-head">
-          <h2>Pulso Reciente</h2>
-          <div class="subtle">Últimas ejecuciones guardadas</div>
-        </div>
-        <div class="timeline">
-          <div class="trend-shell">
-            <div class="trend-thresholds">
-              <div class="trend-line" style="bottom:25%;"><span>Denso</span></div>
-              <div class="trend-line" style="bottom:58.33%;"><span>Retenciones</span></div>
-              <div class="trend-line" style="bottom:100%;"><span>Congestión</span></div>
-            </div>
-            <div id="trendBars" class="timeline-bar wide-chart"></div>
-          </div>
-          <div class="trend-legend">
-            <span class="legend-pill"><span class="legend-dot" style="background:#237032;"></span>Fluido</span>
-            <span class="legend-pill"><span class="legend-dot" style="background:#b45309;"></span>Denso</span>
-            <span class="legend-pill"><span class="legend-dot" style="background:#c2410c;"></span>Retenciones</span>
-            <span class="legend-pill"><span class="legend-dot" style="background:#991b1b;"></span>Congestión fuerte</span>
-          </div>
-          <div class="footer-note">Cada barra representa un estado guardado. El color indica la etiqueta inferida y las líneas marcan los umbrales del score.</div>
-        </div>
-      </div>
-    </section>
+    </div><!-- /tab-velocidades -->
 
-    <section class="grid" style="margin-top:18px;">
-      <div class="card panel-section">
-        <div class="section-head">
-          <h2>Paneles Activos</h2>
-          <div class="subtle">Mensajes VMS de la zona</div>
-        </div>
-        <div id="panelsList" class="vms-container"></div>
-      </div>
-      <div class="card panel-section">
-        <div class="section-head">
-          <h2>Incidencias Cercanas</h2>
-          <div class="subtle">Eventos DATEX2 filtrados por entorno</div>
-        </div>
-        <div id="incidentsList" class="list"></div>
-      </div>
-    </section>
+    <!-- Footer -->
+    <footer class="nd-footer">
+      <span class="nd-eyebrow">Actualización automática cada 60 s</span>
+      <span class="nd-eyebrow">Puente del Centenario · Sevilla</span>
+    </footer>
 
-    <section class="card panel-section" style="margin-top:18px;">
-      <div class="section-head">
-        <h2>Cámaras</h2>
-        <div class="subtle">Último snapshot disponible por cámara</div>
-      </div>
-      <div id="cameraGrid" class="camera-grid"></div>
-    </section>
   </div>
 
   <script>
@@ -877,10 +937,7 @@ HTML_PAGE = """<!doctype html>
       if (!value) return "Sin timestamp";
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return value;
-      return date.toLocaleString("es-ES", {
-        dateStyle: "medium",
-        timeStyle: "short"
-      });
+      return date.toLocaleString("es-ES", { dateStyle: "medium", timeStyle: "short" });
     }
 
     function formatKm(value) {
@@ -908,164 +965,105 @@ HTML_PAGE = """<!doctype html>
     }
 
     function chipClass(label) {
-      const value = String(label || "").toLowerCase();
-      if (value.includes("high") || value.includes("alert") || value.includes("closed")) return "chip alert";
-      if (value.includes("medium") || value.includes("warn") || value.includes("retencion")) return "chip warn";
-      if (value.includes("200")) return "chip good";
-      return "chip";
-    }
-
-    function translateEvidence(key) {
-      if (!key) return "";
-      const parts = key.split(":");
-      const type = parts[0];
-
-      if (type === "panel") {
-        const loc = parts[1] || "DGT";
-        const msg = parts[2] || "Mensaje activo";
-        return { icon: "🏛️", text: `Los paneles en <b>${escapeHtml(loc)}</b> muestran: <i>"${escapeHtml(msg)}"</i>` };
-      }
-      if (type === "incident") {
-        const road = parts[1] || "-";
-        const cause = parts[2] || "Incidencia";
-        return { icon: "⚠️", text: `Incidencia detectada en la <b>${escapeHtml(road)}</b> por <b>${escapeHtml(cause)}</b>` };
-      }
-      if (type === "camera") {
-        if (parts[1] === "visual-change") return { icon: "📸", text: "Se detectan cambios visuales importantes en las imágenes de las cámaras." };
-        if (parts[1] === "unavailable") return { icon: "🔌", text: `Hay <b>${parts[2]}</b> cámaras que no están enviando señal actualmente.` };
-        if (parts[1] === "vehicles") return { icon: "🚗", text: `Se han detectado un total de <b>${parts[2]}</b> vehículos en el área del puente.` };
-      }
-      if (type === "reversible") {
-        if (parts[1] === "no-directional-signal") return { icon: "❓", text: "No hay evidencia clara de dirección en los mensajes de los paneles." };
-        if (parts[1] === "pressure") {
-          const dir = parts[2] === "positive" ? "Cádiz" : "Sevilla";
-          return { icon: "⬆️", text: `Fuerte tendencia de tráfico hacia <b>${dir}</b> (presión ${parts[3]}).` };
-        }
-        if (parts[1] === "panel-hits") return { icon: "✅", text: `Hay <b>${parts[2]}</b> paneles que confirman el sentido de la marcha.` };
-        if (parts[1] === "incident-hits") return { icon: "🧐", text: `Hay <b>${parts[2]}</b> incidencias que coinciden con el flujo predominante.` };
-        if (parts[1] === "low-asymmetry") return { icon: "⚖️", text: "Los datos de ambos sentidos son muy similares; precaución con la estimación." };
-      }
-      return { icon: "🔍", text: escapeHtml(key) };
-    }
-
-    function renderEvidence(evidence) {
-      const root = byId("evidenceList");
-      if (!root) return;
-      if (!evidence || evidence.length === 0) {
-        root.innerHTML = '<div class="empty">Todavía no hay evidencia persistida.</div>';
-        return;
-      }
-      root.innerHTML = evidence.map((entry) => {
-        const { icon, text } = translateEvidence(entry);
-        return `
-          <div class="evidence-item">
-            <span class="evidence-icon">${icon}</span>
-            <span>${text}</span>
-          </div>
-        `;
-      }).join("");
+      const v = String(label || "").toLowerCase();
+      if (v.includes("high") || v.includes("alert") || v.includes("closed")) return "nd-chip alert";
+      if (v.includes("medium") || v.includes("warn") || v.includes("retencion")) return "nd-chip warn";
+      if (v.includes("200")) return "nd-chip good";
+      return "nd-chip";
     }
 
     function renderPanels(panels) {
       const root = byId("panelsList");
       if (!panels || panels.length === 0) {
-        root.innerHTML = '<div class="empty">No hay paneles activos registrados en la última ejecución.</div>';
+        root.innerHTML = '<div class="nd-empty">[Sin paneles activos]</div>';
         return;
       }
-      root.innerHTML = panels.map((panel) => {
+      const dirMap = { positive: "HACIA CÁDIZ", negative: "HACIA SEVILLA" };
+      root.innerHTML = '<div class="nd-vms-list">' + panels.map((panel) => {
         const title = escapeHtml(panel.location_name || panel.location_id);
         const km = escapeHtml(formatKm(panel.km));
-        const dirLabel = panel.direction === "positive" ? "⬆️ Hacia Cádiz" : (panel.direction === "negative" ? "⬇️ Hacia Sevilla" : "↔️ Ambos sentidos");
-        const msg = (panel.legends || []).join("<br>");
-        const pictos = (panel.pictograms || []).map((p) => `<span class="chip warn">${escapeHtml(p)}</span>`).join("");
-
+        const dir = dirMap[panel.direction] || "AMBOS SENTIDOS";
+        const msg = (panel.legends || []).map(l => escapeHtml(l)).join("<br>");
+        const pictos = (panel.pictograms || []).map((p) => `<span class="nd-tag warn">${escapeHtml(p)}</span>`).join("");
         return `
-          <div class="vms-item">
-            <div class="item-head">
-              <span style="font-size:16px;">🏛️ <b>${title}</b></span>
-              <span class="subtle">${km}</span>
+          <div class="nd-vms-item">
+            <div class="nd-vms-header">
+              <span class="nd-vms-name">${title}</span>
+              <span class="nd-vms-km">${km}</span>
             </div>
-            <div style="font-size:13px; margin-top:4px;" class="subtle">
-              ${dirLabel} · Estado: <b>${escapeHtml(panel.status || "Desconocido")}</b>
-            </div>
-            <div class="vms-panel">
-              ${msg || 'NO HAY MENSAJE ACTIVO'}
-            </div>
-            ${pictos ? `<div class="vms-pictos">${pictos}</div>` : ""}
-          </div>
-        `;
-      }).join("");
+            <div class="nd-vms-dir">${dir} · ${escapeHtml(panel.status || "Desconocido")}</div>
+            <div class="nd-vms-display">${msg || "SIN MENSAJE ACTIVO"}</div>
+            ${pictos ? `<div class="nd-vms-pictos">${pictos}</div>` : ""}
+          </div>`;
+      }).join("") + '</div>';
     }
 
     function renderIncidents(incidents) {
       const root = byId("incidentsList");
       if (!incidents || incidents.length === 0) {
-        root.innerHTML = '<div class="empty">No hay incidencias cercanas en la última recogida.</div>';
+        root.innerHTML = '<div class="nd-empty">[Sin incidencias cercanas]</div>';
         return;
       }
-      root.innerHTML = incidents.map((incident) => `
-        <div class="item">
-          <div class="item-head">
-            <span>${escapeHtml(incident.incident_type || incident.cause_type || "Incidencia")}</span>
-            <span>${escapeHtml(formatKm(incident.from_km ?? incident.to_km))}</span>
+      root.innerHTML = '<div class="nd-list">' + incidents.map((incident) => `
+        <div class="nd-list-item">
+          <div class="nd-list-head">
+            <span class="nd-list-title">${escapeHtml(incident.incident_type || incident.cause_type || "Incidencia")}</span>
+            <span class="nd-list-km">${escapeHtml(formatKm(incident.from_km ?? incident.to_km))}</span>
           </div>
-          <div class="subtle">
+          <div class="nd-list-sub">
             ${escapeHtml(incident.road || "-")} · ${escapeHtml(incident.direction || "sin dirección")}
             · ${escapeHtml(incident.municipality || incident.province || "sin municipio")}
           </div>
-          <div class="chips">
+          <div class="nd-chips">
             <span class="${chipClass(incident.severity)}">${escapeHtml(incident.severity || "sin severidad")}</span>
-            <span class="chip">${escapeHtml(incident.validity_status || "sin estado")}</span>
+            <span class="nd-chip">${escapeHtml(incident.validity_status || "sin estado")}</span>
           </div>
-        </div>
-      `).join("");
+        </div>`).join("") + '</div>';
     }
 
     function renderCameras(cameras) {
       const root = byId("cameraGrid");
       if (!cameras || cameras.length === 0) {
-        root.innerHTML = '<div class="empty">No hay cámaras inventariadas todavía.</div>';
+        root.innerHTML = '<div class="nd-empty">[Sin cámaras inventariadas]</div>';
         return;
       }
       root.innerHTML = cameras.map((camera) => {
         const hasImage = camera.http_status === 200 && camera.image_path;
         const imageUrl = hasImage ? `/snapshots/${encodeURIComponent(camera.image_path.split('/').pop())}` : "";
         return `
-          <article class="camera">
+          <article class="nd-camera">
             ${hasImage
-              ? `<img src="${imageUrl}" alt="Cámara ${escapeHtml(camera.camera_id)}">`
-              : `<div style="aspect-ratio:16/10; display:grid; place-items:center; color:#5f6c71; background:linear-gradient(135deg, #e8dcc3, #e7f1ec);">Sin snapshot disponible</div>`}
-            <div class="camera-body">
-              <div class="camera-title">Cámara ${escapeHtml(camera.camera_id)}</div>
-              <div class="camera-meta">
+              ? `<img src="${imageUrl}" alt="Cam ${escapeHtml(camera.camera_id)}">`
+              : `<div class="nd-camera-placeholder">[Sin snapshot]</div>`}
+            <div class="nd-camera-body">
+              <div class="nd-camera-id">Cam ${escapeHtml(camera.camera_id)}</div>
+              <div class="nd-camera-meta">
                 ${escapeHtml(camera.road || "-")} · ${escapeHtml(formatKm(camera.km))} · ${escapeHtml(camera.direction || "sin dirección")}<br>
-                ${camera.vehicle_count != null ? `<b>🚗 ${camera.vehicle_count} vehículos</b><br>` : ""}
+                ${camera.vehicle_count != null ? `<span class="nd-camera-count">${camera.vehicle_count} vehículos</span><br>` : ""}
                 HTTP ${escapeHtml(camera.http_status ?? "-")} · ${escapeHtml(camera.last_modified || camera.fetched_at || "sin fecha")}
               </div>
             </div>
-          </article>
-        `;
+          </article>`;
       }).join("");
     }
 
     function renderTrend(states) {
       const root = byId("trendBars");
       if (!states || states.length === 0) {
-        root.innerHTML = '<div class="empty" style="grid-column:1/-1;">Todavía no hay histórico suficiente.</div>';
+        root.innerHTML = '<div class="nd-empty" style="min-width:100%;">[Sin histórico]</div>';
         return;
       }
       const maxScore = Math.max(...states.map((item) => item.traffic_score || 0), 1);
       root.innerHTML = states.map((item) => {
-        const height = Math.max(12, Math.round(((item.traffic_score || 0) / maxScore) * 96));
+        const height = Math.max(8, Math.round(((item.traffic_score || 0) / maxScore) * 110));
         const label = new Date(item.generated_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
         const levelClass = `level-${escapeHtml(item.traffic_level || "fluido")}`;
         return `
-          <div class="bar-wrap">
-            <div class="bar-score">${escapeHtml(item.traffic_score ?? "-")}</div>
-            <div class="bar ${levelClass}" title="${escapeHtml(item.traffic_level)} · ${escapeHtml(item.traffic_score)}" style="height:${height}px;"></div>
-            <div class="bar-label">${escapeHtml(label)}</div>
-          </div>
-        `;
+          <div class="nd-bar-wrap">
+            <div class="nd-bar-score">${escapeHtml(String(item.traffic_score ?? "-"))}</div>
+            <div class="nd-bar ${levelClass}" style="height:${height}px;" title="${escapeHtml(item.traffic_level)} · ${escapeHtml(String(item.traffic_score))}"></div>
+            <div class="nd-bar-label">${escapeHtml(label)}</div>
+          </div>`;
       }).join("");
     }
 
@@ -1075,12 +1073,14 @@ HTML_PAGE = """<!doctype html>
       const warningBox = byId("runWarnings");
       if (!state) {
         byId("generatedAt").textContent = "Sin ejecuciones";
+        byId("heroScoreNum").textContent = "--";
         byId("heroSummary").textContent = "Sin datos";
-        byId("heroDetail").textContent = "Esperando a la primera ejecución automática.";
+        byId("heroDetail").textContent = "Esperando a la primera ejección automática.";
         warningBox.style.display = "none";
         return;
       }
-      byId("generatedAt").textContent = `Última lectura · ${formatDate(state.generated_at)}`;
+      byId("generatedAt").textContent = formatDate(state.generated_at);
+      byId("heroScoreNum").textContent = state.traffic_score ?? "--";
       byId("heroSummary").textContent = stateLabels[state.traffic_level] || state.traffic_level;
       byId("heroDetail").textContent = `Reversible: ${stateLabels[state.reversible_probable] || state.reversible_probable} · ${formatConfidence(state.confidence)} · ${formatForecast(state.forecast)}`;
       byId("trafficLevel").textContent = stateLabels[state.traffic_level] || state.traffic_level;
@@ -1089,15 +1089,14 @@ HTML_PAGE = """<!doctype html>
       byId("reversibleConfidence").textContent = `${formatConfidence(state.confidence)} · ${formatForecast(state.forecast)}`;
       byId("evidenceCount").textContent = String((state.evidence || []).length);
       const sampleCount = state.learning_context && state.learning_context.sample_count != null
-        ? ` · muestras franja ${state.learning_context.sample_count}`
-        : "";
+        ? ` · muestras franja ${state.learning_context.sample_count}` : "";
       byId("countsLine").textContent = `Paneles ${data.panels.length} · Incidencias ${data.incidents.length} · Cámaras ${data.cameras.length}${sampleCount}`;
-      renderEvidence(state.evidence);
       renderPanels(data.panels);
       renderIncidents(data.incidents);
       renderCameras(data.cameras);
       const trendSource = (data.trend_states && data.trend_states.length) ? data.trend_states : data.recent_states;
       renderTrend(trendSource);
+      renderSpeedTab(data);
       if (latestRun && latestRun.warnings && latestRun.warnings.length > 0) {
         warningBox.style.display = "block";
         warningBox.innerHTML = latestRun.warnings.map((item) => escapeHtml(item)).join("<br>");
@@ -1114,8 +1113,197 @@ HTML_PAGE = """<!doctype html>
       renderDashboard(data);
     }
 
+
+    function showTab(name) {
+      document.getElementById('tab-estado').style.display = name === 'estado' ? '' : 'none';
+      document.getElementById('tab-velocidades').style.display = name === 'velocidades' ? '' : 'none';
+      document.getElementById('btn-estado').classList.toggle('active', name === 'estado');
+      document.getElementById('btn-velocidades').classList.toggle('active', name === 'velocidades');
+    }
+
+    function renderSpeedTab(data) {
+      const detectors = data.detectors || [];
+      const history = data.tomtom_speed_history || [];
+
+      // Current readings from latest detectors
+      const tomtom = detectors.filter(d => d.detector_id && d.detector_id.startsWith('tomtom_'));
+      const puente = tomtom.filter(d => d.detector_id.includes('puente'));
+      const pos = tomtom.find(d => d.detector_id.includes('positivo') && d.detector_id.includes('puente'));
+      const neg = tomtom.find(d => d.detector_id.includes('negativo') && d.detector_id.includes('puente'));
+
+      const avgPuente = puente.length
+        ? (puente.reduce((a, d) => a + (d.average_speed || 0), 0) / puente.length).toFixed(0)
+        : null;
+
+      const allFreeFlow = puente.length > 0 && puente.every(
+        d => d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1
+      );
+      byId('spd-hero').textContent = avgPuente ?? '--';
+      byId('spd-hero').style.color = allFreeFlow ? 'var(--text-disabled)' : 'var(--text-display)';
+      byId('spd-hero-meta').textContent = puente.length === 0
+        ? 'Sin lecturas de sensores del puente'
+        : allFreeFlow
+          ? 'Sin tr\xe1fico real detectado \xb7 TomTom devuelve velocidad libre (dato est\xe1tico)'
+          : `Dato en tiempo real \xb7 ${puente.length} sensor${puente.length > 1 ? 'es' : ''} activo${puente.length > 1 ? 's' : ''}`;
+
+      if (pos) {
+        byId('spd-positivo').textContent = pos.average_speed != null ? pos.average_speed.toFixed(0) : '-';
+        byId('spd-positivo-note').textContent = `km/h · ${pos.detector_id}`;
+      }
+      if (neg) {
+        byId('spd-negativo').textContent = neg.average_speed != null ? neg.average_speed.toFixed(0) : '-';
+        byId('spd-negativo-note').textContent = `km/h · ${neg.detector_id}`;
+      }
+
+      byId('spd-sensor-count').textContent = `${puente.length} sensor${puente.length !== 1 ? 'es' : ''} del puente con datos`;
+      if (puente.length > 0) {
+        byId('spd-collected-at').textContent = formatDate(puente[0].collected_at);
+      }
+
+      // Table — solo sensores del puente
+      const root = byId('spd-table');
+      if (puente.length === 0) {
+        root.innerHTML = '<div class="nd-empty">[Sin lecturas TomTom del puente — API key no configurada o sin datos recientes]</div>';
+      } else {
+        root.innerHTML = '<div class="nd-list">' + puente.map(d => {
+          const spd = d.average_speed != null ? d.average_speed.toFixed(1) + ' km/h' : '-';
+          const flow = d.vehicle_flow != null ? d.vehicle_flow + ' veh/h' : '-';
+          const dir = d.detector_id.includes('positivo') ? '\u2191 C\xe1diz' : d.detector_id.includes('negativo') ? '\u2193 Sevilla' : '-';
+          const isFreeFlow = d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1;
+          const spdColor = isFreeFlow ? 'color:var(--text-disabled)' :
+            d.average_speed == null ? '' :
+            d.average_speed >= 55 ? 'color:var(--success)' :
+            d.average_speed >= 30 ? 'color:var(--warning)' : 'color:var(--accent)';
+          const freeFlowBadge = isFreeFlow
+            ? ' <span class="nd-chip" style="font-size:9px;padding:2px 6px;border-color:var(--text-disabled);color:var(--text-disabled);">SIN DATOS REALES</span>'
+            : '';
+          const ffsNote = d.free_flow_speed != null ? ` \xb7 libre ${d.free_flow_speed.toFixed(0)} km/h` : '';
+          return `<div class="nd-list-item">
+            <div class="nd-list-head">
+              <span class="nd-list-title" style="${spdColor}">${spd}${freeFlowBadge}</span>
+              <span class="nd-list-km">${dir}</span>
+            </div>
+            <div class="nd-list-sub">${escapeHtml(d.detector_id)}${ffsNote} \xb7 flujo ${flow}</div>
+          </div>`;
+        }).join('') + '</div>';
+      }
+
+      // History chart — solo sensores del puente
+      drawSpeedChart(history.filter(r => r.detector_id && r.detector_id.includes('puente')));
+    }
+
+    function drawSpeedChart(history) {
+      const canvas = byId('spd-chart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, W, H);
+
+      if (!history || history.length === 0) {
+        ctx.fillStyle = '#333333';
+        ctx.font = '700 12px "Space Mono"';
+        ctx.textAlign = 'left';
+        ctx.fillText('[SIN HISTÓRICO DE VELOCIDAD]', 20, 40);
+        return;
+      }
+
+      const pad = { top: 32, right: 32, bottom: 36, left: 52 };
+      const w = W - pad.left - pad.right;
+      const h = H - pad.top - pad.bottom;
+
+      // Group by detector_id -> sorted timestamps
+      const series = {};
+      history.forEach(r => {
+        if (!series[r.detector_id]) series[r.detector_id] = [];
+        series[r.detector_id].push({ t: r.collected_at, v: r.average_speed });
+      });
+
+      // All unique timestamps sorted
+      const allTimes = [...new Set(history.map(r => r.collected_at))].sort();
+      if (allTimes.length < 2) {
+        ctx.fillStyle = '#333333';
+        ctx.font = '700 12px "Space Mono"';
+        ctx.textAlign = 'left';
+        ctx.fillText('[DATOS INSUFICIENTES PARA TRAZAR TENDENCIA]', 20, 40);
+        return;
+      }
+
+      const allSpeeds = history.map(r => r.average_speed).filter(v => v != null);
+      const maxV = Math.max(...allSpeeds, 120);
+      const minV = Math.min(...allSpeeds, 0);
+      const range = maxV - minV || 1;
+
+      // Grid
+      ctx.strokeStyle = '#1A1A1A';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.top + (h / 4) * i;
+        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+        ctx.fillStyle = '#666666';
+        ctx.font = '9px "Space Mono"';
+        ctx.textAlign = 'right';
+        ctx.fillText((maxV - (range / 4) * i).toFixed(0), pad.left - 6, y + 3);
+      }
+
+      // Speed limit reference line at 60 km/h (límite puente + radar de tramo)
+      if (60 >= minV && 60 <= maxV) {
+        const yLimit = pad.top + h - ((60 - minV) / range) * h;
+        ctx.strokeStyle = '#D71921';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(pad.left, yLimit); ctx.lineTo(W - pad.right, yLimit); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#D71921';
+        ctx.font = '9px "Space Mono"';
+        ctx.textAlign = 'left';
+        ctx.fillText('60', W - pad.right + 4, yLimit + 3);
+      }
+
+      // Color map for series
+      const colorMap = {
+        'tomtom_puente_positivo': '#4A9E5C',
+        'tomtom_puente_negativo': '#D4A843',
+        'tomtom_sur_positivo':    '#666666',
+        'tomtom_norte_negativo':  '#666666',
+      };
+
+      // Draw each series
+      Object.entries(series).forEach(([detId, points]) => {
+        const color = colorMap[detId] || '#999999';
+        points.sort((a, b) => a.t.localeCompare(b.t));
+        ctx.strokeStyle = color;
+        ctx.lineWidth = detId.includes('puente') ? 1.5 : 1;
+        ctx.lineJoin = 'miter';
+        ctx.lineCap = 'square';
+        ctx.beginPath();
+        let started = false;
+        points.forEach(p => {
+          if (p.v == null) return;
+          const xi = allTimes.indexOf(p.t);
+          const x = pad.left + (xi / (allTimes.length - 1)) * w;
+          const y = pad.top + h - ((p.v - minV) / range) * h;
+          if (!started) { ctx.moveTo(x, y); started = true; }
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      });
+
+      // X labels (time)
+      ctx.fillStyle = '#666666';
+      ctx.font = '9px "Space Mono"';
+      ctx.textAlign = 'center';
+      const step = Math.max(1, Math.ceil(allTimes.length / 6));
+      for (let i = 0; i < allTimes.length; i += step) {
+        const x = pad.left + (i / (allTimes.length - 1)) * w;
+        const t = new Date(allTimes[i]);
+        const label = t.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        ctx.fillText(label, x, H - 4);
+      }
+    }
+
     loadDashboard().catch((error) => {
-      byId("heroDetail").textContent = `Error inicial: ${error.message}`;
+      byId("heroDetail").textContent = `[ERROR] ${error.message}`;
     });
     window.setInterval(() => {
       loadDashboard().catch(() => {});
