@@ -29,7 +29,9 @@ def get_simple_dashboard():
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>VCentenario · Traffic Monitor</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css">
+  <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -721,6 +723,42 @@ HTML_PAGE = """<!doctype html>
     }
     .nd-tab:hover { color: var(--text-primary); }
     .nd-tab.active { background: var(--surface-raised); color: var(--text-display); }
+
+    /* ---- Mapa ---- */
+    #nd-map { background: var(--black); }
+    .nd-map-marker {
+      width: 52px; height: 52px;
+      background: var(--surface);
+      border: 2px solid var(--border-visible);
+      display: flex; align-items: center; justify-content: center;
+      font-family: "Space Mono", monospace;
+      font-size: 12px; font-weight: 700;
+      color: var(--text-display);
+      cursor: pointer;
+      transition: border-color 150ms;
+    }
+    .nd-map-marker:hover { border-color: var(--text-display); }
+    .maplibregl-popup-content {
+      background: #111111 !important;
+      border: 1px solid #333333 !important;
+      border-radius: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+    }
+    .maplibregl-popup-tip { display: none !important; }
+    .maplibregl-ctrl-group {
+      background: #111111 !important;
+      border: 1px solid #333333 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+    }
+    .maplibregl-ctrl-group button {
+      background: #111111 !important;
+      color: #999999 !important;
+    }
+    .maplibregl-ctrl-group button:hover { background: #1A1A1A !important; color: #FFFFFF !important; }
+    .maplibregl-ctrl-attrib { background: rgba(0,0,0,0.6) !important; color: #666 !important; font-size: 9px !important; }
+
     /* ---- Responsive ---- */
     @media (max-width: 800px) {
       .nd-hero { grid-template-columns: 1fr; }
@@ -754,6 +792,7 @@ HTML_PAGE = """<!doctype html>
     <nav class="nd-tab-nav">
       <button class="nd-tab active" id="btn-estado" onclick="showTab('estado')">[ ESTADO ]</button>
       <button class="nd-tab" id="btn-velocidades" onclick="showTab('velocidades')">VELOCIDADES</button>
+      <button class="nd-tab" id="btn-mapa" onclick="showTab('mapa')">MAPA</button>
     </nav>
 
     <div id="tab-estado">
@@ -911,6 +950,45 @@ HTML_PAGE = """<!doctype html>
       </section>
 
     </div><!-- /tab-velocidades -->
+
+    </div><!-- /tab-velocidades cierre para añadir mapa antes del footer -->
+
+    <!-- Mapa TomTom sensors -->
+    <div id="tab-mapa" style="display:none;">
+
+      <section class="nd-section" style="margin-bottom:var(--space-2xl);">
+        <div class="nd-section-header">
+          <span class="nd-label">Puente del Centenario · Sensores TomTom</span>
+          <span class="nd-meta" id="map-status">Cargando mapa...</span>
+        </div>
+        <div id="nd-map" style="height:560px;"></div>
+      </section>
+
+      <!-- Tabla resumen bajo el mapa -->
+      <section class="nd-metrics" style="grid-template-columns:repeat(4,1fr); margin-bottom:0;">
+        <article class="nd-metric-card" id="map-card-puente-positivo">
+          <div class="nd-label">Hacia Cádiz</div>
+          <div class="nd-metric-value" id="map-spd-puente-positivo">-</div>
+          <div class="nd-metric-note">tomtom_puente_positivo</div>
+        </article>
+        <article class="nd-metric-card" id="map-card-puente-negativo">
+          <div class="nd-label">Hacia Sevilla</div>
+          <div class="nd-metric-value" id="map-spd-puente-negativo">-</div>
+          <div class="nd-metric-note">tomtom_puente_negativo</div>
+        </article>
+        <article class="nd-metric-card" id="map-card-sur-positivo">
+          <div class="nd-label">Acceso Sur</div>
+          <div class="nd-metric-value" id="map-spd-sur-positivo">-</div>
+          <div class="nd-metric-note">tomtom_sur_positivo</div>
+        </article>
+        <article class="nd-metric-card" id="map-card-norte-negativo">
+          <div class="nd-label">Acceso Norte</div>
+          <div class="nd-metric-value" id="map-spd-norte-negativo">-</div>
+          <div class="nd-metric-note">tomtom_norte_negativo</div>
+        </article>
+      </section>
+
+    </div><!-- /tab-mapa -->
 
     <!-- Footer -->
     <footer class="nd-footer">
@@ -1097,6 +1175,7 @@ HTML_PAGE = """<!doctype html>
       const trendSource = (data.trend_states && data.trend_states.length) ? data.trend_states : data.recent_states;
       renderTrend(trendSource);
       renderSpeedTab(data);
+      renderMapTab(data);
       if (latestRun && latestRun.warnings && latestRun.warnings.length > 0) {
         warningBox.style.display = "block";
         warningBox.innerHTML = latestRun.warnings.map((item) => escapeHtml(item)).join("<br>");
@@ -1114,11 +1193,147 @@ HTML_PAGE = """<!doctype html>
     }
 
 
+
+    // ---- Mapa MapLibre GL ----
+    let ndMap = null;
+    let ndMapMarkers = {};
+    let ndMapLoaded = false;
+
+    const TOMTOM_POSITIONS = {
+      'tomtom_puente_positivo': [-6.0168, 37.3727],
+      'tomtom_puente_negativo': [-6.0173, 37.3722],
+      'tomtom_sur_positivo':    [-6.0050, 37.3612],
+      'tomtom_norte_negativo':  [-5.9980, 37.3840],
+    };
+
+    function sensorColor(d) {
+      if (!d || d.average_speed == null) return '#666666';
+      const isFreeFlow = d.free_flow_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1;
+      if (isFreeFlow) return '#666666';
+      if (d.average_speed >= 55) return '#4A9E5C';
+      if (d.average_speed >= 30) return '#D4A843';
+      return '#D71921';
+    }
+
+    function initMap() {
+      if (ndMap) { ndMap.resize(); return; }
+      ndMap = new maplibregl.Map({
+        container: 'nd-map',
+        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+        center: [-6.0170, 37.3722],
+        zoom: 13.5,
+        attributionControl: false,
+      });
+      ndMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+      ndMap.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+      ndMap.on('load', () => {
+        ndMapLoaded = true;
+        byId('map-status').textContent = 'MapLibre GL · CARTO Dark Matter';
+        // Dibujar línea del puente
+        ndMap.addSource('bridge', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [-6.0140, 37.3710],
+                [-6.0168, 37.3727],
+                [-6.0190, 37.3742],
+              ]
+            }
+          }
+        });
+        ndMap.addLayer({
+          id: 'bridge-line',
+          type: 'line',
+          source: 'bridge',
+          paint: {
+            'line-color': '#FFFFFF',
+            'line-width': 3,
+            'line-opacity': 0.25,
+          }
+        });
+        // Si ya hay datos, pintarlos ahora
+        if (window._lastDashboardData) renderMapTab(window._lastDashboardData);
+      });
+    }
+
+    function renderMapTab(data) {
+      window._lastDashboardData = data;
+      if (!ndMap || !ndMapLoaded) return;
+
+      const detectors = data.detectors || [];
+      const tomtom = detectors.filter(d => d.detector_id && d.detector_id.startsWith('tomtom_'));
+
+      // Actualizar tarjetas resumen
+      Object.keys(TOMTOM_POSITIONS).forEach(id => {
+        const d = tomtom.find(x => x.detector_id === id);
+        const el = byId('map-spd-' + id.replace('tomtom_', '').replaceAll('_', '-'));
+        if (el) {
+          const isFreeFlow = d && d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1;
+          el.textContent = d && d.average_speed != null ? d.average_speed.toFixed(0) + ' km/h' : '-';
+          el.style.color = sensorColor(d);
+          el.style.opacity = isFreeFlow ? '0.4' : '1';
+        }
+      });
+
+      // Limpiar marcadores anteriores
+      Object.values(ndMapMarkers).forEach(m => m.remove());
+      ndMapMarkers = {};
+
+      // Dibujar marcadores
+      tomtom.forEach(d => {
+        const pos = TOMTOM_POSITIONS[d.detector_id];
+        if (!pos) return;
+
+        const color = sensorColor(d);
+        const isFreeFlow = d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1;
+        const spd = d.average_speed != null ? d.average_speed.toFixed(0) : '--';
+        const isPuente = d.detector_id.includes('puente');
+        const dir = d.detector_id.includes('positivo') ? '↑ Cádiz' : '↓ Sevilla';
+        const ffsNote = d.free_flow_speed != null
+          ? `<div style="color:#666666;margin-top:2px;">libre ${d.free_flow_speed.toFixed(0)} km/h</div>`
+          : '';
+        const statusNote = isFreeFlow
+          ? '<div style="color:#666666;margin-top:4px;font-size:9px;letter-spacing:0.06em;">SIN DATO REAL</div>'
+          : '<div style="color:#4A9E5C;margin-top:4px;font-size:9px;letter-spacing:0.06em;">EN TIEMPO REAL</div>';
+
+        const el = document.createElement('div');
+        el.className = 'nd-map-marker';
+        el.style.borderColor = color;
+        el.style.color = color;
+        el.style.width = isPuente ? '52px' : '44px';
+        el.style.height = isPuente ? '52px' : '44px';
+        el.style.fontSize = isPuente ? '13px' : '11px';
+        el.style.opacity = isFreeFlow ? '0.55' : '1';
+        el.textContent = spd;
+
+        const popup = new maplibregl.Popup({ offset: 12, closeButton: true, maxWidth: '200px' })
+          .setHTML(`<div style="font-family:'Space Mono',monospace;font-size:11px;color:#E8E8E8;padding:12px 14px;line-height:1.6;">
+            <div style="font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:#999999;margin-bottom:6px;">${escapeHtml(d.detector_id)}</div>
+            <div style="font-size:24px;font-weight:700;color:${color};">${spd} <span style="font-size:12px;">km/h</span></div>
+            <div style="color:#999999;margin-top:2px;">${isPuente ? dir : 'Acceso'}</div>
+            ${ffsNote}${statusNote}
+          </div>`);
+
+        const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+          .setLngLat(pos)
+          .setPopup(popup)
+          .addTo(ndMap);
+
+        ndMapMarkers[d.detector_id] = marker;
+      });
+    }
+
     function showTab(name) {
       document.getElementById('tab-estado').style.display = name === 'estado' ? '' : 'none';
       document.getElementById('tab-velocidades').style.display = name === 'velocidades' ? '' : 'none';
+      document.getElementById('tab-mapa').style.display = name === 'mapa' ? '' : 'none';
       document.getElementById('btn-estado').classList.toggle('active', name === 'estado');
       document.getElementById('btn-velocidades').classList.toggle('active', name === 'velocidades');
+      document.getElementById('btn-mapa').classList.toggle('active', name === 'mapa');
+      if (name === 'mapa') initMap();
     }
 
     function renderSpeedTab(data) {
