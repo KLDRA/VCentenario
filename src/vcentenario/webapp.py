@@ -29,8 +29,6 @@ def get_simple_dashboard():
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>VCentenario · Traffic Monitor</title>
-    <link rel="stylesheet" href="/static/maplibre-gl.css">
-  <script src="/static/maplibre-gl.js" onload="window._mlLoaded=true" onerror="window._mlError='load failed'"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -1215,18 +1213,27 @@ HTML_PAGE = """<!doctype html>
       return '#D71921';
     }
 
+    function loadMapLibreAndInit() {
+      if (typeof maplibregl !== 'undefined') { _initMapNow(); return; }
+      byId('map-status').textContent = 'Cargando librería...';
+      const link = document.createElement('link');
+      link.rel = 'stylesheet'; link.href = '/static/maplibre-gl.css';
+      document.head.appendChild(link);
+      const script = document.createElement('script');
+      script.src = '/static/maplibre-gl.js';
+      script.onload = () => _initMapNow();
+      script.onerror = () => { byId('map-status').textContent = 'ERROR: no se pudo cargar /static/maplibre-gl.js'; };
+      document.head.appendChild(script);
+    }
+
     function initMap() {
       if (ndMap) { ndMap.resize(); return; }
-      // Diagnóstico: comprobar que maplibregl está disponible
-      if (typeof maplibregl === 'undefined') {
-        const reason = window._mlError ? 'archivo no descargado (HTTP error)' :
-                       window._mlLoaded ? 'script cargó pero maplibregl no definido (error de ejecución JS)' :
-                       'script aún no cargado';
-        byId('map-status').textContent = 'ERROR: ' + reason;
-        return;
-      }
+      loadMapLibreAndInit();
+    }
+
+    function _initMapNow() {
       const container = byId('nd-map');
-      byId('map-status').textContent = 'Iniciando mapa... container=' + container.offsetWidth + 'x' + container.offsetHeight;
+      byId('map-status').textContent = 'Iniciando...';
       ndMap = new maplibregl.Map({
         container: 'nd-map',
         style: {
