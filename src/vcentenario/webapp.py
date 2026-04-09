@@ -1217,7 +1217,13 @@ HTML_PAGE = """<!doctype html>
 
     function initMap() {
       if (ndMap) { ndMap.resize(); return; }
-      byId('map-status').textContent = 'Iniciando mapa...';
+      // Diagnóstico: comprobar que maplibregl está disponible
+      if (typeof maplibregl === 'undefined') {
+        byId('map-status').textContent = 'ERROR: maplibre-gl.js no cargó (CDN bloqueado o sin red)';
+        return;
+      }
+      const container = byId('nd-map');
+      byId('map-status').textContent = 'Iniciando mapa... container=' + container.offsetWidth + 'x' + container.offsetHeight;
       ndMap = new maplibregl.Map({
         container: 'nd-map',
         style: {
