@@ -30,7 +30,7 @@ def get_simple_dashboard():
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>VCentenario · Traffic Monitor</title>
     <link rel="stylesheet" href="/static/maplibre-gl.css">
-  <script src="/static/maplibre-gl.js"></script>
+  <script src="/static/maplibre-gl.js" onload="window._mlLoaded=true" onerror="window._mlError='load failed'"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -1219,7 +1219,10 @@ HTML_PAGE = """<!doctype html>
       if (ndMap) { ndMap.resize(); return; }
       // Diagnóstico: comprobar que maplibregl está disponible
       if (typeof maplibregl === 'undefined') {
-        byId('map-status').textContent = 'ERROR: maplibre-gl.js no cargó (CDN bloqueado o sin red)';
+        const reason = window._mlError ? 'archivo no descargado (HTTP error)' :
+                       window._mlLoaded ? 'script cargó pero maplibregl no definido (error de ejecución JS)' :
+                       'script aún no cargado';
+        byId('map-status').textContent = 'ERROR: ' + reason;
         return;
       }
       const container = byId('nd-map');
