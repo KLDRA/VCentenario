@@ -1217,18 +1217,36 @@ HTML_PAGE = """<!doctype html>
 
     function initMap() {
       if (ndMap) { ndMap.resize(); return; }
+      byId('map-status').textContent = 'Iniciando mapa...';
       ndMap = new maplibregl.Map({
         container: 'nd-map',
-        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+        style: {
+          version: 8,
+          sources: {
+            'carto-dark': {
+              type: 'raster',
+              tiles: [
+                'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+              ],
+              tileSize: 256,
+              attribution: '© OpenStreetMap contributors © CARTO',
+            }
+          },
+          layers: [{ id: 'carto-dark-layer', type: 'raster', source: 'carto-dark' }]
+        },
         center: [-6.0170, 37.3722],
         zoom: 13.5,
         attributionControl: false,
       });
       ndMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
       ndMap.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+      ndMap.on('error', (e) => {
+        byId('map-status').textContent = 'Error: ' + (e.error ? e.error.message : 'desconocido');
+      });
       ndMap.on('load', () => {
         ndMapLoaded = true;
-        byId('map-status').textContent = 'MapLibre GL · CARTO Dark Matter';
+        byId('map-status').textContent = 'MapLibre GL · CARTO Dark';
         // Dibujar línea del puente
         ndMap.addSource('bridge', {
           type: 'geojson',
