@@ -1333,7 +1333,7 @@ HTML_PAGE = """<!doctype html>
       document.getElementById('btn-estado').classList.toggle('active', name === 'estado');
       document.getElementById('btn-velocidades').classList.toggle('active', name === 'velocidades');
       document.getElementById('btn-mapa').classList.toggle('active', name === 'mapa');
-      if (name === 'mapa') initMap();
+      if (name === 'mapa') requestAnimationFrame(initMap);
     }
 
     function renderSpeedTab(data) {
