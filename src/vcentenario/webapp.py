@@ -29,8 +29,8 @@ def get_simple_dashboard():
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>VCentenario · Traffic Monitor</title>
-    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css">
-  <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
+    <link rel="stylesheet" href="/static/maplibre-gl.css">
+  <script src="/static/maplibre-gl.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -1595,6 +1595,15 @@ class DashboardServer:
                     file_path = snapshots_dir / name
                     if not file_path.exists() or snapshots_dir not in file_path.resolve().parents:
                         self.send_error(HTTPStatus.NOT_FOUND, "Snapshot no encontrado")
+                        return
+                    self._send_file(file_path)
+                    return
+                if parsed.path.startswith("/static/"):
+                    static_dir = Path(__file__).parent / "static"
+                    name = Path(parsed.path.removeprefix("/static/")).name
+                    file_path = static_dir / name
+                    if not file_path.exists() or static_dir not in file_path.resolve().parents:
+                        self.send_error(HTTPStatus.NOT_FOUND, "Static file no encontrado")
                         return
                     self._send_file(file_path)
                     return
