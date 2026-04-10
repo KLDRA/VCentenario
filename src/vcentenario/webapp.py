@@ -1202,34 +1202,6 @@ HTML_PAGE = """<!doctype html>
         .replaceAll("'", "&#039;");
     }
 
-    const INCIDENT_TYPE_ES = {
-      weightRestrictionInOperation: "Restricción de tonelaje en vigor",
-      roadworks: "Obras en calzada",
-      newRoadworksLayout: "Nueva disposición por obras",
-      roadMaintenance: "Mantenimiento de vía",
-      maintenanceWorks: "Trabajos de mantenimiento",
-      accident: "Accidente",
-      vehicleOnFire: "Vehículo en llamas",
-      abnormalLoad: "Carga especial",
-      brokenDownVehicle: "Vehículo averiado",
-      obstacleOnTheRoad: "Obstáculo en calzada",
-      spillage: "Derrame en calzada",
-      poorWeather: "Mal tiempo",
-      fog: "Niebla",
-      ice: "Hielo",
-      heavyRain: "Lluvia intensa",
-      strongWinds: "Viento fuerte",
-      trafficCongestion: "Congestión de tráfico",
-      slowTraffic: "Tráfico lento",
-      stationaryTraffic: "Tráfico detenido",
-      laneClosures: "Cierre de carril",
-      carriagewayClosures: "Cierre de calzada",
-      roadClosed: "Vía cortada",
-    };
-    function incidentLabel(type) {
-      return INCIDENT_TYPE_ES[type] || type || "Incidencia";
-    }
-
     function chipClass(label) {
       const v = String(label || "").toLowerCase();
       if (v.includes("high") || v.includes("alert") || v.includes("closed")) return "nd-chip alert";
@@ -1273,7 +1245,7 @@ HTML_PAGE = """<!doctype html>
       root.innerHTML = '<div class="nd-list">' + incidents.map((incident) => `
         <div class="nd-list-item">
           <div class="nd-list-head">
-            <span class="nd-list-title">${escapeHtml(incidentLabel(incident.incident_type || incident.cause_type))}</span>
+            <span class="nd-list-title">${escapeHtml(incident.incident_type || incident.cause_type || "Incidencia")}</span>
             <span class="nd-list-km">${escapeHtml(formatKm(incident.from_km ?? incident.to_km))}</span>
           </div>
           <div class="nd-list-sub">
@@ -1779,7 +1751,7 @@ HTML_PAGE = """<!doctype html>
       const sorted = [...incidents].sort((a, b) => (a.from_km ?? a.to_km ?? 999) - (b.from_km ?? b.to_km ?? 999));
       root.innerHTML = '<div class="nd-list">' + sorted.map(inc => {
         const km = inc.from_km != null ? 'km ' + Number(inc.from_km).toFixed(1) + (inc.to_km != null ? '\u2013' + Number(inc.to_km).toFixed(1) : '') : (inc.to_km != null ? 'km ' + Number(inc.to_km).toFixed(1) : 'km -');
-        const title = escapeHtml(incidentLabel(inc.incident_type || inc.cause_type));
+        const title = escapeHtml(inc.incident_type || inc.cause_type || 'Incidencia');
         const dir = dirLabel(inc.direction);
         const muni = escapeHtml(inc.municipality || inc.province || '-');
         const sev = inc.severity || 'sin severidad';
