@@ -152,12 +152,11 @@ class VCentenarioService:
 
         # TomTom Flow — complementa detectores DGT cuando están caídos o ausentes
         if TOMTOM_API_KEY:
-            # Puntos estratégicos: ambos sentidos del puente (KM ~13.5) y dos accesos
+            # Puntos del tramo km 10–12, sentido Huelva (positivo)
             tomtom_points = [
-                (37.3727, -6.0168, "tomtom_puente_positivo"),   # Puente, sentido creciente (→ Cádiz)
-                (37.3722, -6.0173, "tomtom_puente_negativo"),   # Puente, sentido decreciente (→ Sevilla) — centrado en tablero
-                (37.3612, -6.0050, "tomtom_sur_positivo"),      # Acceso sur KM ~10
-                (37.3840, -5.9980, "tomtom_norte_negativo"),    # Acceso norte KM ~17
+                (37.343820, -5.986923, "tomtom_km10_huelva"),  # km 10 sentido Huelva
+                (37.350518, -5.994916, "tomtom_km11_huelva"),  # km 11 sentido Huelva (punto medio)
+                (37.357216, -6.002909, "tomtom_km12_huelva"),  # km 12 sentido Huelva
             ]
             tomtom_readings = []
             for lat, lon, det_id in tomtom_points:
@@ -209,13 +208,61 @@ class VCentenarioService:
             "state": asdict(state),
         }
 
+    def se30_live_data(self) -> Dict[str, object]:
+        """Live fetch del tramo km 10–12 sentido Huelva: DGT (paneles, incidencias, detectores)
+        + TomTom almacenado (timer). Usa los mismos filtros geográficos que la recogida principal."""
+        from dataclasses import asdict
+        errors: Dict[str, str] = {}
+
+        panel_inventory: Dict = {}
+        panel_messages: list = []
+        try:
+            panel_inventory = self.panel_collector.fetch_inventory()
+            if panel_inventory:
+                panel_messages = self.panel_collector.fetch_active_messages(panel_inventory)
+        except Exception as exc:
+            errors["panels"] = str(exc)
+
+        incidents: list = []
+        try:
+            incidents = self.incident_collector.fetch_bridge_incidents()
+        except Exception as exc:
+            errors["incidents"] = str(exc)
+
+        detector_inventory: Dict = {}
+        detector_readings: list = []
+        try:
+            detector_inventory = self.detector_collector.fetch_inventory()
+            if detector_inventory:
+                detector_readings = self.detector_collector.fetch_bridge_measurements(detector_inventory)
+        except Exception as exc:
+            errors["detectors"] = str(exc)
+
+        # TomTom: puntos del timer ya almacenados (frescos), filtrados al tramo km 10-12
+        stored_detectors = self.storage.latest_detector_readings(limit=50)
+        tomtom: list = [r for r in stored_detectors if r.get("detector_id", "").startswith("tomtom_")]
+
+        if not TOMTOM_API_KEY:
+            errors["tomtom"] = "VCENTENARIO_TOMTOM_API_KEY no configurada"
+
+        return {
+            "panels": [asdict(p) for p in panel_messages],
+            "panel_locations": len(panel_inventory),
+            "incidents": [asdict(i) for i in incidents],
+            "detectors": [asdict(d) for d in detector_readings],
+            "detector_locations": len(detector_inventory),
+            "tomtom": tomtom,
+            "errors": errors,
+            "collected_at": utc_now_iso(),
+        }
+
     def latest_state(self) -> Optional[Dict[str, object]]:
         return self.storage.latest_state()
 
     def dashboard_data(self) -> Dict[str, object]:
         self.storage.init_db()
         state = self.latest_state()
-        trend_states = self.storage.recent_states_since(minutes=360, limit=72)
+        trend_states = self.storage.recent_states_since(minutes=1440, limit=288)
         return {
             "state": state,
             "latest_run": self.storage.latest_collection_run(),

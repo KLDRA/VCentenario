@@ -93,6 +93,35 @@ class DetectorCollector:
             )
         return readings
 
+    def fetch_se30_inventory(self) -> Dict[str, DetectorLocation]:
+        """Fetches all detector locations on SE-30 (no km/bbox filter)."""
+        response = self.http.get(DETECTORS_INVENTORY_URL, accept="application/xml")
+        if response.status != 200:
+            detail = f": {response.error}" if response.error else ""
+            raise RuntimeError(f"Detector inventory request failed with HTTP {response.status}{detail}")
+        root = ET.fromstring(response.body)
+        locations: Dict[str, DetectorLocation] = {}
+        for node in root.findall(".//d:predefinedLocation", DETECTORS_NS_V1):
+            detector_id = node.attrib.get("id")
+            if not detector_id:
+                continue
+            road = self._find_text(node, ".//d:roadNumber")
+            if road != BRIDGE_AREA.road:
+                continue
+            km = km_from_meters(self._find_text(node, ".//d:referencePointDistance"))
+            direction = self._find_text(node, ".//d:directionRelative")
+            latitude = parse_float(self._find_text(node, ".//d:latitude"))
+            longitude = parse_float(self._find_text(node, ".//d:longitude"))
+            locations[detector_id] = DetectorLocation(
+                detector_id=detector_id,
+                road=road or None,
+                km=km,
+                direction=direction or None,
+                latitude=latitude,
+                longitude=longitude,
+            )
+        return locations
+
     @staticmethod
     def _find_text(node: ET.Element, path: str) -> str:
         found = node.find(path, DETECTORS_NS_V1)

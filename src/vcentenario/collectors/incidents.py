@@ -69,6 +69,23 @@ class IncidentCollector:
             province=province or None,
         )
 
+    def fetch_se30_incidents(self) -> List[Incident]:
+        """Fetches all incidents on SE-30 (no bbox/km filter)."""
+        response = self.http.get(INCIDENTS_URL, accept="application/xml")
+        if response.status != 200:
+            detail = f": {response.error}" if response.error else ""
+            raise RuntimeError(f"Incident feed request failed with HTTP {response.status}{detail}")
+        root = ET.fromstring(response.body)
+        incidents: List[Incident] = []
+        for situation in root.findall(".//sit:situation", COMMON_NS_V3):
+            situation_id = situation.attrib.get("id", "")
+            overall_severity = self._find_text(situation, "./sit:overallSeverity")
+            for record in situation.findall("./sit:situationRecord", COMMON_NS_V3):
+                incident = self._parse_record(situation_id, record, overall_severity)
+                if incident and incident.road == BRIDGE_AREA.road:
+                    incidents.append(incident)
+        return incidents
+
     @staticmethod
     def _find_text(node: ET.Element, path: str) -> str:
         found = node.find(path, COMMON_NS_V3)

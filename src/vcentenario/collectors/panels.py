@@ -82,6 +82,37 @@ class PanelCollector:
         found = node.find(path, PANELS_NS_V1)
         return found.text.strip() if found is not None and found.text else ""
 
+    def fetch_se30_inventory(self) -> Dict[str, PanelLocation]:
+        """Fetches all VMS panel locations on SE-30 (no km/bbox filter)."""
+        response = self.http.get(PANELS_INVENTORY_URL, accept="application/xml")
+        if response.status != 200:
+            detail = f": {response.error}" if response.error else ""
+            raise RuntimeError(f"Panel inventory request failed with HTTP {response.status}{detail}")
+        root = ET.fromstring(response.body)
+        locations: Dict[str, PanelLocation] = {}
+        for node in root.findall(".//d:predefinedLocation", PANELS_NS_V1):
+            location_id = node.attrib.get("id")
+            if not location_id:
+                continue
+            road = self._find_text(node, ".//d:roadNumber")
+            if road != BRIDGE_AREA.road:
+                continue
+            km = km_from_meters(self._find_text(node, ".//d:referencePointDistance"))
+            direction = self._find_text(node, ".//d:directionRelative")
+            latitude = parse_float(self._find_text(node, ".//d:latitude"))
+            longitude = parse_float(self._find_text(node, ".//d:longitude"))
+            name = self._find_text(node, ".//d:predefinedLocationName/d:value") or location_id
+            locations[location_id] = PanelLocation(
+                location_id=location_id,
+                name=name,
+                road=road,
+                km=km,
+                direction=direction,
+                latitude=latitude,
+                longitude=longitude,
+            )
+        return locations
+
     @staticmethod
     def _is_bridge_location(
         location_id: str,

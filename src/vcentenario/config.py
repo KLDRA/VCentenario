@@ -109,28 +109,36 @@ ALERT_TRAFFIC_SCORE_THRESHOLD = _env_float("VCENTENARIO_ALERT_TRAFFIC_SCORE_THRE
 ALERT_INCIDENT_SEVERITY_THRESHOLD = os.getenv("VCENTENARIO_ALERT_INCIDENT_SEVERITY_THRESHOLD", "high")
 
 BRIDGE_AREA = BridgeArea(
-    name="Puente del Centenario",
+    name="SE-30 km 10–12 · Sentido Huelva",
     road="SE-30",
-    km_min=13.0,
-    km_max=15.0,
-    bbox=(37.36, 37.38, -6.03, -6.00),
-    panel_location_ids=("60621", "60859", "166911", "60512", "60513", "60516", "60517",
-                        "GUID_PMV_60621", "GUID_PMV_60859", "GUID_PMV_166911",
-                        "GUID_PMV_60512", "GUID_PMV_60513", "GUID_PMV_60516", "GUID_PMV_60517"),
-    preferred_camera_ids=("1337", "167841", "1336", "1339"),
+    # Tramo de interés: km 10–12, sentido Huelva (positivo, km creciente).
+    # km 10: (37.343820, -5.986923) · km 12: (37.357216, -6.002909)
+    # bbox cubre lat 37.338–37.362, lon -6.010–-5.980
+    km_min=10.0,
+    km_max=12.0,
+    bbox=(37.338, 37.362, -6.010, -5.980),
+    panel_location_ids=(
+        # km 10.0
+        "60514", "GUID_PMV_60514",
+        # km 10.3
+        "60833", "GUID_PMV_60833",
+        # km 12.4 (límite del tramo)
+        "60516", "GUID_PMV_60516",
+    ),
+    preferred_camera_ids=(),  # Sin cámaras conocidas en km 10-12 sentido Huelva
     preferred_detector_ids=(
-        "131070", "133796", "131165", "131267",
-        "GUID_DET_131070", "GUID_DET_133796", "GUID_DET_131165", "GUID_DET_131267",
-        "GUID_DET_132943",
-        "GUID_DET_132946",
-        "GUID_DET_133803",
-        "GUID_DET_133805",
-        "GUID_DET_133806",
-        "GUID_DET_133801",
-        "GUID_DET_132918",
-        "GUID_DET_132914",
+        # km 10.0
+        "GUID_DET_132877", "GUID_DET_132880", "GUID_DET_132875",
+        # km 12.0
+        "GUID_DET_139931", "GUID_DET_139930", "GUID_DET_139929",
+        "GUID_DET_132386", "GUID_DET_132378", "GUID_DET_132374", "GUID_DET_132382",
+        # km 12.1
+        "GUID_DET_132411", "GUID_DET_132407", "GUID_DET_132394", "GUID_DET_132401",
     ),
 )
+
+# Dirección del tramo monitorizado: "positivo" = km creciente = sentido Huelva
+SEGMENT_DIRECTION = "positivo"
 
 DETECTORS_URL = "https://infocar.dgt.es/datex2/dgt/MeasuredDataPublication/detectores/content.xml"
 DETECTORS_INVENTORY_URL = "https://infocar.dgt.es/datex2/dgt/PredefinedLocationsPublication/detectores/content.xml"

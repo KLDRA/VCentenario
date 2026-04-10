@@ -133,7 +133,7 @@ def get_simple_dashboard():
 
         <div>
             <div class="nd-eyebrow" style="margin-bottom:12px;">Traffic Score · Últimas 16 lecturas</div>
-            <canvas id="chart" width="900" height="320"></canvas>
+            <canvas id="chart" style="min-height:200px;"></canvas>
             <div class="nd-stats-row">
                 <span class="nd-eyebrow">Auto-refresh cada 30 s</span>
                 <span class="nd-eyebrow" id="statsInfo">Cargando...</span>
@@ -192,6 +192,11 @@ def get_simple_dashboard():
             if (!canvas) { log('Canvas not found'); return; }
             const ctx = canvas.getContext('2d');
             if (!ctx) { log('Canvas context unavailable'); return; }
+
+            const cssW = canvas.offsetWidth || window.innerWidth - 40 || 900;
+            const cssH = window.innerWidth < 600 ? 200 : 320;
+            canvas.width = Math.max(cssW, 200);
+            canvas.height = cssH;
 
             const W = canvas.width, H = canvas.height;
             ctx.fillStyle = '#000000';
@@ -300,16 +305,25 @@ HTML_PAGE = """<!doctype html>
       --space-3xl: 64px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html {
+      overflow-x: hidden;
+      max-width: 100vw;
+    }
     body {
       font-family: "Space Grotesk", system-ui, sans-serif;
       background: var(--black);
       color: var(--text-primary);
       min-height: 100vh;
+      overflow-x: hidden;
+      width: 100%;
+      max-width: 100vw;
     }
     .nd-shell {
+      width: 100%;
       max-width: 1280px;
       margin: 0 auto;
       padding: var(--space-xl) var(--space-md) var(--space-2xl);
+      overflow: hidden;
     }
 
     /* ---- Typography helpers ---- */
@@ -319,6 +333,8 @@ HTML_PAGE = """<!doctype html>
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--text-secondary);
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
     .nd-label {
       font-family: "Space Mono", monospace;
@@ -326,12 +342,16 @@ HTML_PAGE = """<!doctype html>
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--text-secondary);
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
     .nd-meta {
       font-family: "Space Mono", monospace;
       font-size: 12px;
       color: var(--text-secondary);
       line-height: 1.6;
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
 
     /* ---- Header ---- */
@@ -339,17 +359,19 @@ HTML_PAGE = """<!doctype html>
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
+      gap: var(--space-md);
       padding-bottom: var(--space-xl);
       border-bottom: 1px solid var(--border);
       margin-bottom: var(--space-2xl);
     }
+    .nd-header > * { min-width: 0; }
     .nd-header-title {
       font-size: 18px;
       font-weight: 500;
       color: var(--text-display);
       margin-top: var(--space-sm);
     }
-    .nd-header-right { text-align: right; }
+    .nd-header-right { text-align: right; min-width: 0; flex-shrink: 0; }
     .nd-status-indicator {
       display: inline-flex;
       align-items: center;
@@ -376,6 +398,8 @@ HTML_PAGE = """<!doctype html>
       padding-bottom: var(--space-2xl);
       border-bottom: 1px solid var(--border);
     }
+    /* Hijos directos del hero deben respetar el ancho del grid track */
+    .nd-hero > * { min-width: 0; overflow: hidden; }
     .nd-hero-score {
       display: flex;
       align-items: baseline;
@@ -388,6 +412,8 @@ HTML_PAGE = """<!doctype html>
       line-height: 1;
       letter-spacing: -0.02em;
       color: var(--text-display);
+      max-width: 100%;
+      overflow: hidden;
     }
     .nd-score-unit {
       font-family: "Space Mono", monospace;
@@ -403,6 +429,8 @@ HTML_PAGE = """<!doctype html>
       flex-direction: column;
       gap: var(--space-sm);
       align-items: flex-end;
+      min-width: 0;
+      flex-shrink: 0;
     }
     .nd-level-badge {
       font-family: "Space Grotesk", system-ui;
@@ -434,6 +462,8 @@ HTML_PAGE = """<!doctype html>
     .nd-metric-card {
       background: var(--surface);
       padding: var(--space-lg) var(--space-md);
+      min-width: 0;
+      overflow: hidden;
     }
     .nd-metric-value {
       font-family: "Space Grotesk", system-ui;
@@ -442,6 +472,8 @@ HTML_PAGE = """<!doctype html>
       color: var(--text-display);
       margin-top: var(--space-md);
       line-height: 1.1;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .nd-metric-note {
       font-family: "Space Mono", monospace;
@@ -449,6 +481,10 @@ HTML_PAGE = """<!doctype html>
       color: var(--text-disabled);
       margin-top: var(--space-sm);
       letter-spacing: 0.04em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
     }
 
     /* ---- Sections ---- */
@@ -456,6 +492,7 @@ HTML_PAGE = """<!doctype html>
       margin-bottom: var(--space-2xl);
       border: 1px solid var(--border);
       background: var(--surface);
+      overflow: hidden;
     }
     .nd-section-header {
       display: flex;
@@ -463,52 +500,18 @@ HTML_PAGE = """<!doctype html>
       align-items: baseline;
       padding: var(--space-md) var(--space-lg);
       border-bottom: 1px solid var(--border);
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+      overflow: hidden;
     }
-    .nd-section-body { padding: var(--space-lg); }
+    .nd-section-body { padding: var(--space-lg); overflow: hidden; }
 
     /* ---- Trend bars ---- */
     .nd-bars-wrap {
-      overflow-x: auto;
-      scrollbar-width: thin;
-      scrollbar-color: var(--border-visible) var(--surface);
+      /* canvas se adapta al ancho sin scroll */
     }
-    .nd-bars {
-      display: flex;
-      gap: 3px;
-      align-items: flex-end;
-      min-height: 140px;
-      padding: var(--space-md) 0 var(--space-sm);
-    }
-    .nd-bar-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      flex: 0 0 34px;
-      min-width: 34px;
-    }
-    .nd-bar {
-      width: 100%;
-      background: var(--text-display);
-      min-height: 4px;
-      /* Square ends - no border-radius, mechanical */
-    }
-    .nd-bar.level-fluido { background: var(--success); }
-    .nd-bar.level-denso { background: var(--warning); }
-    .nd-bar.level-retenciones { background: var(--accent); }
-    .nd-bar.level-congestion_fuerte { background: var(--accent); opacity: 0.7; }
-    .nd-bar-score {
-      font-family: "Space Mono", monospace;
-      font-size: 9px;
-      color: var(--text-disabled);
-    }
-    .nd-bar-label {
-      font-family: "Space Mono", monospace;
-      font-size: 9px;
-      color: var(--text-secondary);
-      text-align: center;
-      white-space: nowrap;
-    }
+    #trendBars { min-height: 160px; }
+    #spd-chart { min-height: 240px; }
     .nd-trend-legend {
       display: flex;
       gap: var(--space-lg);
@@ -536,37 +539,48 @@ HTML_PAGE = """<!doctype html>
       background: var(--border);
       border: 1px solid var(--border);
       margin-bottom: var(--space-2xl);
+      overflow: hidden;
     }
     .nd-two-col > section {
       background: var(--surface);
+      min-width: 0;
+      overflow: hidden;
     }
 
     /* ---- VMS Panels ---- */
-    .nd-vms-list { display: grid; gap: 1px; background: var(--border); }
-    .nd-vms-item { background: var(--surface); padding: var(--space-lg); }
+    .nd-vms-list { display: grid; gap: 1px; background: var(--border); overflow: hidden; }
+    .nd-vms-item { background: var(--surface); padding: var(--space-lg); min-width: 0; overflow: hidden; }
     .nd-vms-header {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
       margin-bottom: var(--space-xs);
     }
     .nd-vms-name {
       font-size: 14px;
       font-weight: 500;
       color: var(--text-display);
+      overflow-wrap: break-word;
+      word-break: break-word;
+      min-width: 0;
     }
     .nd-vms-km {
       font-family: "Space Mono", monospace;
       font-size: 11px;
       color: var(--text-secondary);
+      white-space: nowrap;
     }
     .nd-vms-dir {
       font-family: "Space Mono", monospace;
       font-size: 11px;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
       color: var(--text-secondary);
       margin-bottom: var(--space-md);
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
     .nd-vms-display {
       background: #0a0a0a;
@@ -579,7 +593,9 @@ HTML_PAGE = """<!doctype html>
       text-align: center;
       color: #ffb800;
       line-height: 1.5;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.04em;
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
     .nd-vms-pictos {
       display: flex;
@@ -589,29 +605,39 @@ HTML_PAGE = """<!doctype html>
     }
 
     /* ---- Incidents list ---- */
-    .nd-list { display: grid; gap: 1px; background: var(--border); }
-    .nd-list-item { background: var(--surface); padding: var(--space-md) var(--space-lg); }
+    .nd-list { display: grid; gap: 1px; background: var(--border); overflow: hidden; }
+    .nd-list-item { background: var(--surface); padding: var(--space-md) var(--space-lg); min-width: 0; overflow: hidden; }
     .nd-list-head {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
       margin-bottom: 4px;
     }
     .nd-list-title {
       font-size: 14px;
       font-weight: 500;
       color: var(--text-display);
+      overflow-wrap: break-word;
+      word-break: break-word;
+      min-width: 0;
     }
     .nd-list-km {
       font-family: "Space Mono", monospace;
       font-size: 11px;
       color: var(--text-secondary);
+      white-space: nowrap;
     }
     .nd-list-sub {
       font-family: "Space Mono", monospace;
       font-size: 11px;
       color: var(--text-secondary);
       margin-bottom: var(--space-sm);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
     }
     .nd-chips { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
     .nd-chip {
@@ -681,13 +707,16 @@ HTML_PAGE = """<!doctype html>
 
     /* ---- Empty states ---- */
     .nd-empty {
-      padding: var(--space-2xl) var(--space-lg);
+      padding: var(--space-xl) var(--space-md);
       font-family: "Space Mono", monospace;
-      font-size: 11px;
-      letter-spacing: 0.06em;
+      font-size: 10px;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
       color: var(--text-disabled);
       text-align: center;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      max-width: 100%;
     }
 
     /* ---- Footer ---- */
@@ -702,15 +731,17 @@ HTML_PAGE = """<!doctype html>
     /* ---- Tabs ---- */
     .nd-tab-nav {
       display: flex;
+      flex-wrap: wrap;
       gap: 1px;
       background: var(--border);
       border: 1px solid var(--border);
       margin-bottom: var(--space-2xl);
+      overflow: hidden;
     }
     .nd-tab {
       font-family: "Space Mono", monospace;
       font-size: 11px;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       padding: 12px 20px;
       background: var(--surface);
@@ -718,6 +749,9 @@ HTML_PAGE = """<!doctype html>
       border: none;
       cursor: pointer;
       transition: color 150ms, background 150ms;
+      flex: 1 1 auto;
+      text-align: center;
+      white-space: nowrap;
     }
     .nd-tab:hover { color: var(--text-primary); }
     .nd-tab.active { background: var(--surface-raised); color: var(--text-display); }
@@ -759,12 +793,35 @@ HTML_PAGE = """<!doctype html>
 
     /* ---- Responsive ---- */
     @media (max-width: 800px) {
-      .nd-hero { grid-template-columns: 1fr; }
+      .nd-hero { grid-template-columns: 1fr; gap: var(--space-lg); }
       .nd-hero-right { text-align: left; align-items: flex-start; }
       .nd-display { font-size: 72px; }
-      .nd-metrics { grid-template-columns: 1fr; }
+      .nd-metrics { grid-template-columns: 1fr 1fr !important; }
       .nd-two-col { grid-template-columns: 1fr; }
       .nd-camera-grid { grid-template-columns: 1fr; }
+      #nd-map { height: 400px !important; }
+      #nd-map-se30 { height: 360px !important; }
+    }
+    @media (max-width: 520px) {
+      .nd-shell { padding: var(--space-md) var(--space-sm) var(--space-xl); }
+      .nd-header { flex-direction: column; gap: var(--space-sm); }
+      .nd-header-right { text-align: left; }
+      .nd-display { font-size: 52px; }
+      .nd-metrics { grid-template-columns: 1fr 1fr !important; }
+      .nd-metric-value { font-size: 24px; }
+      .nd-section-body { padding: var(--space-sm); }
+      .nd-hero { margin-bottom: var(--space-xl); padding-bottom: var(--space-xl); }
+      .nd-hero-score { gap: var(--space-sm); }
+      #nd-map { height: 300px !important; }
+      #nd-map-se30 { height: 280px !important; }
+      .nd-level-badge { font-size: 22px; }
+      .nd-footer { flex-direction: column; gap: var(--space-sm); }
+      .nd-trend-legend { gap: var(--space-sm); padding: var(--space-sm); }
+      .nd-vms-display { font-size: 11px; padding: var(--space-sm); }
+      .nd-vms-item { padding: var(--space-md); }
+      .nd-list-item { padding: var(--space-md); }
+      .nd-section-header { padding: var(--space-sm) var(--space-md); }
+      .nd-tab { padding: 10px 8px; font-size: 10px; letter-spacing: 0.02em; }
     }
   </style>
 </head>
@@ -774,7 +831,7 @@ HTML_PAGE = """<!doctype html>
     <!-- Header -->
     <header class="nd-header">
       <div>
-        <div class="nd-eyebrow">Monitor Operativo · Puente del Centenario</div>
+        <div class="nd-eyebrow">Monitor Operativo · SE-30 km 10–12 · Sentido Huelva</div>
         <div class="nd-header-title">VCentenario</div>
       </div>
       <div class="nd-header-right">
@@ -791,6 +848,7 @@ HTML_PAGE = """<!doctype html>
       <button class="nd-tab active" id="btn-estado" onclick="showTab('estado')">[ ESTADO ]</button>
       <button class="nd-tab" id="btn-velocidades" onclick="showTab('velocidades')">VELOCIDADES</button>
       <button class="nd-tab" id="btn-mapa" onclick="showTab('mapa')">MAPA</button>
+      <button class="nd-tab" id="btn-se30" onclick="showTab('se30')">DETALLE</button>
     </nav>
 
     <div id="tab-estado">
@@ -834,11 +892,11 @@ HTML_PAGE = """<!doctype html>
     <section class="nd-section">
       <div class="nd-section-header">
         <span class="nd-label">Pulso reciente</span>
-        <span class="nd-meta">Últimas ejecuciones guardadas</span>
+        <span class="nd-meta">Últimas 24 horas</span>
       </div>
       <div class="nd-section-body">
         <div class="nd-bars-wrap">
-          <div id="trendBars" class="nd-bars"></div>
+          <canvas id="trendBars" style="display:block;width:100%;background:#000000;"></canvas>
         </div>
       </div>
       <div class="nd-trend-legend">
@@ -891,7 +949,7 @@ HTML_PAGE = """<!doctype html>
 
       <section class="nd-hero" style="margin-top:0;">
         <div>
-          <div class="nd-eyebrow">Velocidad media · Puente del Centenario</div>
+          <div class="nd-eyebrow">Velocidad media · SE-30 km 10–12 · Sentido Huelva</div>
           <div class="nd-hero-score">
             <div class="nd-display" id="spd-hero">--</div>
             <div class="nd-score-unit">km/h</div>
@@ -905,17 +963,22 @@ HTML_PAGE = """<!doctype html>
         </div>
       </section>
 
-      <!-- Speed by direction -->
-      <section class="nd-metrics" style="grid-template-columns:1fr 1fr;">
+      <!-- Speed by km point -->
+      <section class="nd-metrics">
         <article class="nd-metric-card">
-          <div class="nd-label">Hacia Cádiz (+)</div>
-          <div id="spd-positivo" class="nd-metric-value">-</div>
-          <div id="spd-positivo-note" class="nd-metric-note">km/h · puente_positivo</div>
+          <div class="nd-label">km 10 · Huelva</div>
+          <div id="spd-km10" class="nd-metric-value">-</div>
+          <div id="spd-km10-note" class="nd-metric-note">km/h · tomtom_km10</div>
         </article>
         <article class="nd-metric-card">
-          <div class="nd-label">Hacia Sevilla (-)</div>
-          <div id="spd-negativo" class="nd-metric-value">-</div>
-          <div id="spd-negativo-note" class="nd-metric-note">km/h · puente_negativo</div>
+          <div class="nd-label">km 11 · Huelva</div>
+          <div id="spd-km11" class="nd-metric-value">-</div>
+          <div id="spd-km11-note" class="nd-metric-note">km/h · tomtom_km11</div>
+        </article>
+        <article class="nd-metric-card">
+          <div class="nd-label">km 12 · Huelva</div>
+          <div id="spd-km12" class="nd-metric-value">-</div>
+          <div id="spd-km12-note" class="nd-metric-note">km/h · tomtom_km12</div>
         </article>
       </section>
 
@@ -926,22 +989,25 @@ HTML_PAGE = """<!doctype html>
           <span class="nd-meta" id="spd-sensor-count">-</span>
         </div>
         <div class="nd-section-body" style="padding:0;">
-          <canvas id="spd-chart" width="900" height="280" style="display:block;width:100%;background:#000;"></canvas>
+          <canvas id="spd-chart" style="display:block;width:100%;background:#000;"></canvas>
         </div>
         <div class="nd-trend-legend">
           <div class="nd-legend-item">
-            <div class="nd-legend-color" style="background:#4A9E5C;"></div>Hacia Cádiz (+)
+            <div class="nd-legend-color" style="background:#4A9E5C;"></div>km 10 Huelva
           </div>
           <div class="nd-legend-item">
-            <div class="nd-legend-color" style="background:#D4A843;"></div>Hacia Sevilla (-)
+            <div class="nd-legend-color" style="background:#D4A843;"></div>km 11 Huelva
+          </div>
+          <div class="nd-legend-item">
+            <div class="nd-legend-color" style="background:#5B8DBE;"></div>km 12 Huelva
           </div>
         </div>
       </section>
 
-      <!-- All 4 TomTom points table -->
+      <!-- TomTom sensors table -->
       <section class="nd-section">
         <div class="nd-section-header">
-          <span class="nd-label">Sensores TomTom activos</span>
+          <span class="nd-label">Sensores TomTom activos · km 10–12</span>
           <span class="nd-meta" id="spd-collected-at">-</span>
         </div>
         <div id="spd-table"></div>
@@ -956,42 +1022,138 @@ HTML_PAGE = """<!doctype html>
 
       <section class="nd-section" style="margin-bottom:var(--space-2xl);">
         <div class="nd-section-header">
-          <span class="nd-label">Puente del Centenario · Sensores TomTom</span>
+          <span class="nd-label">SE-30 km 10–12 · Sentido Huelva · Sensores TomTom</span>
           <span class="nd-meta" id="map-status">Cargando mapa...</span>
         </div>
         <div id="nd-map" style="height:560px;"></div>
       </section>
 
       <!-- Tabla resumen bajo el mapa -->
-      <section class="nd-metrics" style="grid-template-columns:repeat(4,1fr); margin-bottom:0;">
-        <article class="nd-metric-card" id="map-card-puente-positivo">
-          <div class="nd-label">Hacia Cádiz</div>
-          <div class="nd-metric-value" id="map-spd-puente-positivo">-</div>
-          <div class="nd-metric-note">tomtom_puente_positivo</div>
+      <section class="nd-metrics" style="margin-bottom:0;">
+        <article class="nd-metric-card" id="map-card-km10-huelva">
+          <div class="nd-label">km 10 · Huelva</div>
+          <div class="nd-metric-value" id="map-spd-km10-huelva">-</div>
+          <div class="nd-metric-note">tomtom_km10_huelva</div>
         </article>
-        <article class="nd-metric-card" id="map-card-puente-negativo">
-          <div class="nd-label">Hacia Sevilla</div>
-          <div class="nd-metric-value" id="map-spd-puente-negativo">-</div>
-          <div class="nd-metric-note">tomtom_puente_negativo</div>
+        <article class="nd-metric-card" id="map-card-km11-huelva">
+          <div class="nd-label">km 11 · Huelva</div>
+          <div class="nd-metric-value" id="map-spd-km11-huelva">-</div>
+          <div class="nd-metric-note">tomtom_km11_huelva</div>
         </article>
-        <article class="nd-metric-card" id="map-card-sur-positivo">
-          <div class="nd-label">Acceso Sur</div>
-          <div class="nd-metric-value" id="map-spd-sur-positivo">-</div>
-          <div class="nd-metric-note">tomtom_sur_positivo</div>
-        </article>
-        <article class="nd-metric-card" id="map-card-norte-negativo">
-          <div class="nd-label">Acceso Norte</div>
-          <div class="nd-metric-value" id="map-spd-norte-negativo">-</div>
-          <div class="nd-metric-note">tomtom_norte_negativo</div>
+        <article class="nd-metric-card" id="map-card-km12-huelva">
+          <div class="nd-label">km 12 · Huelva</div>
+          <div class="nd-metric-value" id="map-spd-km12-huelva">-</div>
+          <div class="nd-metric-note">tomtom_km12_huelva</div>
         </article>
       </section>
 
     </div><!-- /tab-mapa -->
 
+    <!-- SE-30 Completa -->
+    <div id="tab-se30" style="display:none;">
+
+      <!-- Loading / error banner -->
+      <div id="se30-status" style="padding:var(--space-md) var(--space-lg);font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.06em;color:var(--text-secondary);border:1px solid var(--border);background:var(--surface);margin-bottom:var(--space-2xl);">
+        Pulsa la pestaña para cargar datos en tiempo real de la SE-30...
+      </div>
+
+      <!-- Mapa km 10-12 sentido Huelva -->
+      <section class="nd-section" style="margin-bottom:var(--space-2xl);">
+        <div class="nd-section-header">
+          <span class="nd-label">Mapa km 10–12 · Sentido Huelva · Sensores en tiempo real</span>
+          <span class="nd-meta" id="se30-map-status">Esperando datos...</span>
+        </div>
+        <div id="nd-map-se30" style="height:520px;background:var(--black);"></div>
+        <div class="nd-trend-legend" style="padding:var(--space-md) var(--space-lg);">
+          <div class="nd-legend-item">
+            <div class="nd-legend-color" style="background:var(--success);"></div>TomTom &gt;55 km/h
+          </div>
+          <div class="nd-legend-item">
+            <div class="nd-legend-color" style="background:var(--warning);"></div>TomTom 30-55 km/h
+          </div>
+          <div class="nd-legend-item">
+            <div class="nd-legend-color" style="background:var(--accent);"></div>TomTom &lt;30 km/h
+          </div>
+          <div class="nd-legend-item">
+            <div style="width:10px;height:10px;background:#1A1A1A;border:1px solid #555;display:inline-block;margin-right:4px;"></div>Detector DGT
+          </div>
+        </div>
+      </section>
+
+      <!-- Summary metrics -->
+      <section class="nd-metrics" style="margin-bottom:var(--space-2xl);" id="se30-metrics">
+        <article class="nd-metric-card">
+          <div class="nd-label">Paneles VMS</div>
+          <div id="se30-cnt-panels" class="nd-metric-value">-</div>
+          <div class="nd-metric-note">DGT DATEX2</div>
+        </article>
+        <article class="nd-metric-card">
+          <div class="nd-label">Incidencias</div>
+          <div id="se30-cnt-incidents" class="nd-metric-value">-</div>
+          <div class="nd-metric-note">DGT DATEX2 v3.6</div>
+        </article>
+        <article class="nd-metric-card">
+          <div class="nd-label">Detectores DGT</div>
+          <div id="se30-cnt-detectors" class="nd-metric-value">-</div>
+          <div class="nd-metric-note">Flujo · velocidad</div>
+        </article>
+        <article class="nd-metric-card">
+          <div class="nd-label">Sensores TomTom</div>
+          <div id="se30-cnt-tomtom" class="nd-metric-value">-</div>
+          <div class="nd-metric-note">Probe data GPS</div>
+        </article>
+      </section>
+
+      <!-- Paneles VMS -->
+      <section class="nd-section" style="margin-bottom:var(--space-2xl);">
+        <div class="nd-section-header">
+          <span class="nd-label">Paneles VMS activos · km 10–12</span>
+          <span class="nd-meta">Ordenados por km · sentido Huelva</span>
+        </div>
+        <div id="se30-panels">
+          <div class="nd-empty">[Sin datos cargados]</div>
+        </div>
+      </section>
+
+      <!-- Detectores DGT -->
+      <section class="nd-section" style="margin-bottom:var(--space-2xl);">
+        <div class="nd-section-header">
+          <span class="nd-label">Detectores DGT · km 10–12 · Sentido Huelva</span>
+          <span class="nd-meta">Flujo · velocidad media · ocupación</span>
+        </div>
+        <div id="se30-detectors">
+          <div class="nd-empty">[Sin datos cargados]</div>
+        </div>
+      </section>
+
+      <!-- Incidencias -->
+      <section class="nd-section" style="margin-bottom:var(--space-2xl);">
+        <div class="nd-section-header">
+          <span class="nd-label">Incidencias · km 10–12 · Sentido Huelva</span>
+          <span class="nd-meta">Filtradas por tramo y bbox</span>
+        </div>
+        <div id="se30-incidents">
+          <div class="nd-empty">[Sin datos cargados]</div>
+        </div>
+      </section>
+
+      <!-- TomTom -->
+      <section class="nd-section" style="margin-bottom:var(--space-2xl);">
+        <div class="nd-section-header">
+          <span class="nd-label">TomTom Flow · Puntos de medición</span>
+          <span class="nd-meta">Último dato almacenado</span>
+        </div>
+        <div id="se30-tomtom">
+          <div class="nd-empty">[Sin datos cargados]</div>
+        </div>
+      </section>
+
+    </div><!-- /tab-se30 -->
+
     <!-- Footer -->
     <footer class="nd-footer">
       <span class="nd-eyebrow">Actualización automática cada 60 s</span>
-      <span class="nd-eyebrow">Puente del Centenario · Sevilla</span>
+      <span class="nd-eyebrow">SE-30 km 10–12 · Sentido Huelva · Sevilla</span>
     </footer>
 
   </div>
@@ -1003,8 +1165,8 @@ HTML_PAGE = """<!doctype html>
       retenciones: "Retenciones",
       congestion_fuerte: "Congestión fuerte",
       indeterminado: "Indeterminado",
-      positive: "Probable sentido positivo",
-      negative: "Probable sentido negativo"
+      positive: "Sentido Huelva",
+      negative: "Sentido Sevilla"
     };
 
     const byId = (id) => document.getElementById(id);
@@ -1054,7 +1216,7 @@ HTML_PAGE = """<!doctype html>
         root.innerHTML = '<div class="nd-empty">[Sin paneles activos]</div>';
         return;
       }
-      const dirMap = { positive: "HACIA CÁDIZ", negative: "HACIA SEVILLA" };
+      const dirMap = { positive: "HACIA HUELVA", negative: "HACIA SEVILLA" };
       root.innerHTML = '<div class="nd-vms-list">' + panels.map((panel) => {
         const title = escapeHtml(panel.location_name || panel.location_id);
         const km = escapeHtml(formatKm(panel.km));
@@ -1124,23 +1286,80 @@ HTML_PAGE = """<!doctype html>
     }
 
     function renderTrend(states) {
-      const root = byId("trendBars");
+      const canvas = byId("trendBars");
+      const ctx = canvas.getContext("2d");
+
+      // Redimensionar canvas al tamaño real del contenedor (responsivo)
+      const cssW = canvas.offsetWidth || canvas.parentElement?.clientWidth || window.innerWidth - 48 || 900;
+      const minH = window.innerWidth < 600 ? 220 : 160;
+      canvas.width  = Math.max(cssW, 200);
+      canvas.height = minH;
+
+      const W = canvas.width, H = canvas.height;
+
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, W, H);
+
       if (!states || states.length === 0) {
-        root.innerHTML = '<div class="nd-empty" style="min-width:100%;">[Sin histórico]</div>';
+        ctx.fillStyle = "#333333";
+        ctx.font = '700 12px "Space Mono"';
+        ctx.textAlign = "left";
+        ctx.fillText("[SIN HISTÓRICO]", 20, 40);
         return;
       }
-      const maxScore = Math.max(...states.map((item) => item.traffic_score || 0), 1);
-      root.innerHTML = states.map((item) => {
-        const height = Math.max(8, Math.round(((item.traffic_score || 0) / maxScore) * 110));
-        const label = new Date(item.generated_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-        const levelClass = `level-${escapeHtml(item.traffic_level || "fluido")}`;
-        return `
-          <div class="nd-bar-wrap">
-            <div class="nd-bar-score">${escapeHtml(String(item.traffic_score ?? "-"))}</div>
-            <div class="nd-bar ${levelClass}" style="height:${height}px;" title="${escapeHtml(item.traffic_level)} · ${escapeHtml(String(item.traffic_score))}"></div>
-            <div class="nd-bar-label">${escapeHtml(label)}</div>
-          </div>`;
-      }).join("");
+
+      const pad = { top: 8, right: 8, bottom: 28, left: 8 };
+      const w = W - pad.left - pad.right;
+      const h = H - pad.top - pad.bottom;
+
+      const levelColor = {
+        fluido:            "#4A9E5C",
+        denso:             "#D4A843",
+        retenciones:       "#D71921",
+        congestion_fuerte: "#A01418",
+      };
+
+      const maxScore = Math.max(...states.map(s => s.traffic_score || 0), 1);
+      const n = states.length;
+      const barW = Math.max(1, w / n);
+
+      // Barras
+      states.forEach((s, i) => {
+        const score = s.traffic_score || 0;
+        const barH = Math.max(2, (score / maxScore) * h);
+        const x = pad.left + i * barW;
+        const y = pad.top + h - barH;
+        ctx.fillStyle = levelColor[s.traffic_level] || "#555555";
+        ctx.fillRect(x, y, Math.max(1, barW - 1), barH);
+      });
+
+      // Etiquetas horarias en el eje X — una por cada hora exacta del rango
+      const times    = states.map(s => new Date(s.generated_at));
+      const firstMs  = times[0].getTime();
+      const lastMs   = times[times.length - 1].getTime();
+      const spanMs   = lastMs - firstMs || 1;
+
+      // Primera hora entera >= firstMs
+      const firstHour = new Date(firstMs);
+      firstHour.setMinutes(0, 0, 0);
+      if (firstHour.getTime() < firstMs) firstHour.setHours(firstHour.getHours() + 1);
+
+      ctx.fillStyle  = "#666666";
+      ctx.font       = '9px "Space Mono"';
+      ctx.textAlign  = "center";
+      ctx.strokeStyle = "#1A1A1A";
+      ctx.lineWidth   = 1;
+
+      for (let h2 = new Date(firstHour); h2.getTime() <= lastMs; h2.setHours(h2.getHours() + 1)) {
+        const ratio = (h2.getTime() - firstMs) / spanMs;
+        const x = pad.left + ratio * w;
+        const label = h2.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+        ctx.fillText(label, x, H - 4);
+        ctx.beginPath();
+        ctx.moveTo(x, pad.top);
+        ctx.lineTo(x, pad.top + h);
+        ctx.stroke();
+      }
     }
 
     function renderDashboard(data) {
@@ -1183,12 +1402,35 @@ HTML_PAGE = """<!doctype html>
       }
     }
 
+    let lastDashboardData = null;
+
     async function loadDashboard() {
       const response = await fetch("/api/dashboard");
       if (!response.ok) throw new Error("No se pudo cargar el dashboard");
       const data = await response.json();
+      lastDashboardData = data;
       renderDashboard(data);
     }
+
+    function redrawCanvases() {
+      if (!lastDashboardData) return;
+      const trendCanvas = byId('trendBars');
+      if (trendCanvas && trendCanvas.offsetWidth > 0) {
+        const src = (lastDashboardData.trend_states && lastDashboardData.trend_states.length)
+          ? lastDashboardData.trend_states : lastDashboardData.recent_states;
+        renderTrend(src);
+      }
+      const spdCanvas = byId('spd-chart');
+      if (spdCanvas && spdCanvas.offsetWidth > 0) {
+        renderSpeedTab(lastDashboardData);
+      }
+    }
+
+    let _resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(redrawCanvases, 200);
+    });
 
 
 
@@ -1198,10 +1440,9 @@ HTML_PAGE = """<!doctype html>
     let ndMapLoaded = false;
 
     const TOMTOM_POSITIONS = {
-      'tomtom_puente_positivo': [-6.0168, 37.3727],
-      'tomtom_puente_negativo': [-6.0173, 37.3722],
-      'tomtom_sur_positivo':    [-6.0050, 37.3612],
-      'tomtom_norte_negativo':  [-5.9980, 37.3840],
+      'tomtom_km10_huelva': [-5.986923, 37.343820],
+      'tomtom_km11_huelva': [-5.994916, 37.350518],
+      'tomtom_km12_huelva': [-6.002909, 37.357216],
     };
 
     function sensorColor(d) {
@@ -1251,8 +1492,8 @@ HTML_PAGE = """<!doctype html>
           },
           layers: [{ id: 'carto-dark-layer', type: 'raster', source: 'carto-dark' }]
         },
-        center: [-6.0170, 37.3722],
-        zoom: 13.5,
+        center: [-5.9950, 37.3505],
+        zoom: 14,
         attributionControl: false,
       });
       ndMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
@@ -1263,29 +1504,29 @@ HTML_PAGE = """<!doctype html>
       ndMap.on('load', () => {
         ndMapLoaded = true;
         byId('map-status').textContent = 'MapLibre GL · CARTO Dark';
-        // Dibujar línea del puente
-        ndMap.addSource('bridge', {
+        // Dibujar tramo km 10-12
+        ndMap.addSource('tramo', {
           type: 'geojson',
           data: {
             type: 'Feature',
             geometry: {
               type: 'LineString',
               coordinates: [
-                [-6.0140, 37.3710],
-                [-6.0168, 37.3727],
-                [-6.0190, 37.3742],
+                [-5.986923, 37.343820],
+                [-5.994916, 37.350518],
+                [-6.002909, 37.357216],
               ]
             }
           }
         });
         ndMap.addLayer({
-          id: 'bridge-line',
+          id: 'tramo-line',
           type: 'line',
-          source: 'bridge',
+          source: 'tramo',
           paint: {
             'line-color': '#FFFFFF',
             'line-width': 3,
-            'line-opacity': 0.25,
+            'line-opacity': 0.20,
           }
         });
         // Si ya hay datos, pintarlos ahora
@@ -1303,7 +1544,8 @@ HTML_PAGE = """<!doctype html>
       // Actualizar tarjetas resumen
       Object.keys(TOMTOM_POSITIONS).forEach(id => {
         const d = tomtom.find(x => x.detector_id === id);
-        const el = byId('map-spd-' + id.replace('tomtom_', '').replaceAll('_', '-'));
+        const cardId = 'map-spd-' + id.replace('tomtom_', '').replaceAll('_', '-');
+        const el = byId(cardId);
         if (el) {
           const isFreeFlow = d && d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1;
           el.textContent = d && d.average_speed != null ? d.average_speed.toFixed(0) + ' km/h' : '-';
@@ -1324,8 +1566,8 @@ HTML_PAGE = """<!doctype html>
         const color = sensorColor(d);
         const isFreeFlow = d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1;
         const spd = d.average_speed != null ? d.average_speed.toFixed(0) : '--';
-        const isPuente = d.detector_id.includes('puente');
-        const dir = d.detector_id.includes('positivo') ? '↑ Cádiz' : '↓ Sevilla';
+        const isPuente = d.detector_id.includes('km11');
+        const dir = '\u2192 Huelva';
         const ffsNote = d.free_flow_speed != null
           ? `<div style="color:#666666;margin-top:2px;">libre ${d.free_flow_speed.toFixed(0)} km/h</div>`
           : '';
@@ -1364,60 +1606,246 @@ HTML_PAGE = """<!doctype html>
       document.getElementById('tab-estado').style.display = name === 'estado' ? '' : 'none';
       document.getElementById('tab-velocidades').style.display = name === 'velocidades' ? '' : 'none';
       document.getElementById('tab-mapa').style.display = name === 'mapa' ? '' : 'none';
+      document.getElementById('tab-se30').style.display = name === 'se30' ? '' : 'none';
       document.getElementById('btn-estado').classList.toggle('active', name === 'estado');
       document.getElementById('btn-velocidades').classList.toggle('active', name === 'velocidades');
       document.getElementById('btn-mapa').classList.toggle('active', name === 'mapa');
+      document.getElementById('btn-se30').classList.toggle('active', name === 'se30');
       if (name === 'mapa') requestAnimationFrame(initMap);
+      if (name === 'se30') { loadSE30Data(); requestAnimationFrame(initMapSE30); }
+      // Redibujar canvas al mostrar la pestaña (offsetWidth es 0 cuando estaba oculto)
+      if (name === 'estado' || name === 'velocidades') requestAnimationFrame(redrawCanvases);
+    }
+
+    // ---- SE-30 Completa ----
+    let se30Loaded = false;
+    let se30Loading = false;
+
+    async function loadSE30Data() {
+      if (se30Loading) return;
+      se30Loading = true;
+      const status = byId('se30-status');
+      status.textContent = 'Consultando DGT DATEX2 y TomTom... (puede tardar unos segundos)';
+      status.style.color = 'var(--text-secondary)';
+      try {
+        const res = await fetch('/api/se30');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        renderSE30(data);
+        se30Loaded = true;
+        const ts = data.collected_at ? formatDate(data.collected_at) : 'ahora';
+        const errKeys = Object.keys(data.errors || {});
+        if (errKeys.length > 0) {
+          status.textContent = 'Actualizado: ' + ts + ' · Errores en: ' + errKeys.join(', ');
+          status.style.color = 'var(--warning)';
+        } else {
+          status.textContent = 'Actualizado: ' + ts + ' · Todos los feeds OK';
+          status.style.color = 'var(--success)';
+        }
+      } catch (e) {
+        status.textContent = 'Error al cargar datos SE-30: ' + e.message;
+        status.style.color = 'var(--accent)';
+      } finally {
+        se30Loading = false;
+      }
+    }
+
+    function renderSE30(data) {
+      const panels = data.panels || [];
+      const incidents = data.incidents || [];
+      const detectors = data.detectors || [];
+      const tomtom = data.tomtom || [];
+
+      byId('se30-cnt-panels').textContent = String(panels.length);
+      byId('se30-cnt-incidents').textContent = String(incidents.length);
+      byId('se30-cnt-detectors').textContent = String(detectors.length);
+      byId('se30-cnt-tomtom').textContent = String(tomtom.length);
+
+      renderSE30Panels(panels);
+      renderSE30Detectors(detectors);
+      renderSE30Incidents(incidents);
+      renderSE30Tomtom(tomtom);
+
+      // Mapa: si ya está listo, pintar; si no, iniciarlo (pintará al cargar)
+      if (ndMapSE30 && ndMapSE30Loaded) {
+        renderSE30Map(data);
+      } else {
+        window._lastSE30Data = data;
+        initMapSE30();
+      }
+    }
+
+    function dirLabel(dir) {
+      if (!dir) return 'AMBOS';
+      const d = String(dir).toLowerCase();
+      if (d === 'positive' || d.includes('crecient') || d.includes('huelva')) return '\u2192 Huelva';
+      if (d === 'negative' || d.includes('decreci') || d.includes('sevilla')) return '\u2190 Sevilla';
+      return escapeHtml(dir);
+    }
+
+    function speedColor(spd) {
+      if (spd == null) return 'color:var(--text-disabled)';
+      if (spd >= 55) return 'color:var(--success)';
+      if (spd >= 30) return 'color:var(--warning)';
+      return 'color:var(--accent)';
+    }
+
+    function renderSE30Panels(panels) {
+      const root = byId('se30-panels');
+      if (!panels.length) { root.innerHTML = '<div class="nd-empty">[Sin paneles VMS activos en la SE-30]</div>'; return; }
+      const sorted = [...panels].sort((a, b) => (a.km ?? 999) - (b.km ?? 999));
+      const dirMap = { positive: '\u2192 Huelva', negative: '\u2190 Sevilla' };
+      root.innerHTML = '<div class="nd-vms-list">' + sorted.map(p => {
+        const msg = (p.legends || []).map(l => escapeHtml(l)).join('<br>') || 'SIN MENSAJE';
+        const pictos = (p.pictograms || []).map(x => '<span class="nd-tag warn">' + escapeHtml(x) + '</span>').join('');
+        const dir = dirMap[p.direction] || escapeHtml(p.direction || 'Ambos sentidos');
+        const km = p.km != null ? 'km ' + Number(p.km).toFixed(1) : 'km -';
+        const name = escapeHtml(p.location_id || '-');
+        return '<div class="nd-vms-item">' +
+          '<div class="nd-vms-header"><span class="nd-vms-name">' + name + '</span><span class="nd-vms-km">' + escapeHtml(km) + '</span></div>' +
+          '<div class="nd-vms-dir">' + dir + ' \xb7 ' + escapeHtml(p.status || 'Desconocido') + '</div>' +
+          '<div class="nd-vms-display">' + msg + '</div>' +
+          (pictos ? '<div class="nd-vms-pictos">' + pictos + '</div>' : '') +
+          '</div>';
+      }).join('') + '</div>';
+    }
+
+    function renderSE30Detectors(detectors) {
+      const root = byId('se30-detectors');
+      if (!detectors.length) { root.innerHTML = '<div class="nd-empty">[Sin lecturas de detectores DGT en la SE-30]</div>'; return; }
+      const sorted = [...detectors].sort((a, b) => (a.km ?? 999) - (b.km ?? 999));
+      const rows = sorted.map(d => {
+        const spd = d.average_speed != null ? d.average_speed.toFixed(1) : '-';
+        const flow = d.vehicle_flow != null ? d.vehicle_flow : '-';
+        const occ = d.occupancy != null ? (d.occupancy * 100).toFixed(1) + '%' : '-';
+        const sc = d.average_speed != null ? speedColor(d.average_speed) : '';
+        const km = d.km != null ? Number(d.km).toFixed(1) : '-';
+        const ts = d.measured_at ? formatDate(d.measured_at) : '-';
+        return '<tr>' +
+          '<td class="nd-meta" style="white-space:nowrap;">km ' + escapeHtml(km) + '</td>' +
+          '<td class="nd-meta">' + escapeHtml(d.detector_id || '-') + '</td>' +
+          '<td class="nd-meta" style="white-space:nowrap;">' + dirLabel(d.direction) + '</td>' +
+          '<td class="nd-meta" style="' + sc + '">' + escapeHtml(spd) + ' km/h</td>' +
+          '<td class="nd-meta">' + escapeHtml(String(flow)) + ' veh/h</td>' +
+          '<td class="nd-meta">' + escapeHtml(occ) + '</td>' +
+          '<td class="nd-meta" style="font-size:10px;color:var(--text-disabled);">' + escapeHtml(ts) + '</td>' +
+          '</tr>';
+      }).join('');
+      root.innerHTML = '<div style="overflow-x:auto;">' +
+        '<table style="width:100%;border-collapse:collapse;">' +
+        '<thead><tr style="border-bottom:1px solid var(--border);">' +
+        '<th class="nd-label" style="padding:8px 12px;text-align:left;">km</th>' +
+        '<th class="nd-label" style="padding:8px 12px;text-align:left;">ID detector</th>' +
+        '<th class="nd-label" style="padding:8px 12px;text-align:left;">Sentido</th>' +
+        '<th class="nd-label" style="padding:8px 12px;text-align:left;">Velocidad</th>' +
+        '<th class="nd-label" style="padding:8px 12px;text-align:left;">Flujo</th>' +
+        '<th class="nd-label" style="padding:8px 12px;text-align:left;">Ocupaci\xf3n</th>' +
+        '<th class="nd-label" style="padding:8px 12px;text-align:left;">Medido</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody></table></div>';
+    }
+
+    function renderSE30Incidents(incidents) {
+      const root = byId('se30-incidents');
+      if (!incidents.length) { root.innerHTML = '<div class="nd-empty">[Sin incidencias activas en la SE-30]</div>'; return; }
+      const sorted = [...incidents].sort((a, b) => (a.from_km ?? a.to_km ?? 999) - (b.from_km ?? b.to_km ?? 999));
+      root.innerHTML = '<div class="nd-list">' + sorted.map(inc => {
+        const km = inc.from_km != null ? 'km ' + Number(inc.from_km).toFixed(1) + (inc.to_km != null ? '\u2013' + Number(inc.to_km).toFixed(1) : '') : (inc.to_km != null ? 'km ' + Number(inc.to_km).toFixed(1) : 'km -');
+        const title = escapeHtml(inc.incident_type || inc.cause_type || 'Incidencia');
+        const dir = dirLabel(inc.direction);
+        const muni = escapeHtml(inc.municipality || inc.province || '-');
+        const sev = inc.severity || 'sin severidad';
+        const sevClass = sev.toLowerCase().includes('high') ? 'alert' : sev.toLowerCase().includes('medium') ? 'warn' : '';
+        const start = inc.start_time ? formatDate(inc.start_time) : '-';
+        return '<div class="nd-list-item">' +
+          '<div class="nd-list-head"><span class="nd-list-title">' + title + '</span><span class="nd-list-km">' + escapeHtml(km) + '</span></div>' +
+          '<div class="nd-list-sub">SE-30 \xb7 ' + dir + ' \xb7 ' + muni + ' \xb7 Inicio: ' + escapeHtml(start) + '</div>' +
+          '<div class="nd-chips">' +
+          '<span class="nd-chip ' + sevClass + '">' + escapeHtml(sev) + '</span>' +
+          (inc.validity_status ? '<span class="nd-chip">' + escapeHtml(inc.validity_status) + '</span>' : '') +
+          (inc.source && inc.source !== 'dgt' ? '<span class="nd-chip">' + escapeHtml(inc.source) + '</span>' : '') +
+          '</div></div>';
+      }).join('') + '</div>';
+    }
+
+    function renderSE30Tomtom(tomtom) {
+      const root = byId('se30-tomtom');
+      if (!tomtom.length) { root.innerHTML = '<div class="nd-empty">[Sin datos TomTom almacenados \xb7 Configura VCENTENARIO_TOMTOM_API_KEY]</div>'; return; }
+      const sorted = [...tomtom].sort((a, b) => {
+        const aId = String(a.detector_id || '');
+        const bId = String(b.detector_id || '');
+        return aId.localeCompare(bId);
+      });
+      root.innerHTML = '<div class="nd-list">' + sorted.map(d => {
+        const spd = d.average_speed != null ? d.average_speed.toFixed(1) + ' km/h' : '-';
+        const ffs = d.free_flow_speed != null ? d.free_flow_speed.toFixed(0) + ' km/h' : '-';
+        const flow = d.vehicle_flow != null ? d.vehicle_flow + ' veh/h' : '-';
+        const isFreeFlow = d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1;
+        const sc = isFreeFlow ? 'color:var(--text-disabled)' : speedColor(d.average_speed);
+        const ts = d.collected_at ? formatDate(d.collected_at) : '-';
+        const freeFlowBadge = isFreeFlow ? ' <span class="nd-chip" style="font-size:9px;padding:2px 6px;border-color:var(--text-disabled);color:var(--text-disabled);">SIN DATOS REALES</span>' : '';
+        return '<div class="nd-list-item">' +
+          '<div class="nd-list-head">' +
+          '<span class="nd-list-title" style="' + sc + '">' + escapeHtml(spd) + freeFlowBadge + '</span>' +
+          '<span class="nd-list-km">' + escapeHtml(d.detector_id || '-') + '</span>' +
+          '</div>' +
+          '<div class="nd-list-sub">Libre: ' + escapeHtml(ffs) + ' \xb7 Flujo: ' + escapeHtml(flow) + ' \xb7 ' + escapeHtml(ts) + '</div>' +
+          '</div>';
+      }).join('') + '</div>';
     }
 
     function renderSpeedTab(data) {
       const detectors = data.detectors || [];
       const history = data.tomtom_speed_history || [];
 
-      // Current readings from latest detectors
+      // Current readings from latest detectors — tramo km 10-12 sentido Huelva
       const tomtom = detectors.filter(d => d.detector_id && d.detector_id.startsWith('tomtom_'));
-      const puente = tomtom.filter(d => d.detector_id.includes('puente'));
-      const pos = tomtom.find(d => d.detector_id.includes('positivo') && d.detector_id.includes('puente'));
-      const neg = tomtom.find(d => d.detector_id.includes('negativo') && d.detector_id.includes('puente'));
+      const tramo = tomtom.filter(d => d.detector_id.includes('huelva'));
+      const km10 = tomtom.find(d => d.detector_id === 'tomtom_km10_huelva');
+      const km11 = tomtom.find(d => d.detector_id === 'tomtom_km11_huelva');
+      const km12 = tomtom.find(d => d.detector_id === 'tomtom_km12_huelva');
 
-      const avgPuente = puente.length
-        ? (puente.reduce((a, d) => a + (d.average_speed || 0), 0) / puente.length).toFixed(0)
+      const avgTramo = tramo.length
+        ? (tramo.reduce((a, d) => a + (d.average_speed || 0), 0) / tramo.length).toFixed(0)
         : null;
 
-      const allFreeFlow = puente.length > 0 && puente.every(
+      const allFreeFlow = tramo.length > 0 && tramo.every(
         d => d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1
       );
-      byId('spd-hero').textContent = avgPuente ?? '--';
+      byId('spd-hero').textContent = avgTramo ?? '--';
       byId('spd-hero').style.color = allFreeFlow ? 'var(--text-disabled)' : 'var(--text-display)';
-      byId('spd-hero-meta').textContent = puente.length === 0
-        ? 'Sin lecturas de sensores del puente'
+      byId('spd-hero-meta').textContent = tramo.length === 0
+        ? 'Sin lecturas TomTom del tramo km 10-12'
         : allFreeFlow
           ? 'Sin tr\xe1fico real detectado \xb7 TomTom devuelve velocidad libre (dato est\xe1tico)'
-          : `Dato en tiempo real \xb7 ${puente.length} sensor${puente.length > 1 ? 'es' : ''} activo${puente.length > 1 ? 's' : ''}`;
+          : `Dato en tiempo real \xb7 ${tramo.length} sensor${tramo.length > 1 ? 'es' : ''} activo${tramo.length > 1 ? 's' : ''}`;
 
-      if (pos) {
-        byId('spd-positivo').textContent = pos.average_speed != null ? pos.average_speed.toFixed(0) : '-';
-        byId('spd-positivo-note').textContent = `km/h · ${pos.detector_id}`;
-      }
-      if (neg) {
-        byId('spd-negativo').textContent = neg.average_speed != null ? neg.average_speed.toFixed(0) : '-';
-        byId('spd-negativo-note').textContent = `km/h · ${neg.detector_id}`;
+      const _setKm = (kmId, det) => {
+        const el = byId('spd-' + kmId);
+        const note = byId('spd-' + kmId + '-note');
+        if (el && det) {
+          el.textContent = det.average_speed != null ? det.average_speed.toFixed(0) : '-';
+          if (note) note.textContent = `km/h \xb7 ${det.detector_id}`;
+        }
+      };
+      _setKm('km10', km10);
+      _setKm('km11', km11);
+      _setKm('km12', km12);
+
+      byId('spd-sensor-count').textContent = `${tramo.length} sensor${tramo.length !== 1 ? 'es' : ''} del tramo con datos`;
+      if (tramo.length > 0) {
+        byId('spd-collected-at').textContent = formatDate(tramo[0].collected_at);
       }
 
-      byId('spd-sensor-count').textContent = `${puente.length} sensor${puente.length !== 1 ? 'es' : ''} del puente con datos`;
-      if (puente.length > 0) {
-        byId('spd-collected-at').textContent = formatDate(puente[0].collected_at);
-      }
-
-      // Table — solo sensores del puente
+      // Table — sensores del tramo km 10-12
       const root = byId('spd-table');
-      if (puente.length === 0) {
-        root.innerHTML = '<div class="nd-empty">[Sin lecturas TomTom del puente — API key no configurada o sin datos recientes]</div>';
+      if (tramo.length === 0) {
+        root.innerHTML = '<div class="nd-empty">[Sin lecturas TomTom km 10-12 — API key no configurada o sin datos recientes]</div>';
       } else {
-        root.innerHTML = '<div class="nd-list">' + puente.map(d => {
+        root.innerHTML = '<div class="nd-list">' + tramo.map(d => {
           const spd = d.average_speed != null ? d.average_speed.toFixed(1) + ' km/h' : '-';
           const flow = d.vehicle_flow != null ? d.vehicle_flow + ' veh/h' : '-';
-          const dir = d.detector_id.includes('positivo') ? '\u2191 C\xe1diz' : d.detector_id.includes('negativo') ? '\u2193 Sevilla' : '-';
+          const dir = '\u2192 Huelva';
           const isFreeFlow = d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1;
           const spdColor = isFreeFlow ? 'color:var(--text-disabled)' :
             d.average_speed == null ? '' :
@@ -1437,14 +1865,21 @@ HTML_PAGE = """<!doctype html>
         }).join('') + '</div>';
       }
 
-      // History chart — solo sensores del puente
-      drawSpeedChart(history.filter(r => r.detector_id && r.detector_id.includes('puente')));
+      // History chart — sensores del tramo km 10-12
+      drawSpeedChart(history.filter(r => r.detector_id && r.detector_id.includes('huelva')));
     }
 
     function drawSpeedChart(history) {
       const canvas = byId('spd-chart');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
+
+      // Redimensionar canvas al tamaño real del contenedor (responsivo)
+      const cssW = canvas.offsetWidth || canvas.parentElement?.clientWidth || window.innerWidth - 48 || 900;
+      const minH = window.innerWidth < 600 ? 240 : 280;
+      canvas.width  = Math.max(cssW, 200);
+      canvas.height = minH;
+
       const W = canvas.width, H = canvas.height;
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, W, H);
@@ -1511,10 +1946,9 @@ HTML_PAGE = """<!doctype html>
 
       // Color map for series
       const colorMap = {
-        'tomtom_puente_positivo': '#4A9E5C',
-        'tomtom_puente_negativo': '#D4A843',
-        'tomtom_sur_positivo':    '#666666',
-        'tomtom_norte_negativo':  '#666666',
+        'tomtom_km10_huelva': '#4A9E5C',
+        'tomtom_km11_huelva': '#D4A843',
+        'tomtom_km12_huelva': '#5B8DBE',
       };
 
       // Draw each series
@@ -1522,7 +1956,7 @@ HTML_PAGE = """<!doctype html>
         const color = colorMap[detId] || '#999999';
         points.sort((a, b) => a.t.localeCompare(b.t));
         ctx.strokeStyle = color;
-        ctx.lineWidth = detId.includes('puente') ? 1.5 : 1;
+        ctx.lineWidth = detId.includes('km11') ? 1.5 : 1;
         ctx.lineJoin = 'miter';
         ctx.lineCap = 'square';
         ctx.beginPath();
@@ -1548,6 +1982,153 @@ HTML_PAGE = """<!doctype html>
         const t = new Date(allTimes[i]);
         const label = t.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         ctx.fillText(label, x, H - 4);
+      }
+    }
+
+    // ---- Mapa SE-30 ----
+    let ndMapSE30 = null;
+    let ndMapSE30Loaded = false;
+    let ndMapSE30Markers = {};
+
+    function loadMapLibreSE30AndInit() {
+      if (typeof maplibregl !== 'undefined') { _initMapSE30Now(); return; }
+      // Reutilizar la carga existente si ya hay un script en camino
+      if (document.querySelector('script[src="/static/maplibre-gl.js"]')) {
+        const wait = () => typeof maplibregl !== 'undefined' ? _initMapSE30Now() : setTimeout(wait, 150);
+        setTimeout(wait, 150);
+        return;
+      }
+      byId('se30-map-status').textContent = 'Cargando librería...';
+      const link = document.createElement('link');
+      link.rel = 'stylesheet'; link.href = '/static/maplibre-gl.css';
+      document.head.appendChild(link);
+      const script = document.createElement('script');
+      script.src = '/static/maplibre-gl.js';
+      script.onload = () => _initMapSE30Now();
+      script.onerror = () => { byId('se30-map-status').textContent = 'ERROR: no se pudo cargar maplibre-gl.js'; };
+      document.head.appendChild(script);
+    }
+
+    function initMapSE30() {
+      if (ndMapSE30) { ndMapSE30.resize(); return; }
+      loadMapLibreSE30AndInit();
+    }
+
+    function _initMapSE30Now() {
+      if (ndMapSE30) return;
+      byId('se30-map-status').textContent = 'Iniciando mapa...';
+      ndMapSE30 = new maplibregl.Map({
+        container: 'nd-map-se30',
+        style: {
+          version: 8,
+          sources: {
+            'carto-dark': {
+              type: 'raster',
+              tiles: [
+                'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+              ],
+              tileSize: 256,
+              attribution: '\xa9 OpenStreetMap contributors \xa9 CARTO',
+            }
+          },
+          layers: [{ id: 'carto-dark-layer', type: 'raster', source: 'carto-dark' }]
+        },
+        center: [-5.9950, 37.3505],
+        zoom: 14,
+        attributionControl: false,
+      });
+      ndMapSE30.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+      ndMapSE30.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+      ndMapSE30.on('error', (e) => {
+        byId('se30-map-status').textContent = 'Error: ' + (e.error ? e.error.message : 'desconocido');
+      });
+      ndMapSE30.on('load', () => {
+        ndMapSE30Loaded = true;
+        byId('se30-map-status').textContent = 'MapLibre GL \xb7 CARTO Dark';
+        if (window._lastSE30Data) renderSE30Map(window._lastSE30Data);
+      });
+    }
+
+    function renderSE30Map(data) {
+      window._lastSE30Data = data;
+      if (!ndMapSE30 || !ndMapSE30Loaded) return;
+
+      // Limpiar marcadores anteriores
+      Object.values(ndMapSE30Markers).forEach(m => m.remove());
+      ndMapSE30Markers = {};
+
+      // ---- Marcadores TomTom ----
+      const tomtom = data.tomtom || [];
+      tomtom.forEach(d => {
+        if (d.latitude == null || d.longitude == null) return;
+        const color = sensorColor(d);
+        const isFreeFlow = d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1;
+        const spd = d.average_speed != null ? d.average_speed.toFixed(0) : '--';
+        const isPuente = (d.detector_id || '').includes('km11');
+
+        const el = document.createElement('div');
+        el.className = 'nd-map-marker';
+        el.style.borderColor = color;
+        el.style.color = color;
+        el.style.width = isPuente ? '52px' : '44px';
+        el.style.height = isPuente ? '52px' : '44px';
+        el.style.fontSize = isPuente ? '13px' : '11px';
+        el.style.opacity = isFreeFlow ? '0.5' : '1';
+        el.textContent = spd;
+
+        const ffsNote = d.free_flow_speed != null
+          ? '<div style="color:#666;margin-top:2px;">libre ' + d.free_flow_speed.toFixed(0) + ' km/h</div>' : '';
+        const statusNote = isFreeFlow
+          ? '<div style="color:#666;margin-top:4px;font-size:9px;letter-spacing:0.06em;">SIN DATO REAL</div>'
+          : '<div style="color:#4A9E5C;margin-top:4px;font-size:9px;letter-spacing:0.06em;">EN TIEMPO REAL</div>';
+        const flowNote = d.vehicle_flow != null
+          ? '<div style="color:#999;margin-top:2px;">flujo: ' + d.vehicle_flow + ' veh/h</div>' : '';
+
+        const popup = new maplibregl.Popup({ offset: 12, closeButton: true, maxWidth: '220px' })
+          .setHTML('<div style="font-family:\\'Space Mono\\',monospace;font-size:11px;color:#E8E8E8;padding:12px 14px;line-height:1.6;">' +
+            '<div style="font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:#999;margin-bottom:6px;">' + escapeHtml(d.detector_id) + '</div>' +
+            '<div style="font-size:22px;font-weight:700;color:' + color + ';">' + escapeHtml(spd) + ' <span style="font-size:11px;">km/h</span></div>' +
+            ffsNote + statusNote + flowNote +
+            '</div>');
+
+        const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+          .setLngLat([d.longitude, d.latitude])
+          .setPopup(popup)
+          .addTo(ndMapSE30);
+        ndMapSE30Markers['tt_' + d.detector_id] = marker;
+      });
+
+      // ---- Marcadores DGT (pequeños cuadrados) ----
+      const dgt = (data.detectors || []).filter(d => d.latitude != null && d.longitude != null);
+      dgt.forEach(d => {
+        const sc = d.average_speed != null ? speedColor(d.average_speed) : 'color:var(--text-disabled)';
+        const spd = d.average_speed != null ? d.average_speed.toFixed(1) + ' km/h' : '-';
+        const flow = d.vehicle_flow != null ? d.vehicle_flow + ' veh/h' : '-';
+        const occ = d.occupancy != null ? (d.occupancy * 100).toFixed(1) + '%' : '-';
+
+        const el = document.createElement('div');
+        el.style.cssText = 'width:10px;height:10px;background:#1A1A1A;border:1px solid #555555;cursor:pointer;box-sizing:border-box;';
+
+        const popup = new maplibregl.Popup({ offset: 8, closeButton: false, maxWidth: '200px' })
+          .setHTML('<div style="font-family:\\'Space Mono\\',monospace;font-size:10px;color:#E8E8E8;padding:10px 12px;line-height:1.7;">' +
+            '<div style="font-size:9px;color:#666;margin-bottom:4px;">DGT \xb7 ' + escapeHtml(d.detector_id) + '</div>' +
+            '<div style="' + sc + '">vel: ' + escapeHtml(spd) + '</div>' +
+            '<div style="color:#999;">flujo: ' + escapeHtml(flow) + '</div>' +
+            '<div style="color:#999;">ocup: ' + escapeHtml(occ) + '</div>' +
+            (d.km != null ? '<div style="color:#666;margin-top:2px;">km ' + Number(d.km).toFixed(1) + '</div>' : '') +
+            '</div>');
+
+        const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+          .setLngLat([d.longitude, d.latitude])
+          .setPopup(popup)
+          .addTo(ndMapSE30);
+        ndMapSE30Markers['dgt_' + d.detector_id] = marker;
+      });
+
+      const total = tomtom.length + dgt.length;
+      if (total > 0) {
+        byId('se30-map-status').textContent = 'MapLibre GL \xb7 ' + tomtom.length + ' TomTom \xb7 ' + dgt.length + ' DGT';
       }
     }
 
@@ -1596,6 +2177,9 @@ class DashboardServer:
                     return
                 if parsed.path == "/api/dashboard":
                     self._send_json(service.dashboard_data())
+                    return
+                if parsed.path == "/api/se30":
+                    self._send_json(service.se30_live_data())
                     return
                 if parsed.path == "/healthz":
                     self._send_json({"ok": True})

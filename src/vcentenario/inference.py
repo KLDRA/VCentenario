@@ -47,6 +47,12 @@ PICTOGRAM_WEIGHT = {
     "blankVoid": 0.0,
 }
 
+# Mensajes VMS permanentes por obras u otras causas estructurales que NO reflejan
+# condiciones de tráfico en tiempo real. Se ignoran completamente en la inferencia.
+PANEL_IGNORED_LEGEND_FRAGMENTS = {
+    "VEHICULO 20T/HUELVA-MERID/POR A4 CADIZ",
+}
+
 # Detector weights calibrated for realistic traffic classification:
 # - LOW velocities (30-60 km/h) on a 60 km/h bridge = congestion, but not extreme
 # - Weight reduced from 0.7 to 0.12 to prevent over-scoring (e.g., 30 km/h difference should contribute ~3.6 to score, not 21)
@@ -75,6 +81,10 @@ def infer_bridge_state(
     evidence: List[str] = []
 
     for panel in panels:
+        # Ignorar mensajes estáticos de obras u otras causas permanentes
+        panel_text = " ".join(panel.legends).upper()
+        if any(frag.upper() in panel_text for frag in PANEL_IGNORED_LEGEND_FRAGMENTS):
+            continue
         panel_score = 0.0
         panel_evidence = f"panel:{panel.location_id}:{'/'.join(panel.legends[:2])}" if panel.legends else None
         for legend in panel.legends:
