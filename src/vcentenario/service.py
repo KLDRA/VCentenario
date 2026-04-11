@@ -124,51 +124,31 @@ class VCentenarioService:
                 "error": "camera inventory unavailable",
             }
 
-        try:
-            detector_inventory = self.detector_collector.fetch_inventory()
-            self.storage.upsert_detector_locations(detector_inventory.values())
-            source_status["detector_inventory"] = {"status": "ok", "count": len(detector_inventory)}
-        except Exception as exc:
-            message = f"detector_inventory: {exc}"
-            self.logger.exception("Fallo recogiendo inventario de detectores")
-            warnings.append(message)
-            source_status["detector_inventory"] = {"status": "error", "error": str(exc)}
-
-        if detector_inventory:
-            try:
-                detector_readings = self.detector_collector.fetch_bridge_measurements(detector_inventory)
-                self.storage.insert_detector_readings(collected_at, detector_readings)
-                source_status["detector_readings"] = {"status": "ok", "count": len(detector_readings)}
-            except Exception as exc:
-                message = f"detector_readings: {exc}"
-                self.logger.exception("Fallo recogiendo lecturas de detectores")
-                warnings.append(message)
-                source_status["detector_readings"] = {"status": "error", "error": str(exc)}
-        else:
-            source_status["detector_readings"] = {
-                "status": "skipped",
-                "error": "detector inventory unavailable",
-            }
-
-        # TomTom Flow — complementa detectores DGT cuando están caídos o ausentes
+        # TomTom Routing API — velocidad media por sentido (km 10→12 y km 12→10).
+        # Los detectores DGT del tramo tienen timestamps congelados desde junio 2025
+        # y no publican datos en tiempo real, por lo que se descartan como fuente.
+        detector_readings: list = []
+        source_status["detector_readings"] = {"status": "skipped", "error": "DGT sensors frozen — using TomTom Routing instead"}
         if TOMTOM_API_KEY:
-            # Puntos del tramo km 10–12, sentido Huelva (positivo)
-            tomtom_points = [
-                (37.343820, -5.986923, "tomtom_km10_huelva"),  # km 10 sentido Huelva
-                (37.350518, -5.994916, "tomtom_km11_huelva"),  # km 11 sentido Huelva (punto medio)
-                (37.357216, -6.002909, "tomtom_km12_huelva"),  # km 12 sentido Huelva
+            # km 10 (37.343820, -5.986923) → km 12 (37.357216, -6.002909): sentido Huelva
+            # km 12 (37.357216, -6.002909) → km 10 (37.343820, -5.986923): sentido Cádiz
+            tomtom_routes = [
+                (37.343820, -5.986923, 37.357216, -6.002909, "tomtom_route_huelva", "positive"),
+                (37.357216, -6.002909, 37.343820, -5.986923, "tomtom_route_cadiz",  "negative"),
             ]
             tomtom_readings = []
-            for lat, lon, det_id in tomtom_points:
-                reading = self.tomtom_collector.fetch_flow_at_point(lat, lon, det_id)
+            for o_lat, o_lon, d_lat, d_lon, det_id, direction in tomtom_routes:
+                reading = self.tomtom_collector.fetch_route_speed(
+                    o_lat, o_lon, d_lat, d_lon, det_id, direction=direction
+                )
                 if reading:
                     tomtom_readings.append(reading)
             detector_readings.extend(tomtom_readings)
             if tomtom_readings:
                 self.storage.insert_detector_readings(collected_at, tomtom_readings)
-            source_status["tomtom_flow"] = {"status": "ok", "count": len(tomtom_readings)}
+            source_status["tomtom_routing"] = {"status": "ok", "count": len(tomtom_readings)}
         else:
-            source_status["tomtom_flow"] = {"status": "skipped", "error": "api key not set"}
+            source_status["tomtom_routing"] = {"status": "skipped", "error": "api key not set"}
 
         recent_states = self.storage.recent_states(limit=48)
         state = infer_bridge_state(

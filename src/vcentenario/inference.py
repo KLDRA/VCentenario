@@ -265,44 +265,65 @@ def infer_reversible(
 def score_detectors(detectors: Sequence[DetectorReading]) -> Tuple[float, List[str], Dict[str, float]]:
     if not detectors:
         return 0.0, [], {}
-    score = 0.0
+    local_scores: List[float] = []
+    dir_local: List[Tuple[str, float]] = []
     evidence: List[str] = []
     direction_pressure: Dict[str, float] = defaultdict(float)
-    active_count = 0
+
     for detector in detectors:
         if detector.average_speed is None and detector.vehicle_flow is None and detector.occupancy is None:
             continue
-        active_count += 1
         local_score = 0.0
 
-        # Determine the slow-speed threshold: for TomTom use the calibrated constant
-        # of 60 km/h, ignoring TomTom's reported freeFlowSpeed which is inaccurate for the bridge.
-        # For DGT detectors use the generic 80 km/h default.
+        # Velocidad: indicador principal de congestión.
+        # SE-30 km 10–12 tiene límite de 60 km/h en ambos sentidos.
         if detector.source == "tomtom":
-            slow_threshold = TOMTOM_CALIBRATED_FREE_FLOW
+            slow_threshold = TOMTOM_CALIBRATED_FREE_FLOW  # ya calibrado a 60.0
         else:
-            slow_threshold = 80.0
+            slow_threshold = 60.0
 
-        if detector.vehicle_flow is not None:
-            local_score += min(detector.vehicle_flow * DETECTOR_FLOW_WEIGHT, 10.0)
-        if detector.occupancy is not None:
-            local_score += min(detector.occupancy * DETECTOR_OCCUPANCY_WEIGHT, 4.0)
         if detector.average_speed is not None and detector.average_speed < slow_threshold:
             local_score += min((slow_threshold - detector.average_speed) * DETECTOR_SLOW_SPEED_WEIGHT, 7.0)
-        score += local_score
 
-        # Determine direction: use the explicit field if set, otherwise
-        # infer from TomTom detector_id naming convention (*_positivo / *_negativo).
+        # Ocupación: buen proxy de densidad cuando está disponible (principalmente DGT).
+        if detector.occupancy is not None:
+            local_score += min(detector.occupancy * DETECTOR_OCCUPANCY_WEIGHT, 4.0)
+
+        # Flujo vehicular: solo para TomTom (no da speed+flow simultáneamente).
+        # Para DGT se omite: en vías de varios carriles el flujo siempre es alto y
+        # no discrimina entre tráfico fluido y congestionado.
+        if detector.source == "tomtom" and detector.vehicle_flow is not None:
+            local_score += min(detector.vehicle_flow * DETECTOR_FLOW_WEIGHT, 10.0)
+
+        local_scores.append(local_score)
+
+        # Determinar dirección desde el campo o desde el nombre del detector (TomTom).
         direction = detector.direction
         if not direction and detector.source == "tomtom":
             det_id_lower = (detector.detector_id or "").lower()
-            if det_id_lower.endswith("_positivo"):
+            if det_id_lower.endswith("_positivo") or det_id_lower.endswith("_huelva"):
                 direction = "positive"
-            elif det_id_lower.endswith("_negativo"):
+            elif det_id_lower.endswith("_negativo") or det_id_lower.endswith("_cadiz"):
                 direction = "negative"
 
         if direction:
-            direction_pressure[direction] += min(local_score, DETECTOR_DIRECTION_BIAS_WEIGHT)
+            dir_local.append((direction, local_score))
+
+    active_count = len(local_scores)
+    if not active_count:
+        return 0.0, [], {}
+
+    # Normalizar: media por sensor para que el score sea independiente del número de detectores.
+    avg_score = sum(local_scores) / active_count
+    score = round(avg_score * active_count ** 0.5, 2)  # escala suave: √n en lugar de n
+
+    # direction_pressure: media por dirección para el cálculo del carril reversible.
+    dir_totals: Dict[str, List[float]] = defaultdict(list)
+    for d, s in dir_local:
+        dir_totals[d].append(s)
+    for d, scores in dir_totals.items():
+        direction_pressure[d] = min(sum(scores) / len(scores), DETECTOR_DIRECTION_BIAS_WEIGHT)
+
     if active_count:
         evidence.append(f"detectors:active:{active_count}")
     if score:

@@ -252,11 +252,12 @@ def get_simple_dashboard():
                 ctx.fillRect(x - 1, y - 1, 2, 2);
             });
 
-            // X labels
+            // X labels — máximo que caben sin solaparse (etiqueta ~40 px)
             ctx.fillStyle = '#666666';
             ctx.font = '400 9px "Space Mono"';
             ctx.textAlign = 'center';
-            const step = Math.ceil(scores.length / 6);
+            const maxLabels = Math.max(1, Math.floor(w / 44));
+            const step = Math.max(1, Math.ceil(scores.length / maxLabels));
             for (let i = 0; i < scores.length; i += step) {
                 const x = pad.left + (i / Math.max(scores.length - 1, 1)) * w;
                 ctx.fillText('#' + (i + 1), x, H - pad.bottom + 16);
@@ -510,8 +511,8 @@ HTML_PAGE = """<!doctype html>
     .nd-bars-wrap {
       /* canvas se adapta al ancho sin scroll */
     }
-    #trendBars { min-height: 160px; }
-    #spd-chart { min-height: 240px; }
+    #pulso-huelva, #pulso-cadiz { min-height: 80px; }
+    #spd-chart-huelva, #spd-chart-cadiz { min-height: 200px; }
     .nd-trend-legend {
       display: flex;
       gap: var(--space-lg);
@@ -791,6 +792,79 @@ HTML_PAGE = """<!doctype html>
     .maplibregl-ctrl-group button:hover { background: #1A1A1A !important; color: #FFFFFF !important; }
     .maplibregl-ctrl-attrib { background: rgba(0,0,0,0.6) !important; color: #666 !important; font-size: 9px !important; }
 
+    /* ---- Direction cards (sentido Huelva / sentido Cádiz) ---- */
+    .nd-directions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      margin-bottom: var(--space-2xl);
+    }
+    .nd-direction-card {
+      background: var(--surface);
+      padding: var(--space-xl) var(--space-lg);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+      min-width: 0;
+      overflow: hidden;
+    }
+    .nd-direction-heading {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-sm);
+    }
+    .nd-direction-arrow {
+      font-size: 16px;
+      line-height: 1;
+    }
+    .nd-direction-speed {
+      font-family: "Doto", "Space Mono", monospace;
+      font-size: 80px;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      color: var(--text-display);
+    }
+    .nd-direction-speed-unit {
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-sm);
+    }
+    .nd-direction-level {
+      font-family: "Space Grotesk", system-ui;
+      font-size: 22px;
+      font-weight: 400;
+      color: var(--text-display);
+    }
+    .nd-direction-bar-wrap {
+      height: 3px;
+      background: var(--border-visible);
+      margin-top: var(--space-md);
+      overflow: hidden;
+    }
+    .nd-direction-bar-fill {
+      height: 100%;
+      width: 0%;
+      transition: width 0.7s ease, background 0.7s ease;
+    }
+    .nd-direction-sensors {
+      font-family: "Space Mono", monospace;
+      font-size: 10px;
+      color: var(--text-disabled);
+      margin-top: var(--space-sm);
+      letter-spacing: 0.04em;
+    }
+
     /* ---- Responsive ---- */
     @media (max-width: 800px) {
       .nd-hero { grid-template-columns: 1fr; gap: var(--space-lg); }
@@ -801,6 +875,7 @@ HTML_PAGE = """<!doctype html>
       .nd-camera-grid { grid-template-columns: 1fr; }
       #nd-map { height: 400px !important; }
       #nd-map-se30 { height: 360px !important; }
+      .nd-direction-speed { font-size: 64px; }
     }
     @media (max-width: 520px) {
       .nd-shell { padding: var(--space-md) var(--space-sm) var(--space-xl); }
@@ -812,6 +887,9 @@ HTML_PAGE = """<!doctype html>
       .nd-section-body { padding: var(--space-sm); }
       .nd-hero { margin-bottom: var(--space-xl); padding-bottom: var(--space-xl); }
       .nd-hero-score { gap: var(--space-sm); }
+      .nd-directions { grid-template-columns: 1fr; }
+      .nd-direction-speed { font-size: 72px; }
+      .nd-direction-card { padding: var(--space-lg) var(--space-md); }
       #nd-map { height: 300px !important; }
       #nd-map-se30 { height: 280px !important; }
       .nd-level-badge { font-size: 22px; }
@@ -852,6 +930,33 @@ HTML_PAGE = """<!doctype html>
     </nav>
 
     <div id="tab-estado">
+
+    <!-- Sentidos: tarjetas de intensidad por dirección -->
+    <section class="nd-directions">
+      <div class="nd-direction-card">
+        <div class="nd-direction-heading">
+          <span class="nd-direction-arrow">→</span>
+          <span>Sentido Huelva</span>
+        </div>
+        <div class="nd-direction-speed" id="dir-pos-speed">--</div>
+        <div class="nd-direction-speed-unit">km/h</div>
+        <div class="nd-direction-level" id="dir-pos-level">Sin datos</div>
+        <div class="nd-direction-bar-wrap"><div class="nd-direction-bar-fill" id="dir-pos-bar"></div></div>
+        <div class="nd-direction-sensors" id="dir-pos-sensors"></div>
+      </div>
+      <div class="nd-direction-card">
+        <div class="nd-direction-heading">
+          <span class="nd-direction-arrow">←</span>
+          <span>Sentido Cádiz</span>
+        </div>
+        <div class="nd-direction-speed" id="dir-neg-speed">--</div>
+        <div class="nd-direction-speed-unit">km/h</div>
+        <div class="nd-direction-level" id="dir-neg-level">Sin datos</div>
+        <div class="nd-direction-bar-wrap"><div class="nd-direction-bar-fill" id="dir-neg-bar"></div></div>
+        <div class="nd-direction-sensors" id="dir-neg-sensors"></div>
+      </div>
+    </section>
+
     <!-- Hero: Score (primary) + Level (secondary) + Meta (tertiary) -->
     <section class="nd-hero">
       <div>
@@ -888,15 +993,20 @@ HTML_PAGE = """<!doctype html>
       </article>
     </section>
 
-    <!-- Trend -->
+    <!-- Pulso reciente — dos gráficos apilados por sentido -->
     <section class="nd-section">
       <div class="nd-section-header">
         <span class="nd-label">Pulso reciente</span>
-        <span class="nd-meta">Últimas 24 horas</span>
+        <span class="nd-meta">&#218;ltimas 6 h · por sentido</span>
       </div>
-      <div class="nd-section-body">
+      <div class="nd-section-body" style="padding:0;">
+        <div style="padding:var(--space-sm) var(--space-lg) 2px;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;color:#4A9E5C;">&#8594; HUELVA</div>
         <div class="nd-bars-wrap">
-          <canvas id="trendBars" style="display:block;width:100%;background:#000000;"></canvas>
+          <canvas id="pulso-huelva" style="display:block;width:100%;background:#000000;"></canvas>
+        </div>
+        <div style="padding:var(--space-sm) var(--space-lg) 2px;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;color:#D4A843;margin-top:var(--space-sm);">&#8592; C&#193;DIZ</div>
+        <div class="nd-bars-wrap">
+          <canvas id="pulso-cadiz" style="display:block;width:100%;background:#000000;"></canvas>
         </div>
       </div>
       <div class="nd-trend-legend">
@@ -910,7 +1020,7 @@ HTML_PAGE = """<!doctype html>
           <div class="nd-legend-color" style="background:var(--accent);"></div>Retenciones
         </div>
         <div class="nd-legend-item">
-          <div class="nd-legend-color" style="background:var(--accent); opacity:0.7;"></div>Congestión fuerte
+          <div class="nd-legend-color" style="background:var(--accent); opacity:0.7;"></div>Congesti&#243;n fuerte
         </div>
       </div>
     </section>
@@ -947,71 +1057,49 @@ HTML_PAGE = """<!doctype html>
     <!-- Velocidades TomTom -->
     <div id="tab-velocidades" style="display:none;">
 
-      <section class="nd-hero" style="margin-top:0;">
-        <div>
-          <div class="nd-eyebrow">Velocidad media · SE-30 km 10–12 · Sentido Huelva</div>
-          <div class="nd-hero-score">
-            <div class="nd-display" id="spd-hero">--</div>
-            <div class="nd-score-unit">km/h</div>
-          </div>
-          <div id="spd-hero-meta" class="nd-meta">Media de los sensores activos del puente</div>
-          <div class="nd-meta" style="margin-top:8px; color:var(--text-disabled);">Velocidad real GPS (probe data) \xb7 l\xedmite 60 km/h</div>
-        </div>
-        <div class="nd-hero-right">
-          <div class="nd-eyebrow">Fuente</div>
-          <div class="nd-level-badge" style="font-size:20px;">TomTom Flow</div>
-        </div>
-      </section>
-
-      <!-- Speed by km point -->
-      <section class="nd-metrics">
+      <!-- Dos sentidos: velocidad actual + retardo -->
+      <section class="nd-metrics" style="margin-top:0;">
         <article class="nd-metric-card">
-          <div class="nd-label">km 10 · Huelva</div>
-          <div id="spd-km10" class="nd-metric-value">-</div>
-          <div id="spd-km10-note" class="nd-metric-note">km/h · tomtom_km10</div>
+          <div class="nd-label">&#8594; Sentido Huelva · km 10&#8211;12</div>
+          <div id="spd-huelva" class="nd-metric-value">-</div>
+          <div id="spd-huelva-delay" class="nd-metric-note">km/h</div>
+          <div id="spd-huelva-free" class="nd-metric-note" style="margin-top:2px;"></div>
         </article>
         <article class="nd-metric-card">
-          <div class="nd-label">km 11 · Huelva</div>
-          <div id="spd-km11" class="nd-metric-value">-</div>
-          <div id="spd-km11-note" class="nd-metric-note">km/h · tomtom_km11</div>
+          <div class="nd-label">&#8592; Sentido C&#225;diz · km 12&#8211;10</div>
+          <div id="spd-cadiz" class="nd-metric-value">-</div>
+          <div id="spd-cadiz-delay" class="nd-metric-note">km/h</div>
+          <div id="spd-cadiz-free" class="nd-metric-note" style="margin-top:2px;"></div>
         </article>
         <article class="nd-metric-card">
-          <div class="nd-label">km 12 · Huelva</div>
-          <div id="spd-km12" class="nd-metric-value">-</div>
-          <div id="spd-km12-note" class="nd-metric-note">km/h · tomtom_km12</div>
+          <div class="nd-label">Fuente · Actualizaci&#243;n</div>
+          <div class="nd-metric-value" style="font-size:20px;">TomTom</div>
+          <div id="spd-collected-at" class="nd-metric-note">-</div>
+          <div class="nd-metric-note" style="margin-top:2px;">Routing API · l&#237;mite 60 km/h</div>
         </article>
       </section>
 
-      <!-- Speed history chart -->
-      <section class="nd-section">
-        <div class="nd-section-header">
-          <span class="nd-label">Historial de velocidad · Últimas 6 h</span>
-          <span class="nd-meta" id="spd-sensor-count">-</span>
-        </div>
-        <div class="nd-section-body" style="padding:0;">
-          <canvas id="spd-chart" style="display:block;width:100%;background:#000;"></canvas>
-        </div>
-        <div class="nd-trend-legend">
-          <div class="nd-legend-item">
-            <div class="nd-legend-color" style="background:#4A9E5C;"></div>km 10 Huelva
+      <!-- Speed history charts — uno por sentido -->
+      <div class="nd-two-col" style="gap:0;">
+        <section class="nd-section" style="border-right:1px solid var(--border);margin-bottom:0;">
+          <div class="nd-section-header">
+            <span class="nd-label" style="color:#4A9E5C;">&#8594; Huelva · Pulso reciente</span>
+            <span class="nd-meta" id="spd-sensor-count">-</span>
           </div>
-          <div class="nd-legend-item">
-            <div class="nd-legend-color" style="background:#D4A843;"></div>km 11 Huelva
+          <div class="nd-section-body" style="padding:0;">
+            <canvas id="spd-chart-huelva" style="display:block;width:100%;background:#000;"></canvas>
           </div>
-          <div class="nd-legend-item">
-            <div class="nd-legend-color" style="background:#5B8DBE;"></div>km 12 Huelva
+        </section>
+        <section class="nd-section" style="margin-bottom:0;">
+          <div class="nd-section-header">
+            <span class="nd-label" style="color:#D4A843;">&#8592; C&#225;diz · Pulso reciente</span>
+            <span class="nd-meta">&#218;ltimas 6 h</span>
           </div>
-        </div>
-      </section>
-
-      <!-- TomTom sensors table -->
-      <section class="nd-section">
-        <div class="nd-section-header">
-          <span class="nd-label">Sensores TomTom activos · km 10–12</span>
-          <span class="nd-meta" id="spd-collected-at">-</span>
-        </div>
-        <div id="spd-table"></div>
-      </section>
+          <div class="nd-section-body" style="padding:0;">
+            <canvas id="spd-chart-cadiz" style="display:block;width:100%;background:#000;"></canvas>
+          </div>
+        </section>
+      </div>
 
     </div><!-- /tab-velocidades -->
 
@@ -1030,20 +1118,15 @@ HTML_PAGE = """<!doctype html>
 
       <!-- Tabla resumen bajo el mapa -->
       <section class="nd-metrics" style="margin-bottom:0;">
-        <article class="nd-metric-card" id="map-card-km10-huelva">
-          <div class="nd-label">km 10 · Huelva</div>
-          <div class="nd-metric-value" id="map-spd-km10-huelva">-</div>
-          <div class="nd-metric-note">tomtom_km10_huelva</div>
+        <article class="nd-metric-card">
+          <div class="nd-label">&rarr; Sentido Huelva · km 10&ndash;12</div>
+          <div class="nd-metric-value" id="map-spd-huelva">-</div>
+          <div class="nd-metric-note" id="map-delay-huelva">TomTom Routing</div>
         </article>
-        <article class="nd-metric-card" id="map-card-km11-huelva">
-          <div class="nd-label">km 11 · Huelva</div>
-          <div class="nd-metric-value" id="map-spd-km11-huelva">-</div>
-          <div class="nd-metric-note">tomtom_km11_huelva</div>
-        </article>
-        <article class="nd-metric-card" id="map-card-km12-huelva">
-          <div class="nd-label">km 12 · Huelva</div>
-          <div class="nd-metric-value" id="map-spd-km12-huelva">-</div>
-          <div class="nd-metric-note">tomtom_km12_huelva</div>
+        <article class="nd-metric-card">
+          <div class="nd-label">&larr; Sentido C&aacute;diz · km 12&ndash;10</div>
+          <div class="nd-metric-value" id="map-spd-cadiz">-</div>
+          <div class="nd-metric-note" id="map-delay-cadiz">TomTom Routing</div>
         </article>
       </section>
 
@@ -1073,9 +1156,6 @@ HTML_PAGE = """<!doctype html>
           </div>
           <div class="nd-legend-item">
             <div class="nd-legend-color" style="background:var(--accent);"></div>TomTom &lt;30 km/h
-          </div>
-          <div class="nd-legend-item">
-            <div style="width:10px;height:10px;background:#1A1A1A;border:1px solid #555;display:inline-block;margin-right:4px;"></div>Detector DGT
           </div>
         </div>
       </section>
@@ -1350,16 +1430,149 @@ HTML_PAGE = """<!doctype html>
       ctx.strokeStyle = "#1A1A1A";
       ctx.lineWidth   = 1;
 
+      // Saltar etiquetas si no hay espacio mínimo (44 px) para evitar solapamiento en móvil
+      let lastLabelX = -999;
       for (let h2 = new Date(firstHour); h2.getTime() <= lastMs; h2.setHours(h2.getHours() + 1)) {
         const ratio = (h2.getTime() - firstMs) / spanMs;
         const x = pad.left + ratio * w;
-        const label = h2.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-        ctx.fillText(label, x, H - 4);
         ctx.beginPath();
         ctx.moveTo(x, pad.top);
         ctx.lineTo(x, pad.top + h);
         ctx.stroke();
+        if (x - lastLabelX >= 44) {
+          const label = h2.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+          ctx.fillText(label, x, H - 4);
+          lastLabelX = x;
+        }
       }
+    }
+
+    function renderDirectionPulso(canvasId, history) {
+      const canvas = byId(canvasId);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      const cssW = canvas.offsetWidth || canvas.parentElement?.clientWidth || window.innerWidth - 48 || 900;
+      const minH = window.innerWidth < 600 ? 90 : 80;
+      canvas.width  = Math.max(cssW, 200);
+      canvas.height = minH;
+
+      const W = canvas.width, H = canvas.height;
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, W, H);
+
+      const points = (history || [])
+        .filter(r => r.average_speed != null)
+        .sort((a, b) => a.collected_at.localeCompare(b.collected_at));
+
+      if (points.length === 0) {
+        ctx.fillStyle = '#333333';
+        ctx.font = '700 12px "Space Mono"';
+        ctx.textAlign = 'left';
+        ctx.fillText('[SIN HISTÓRICO]', 20, 40);
+        return;
+      }
+
+      function speedColor(spd) {
+        if (spd >= 55) return '#4A9E5C';
+        if (spd >= 35) return '#D4A843';
+        if (spd >= 20) return '#D71921';
+        return '#A01418';
+      }
+
+      const pad = { top: 8, right: 8, bottom: 28, left: 8 };
+      const w = W - pad.left - pad.right;
+      const h = H - pad.top - pad.bottom;
+
+      const maxV = Math.max(...points.map(p => p.average_speed), 60);
+      const n = points.length;
+      const barW = Math.max(1, w / n);
+
+      points.forEach((p, i) => {
+        const barH = Math.max(2, (p.average_speed / maxV) * h);
+        const x = pad.left + i * barW;
+        const y = pad.top + h - barH;
+        ctx.fillStyle = speedColor(p.average_speed);
+        ctx.fillRect(x, y, Math.max(1, barW - 1), barH);
+      });
+
+      // Etiquetas horarias en el eje X
+      const times   = points.map(p => new Date(p.collected_at));
+      const firstMs = times[0].getTime();
+      const lastMs  = times[times.length - 1].getTime();
+      const spanMs  = lastMs - firstMs || 1;
+
+      const firstHour = new Date(firstMs);
+      firstHour.setMinutes(0, 0, 0);
+      if (firstHour.getTime() < firstMs) firstHour.setHours(firstHour.getHours() + 1);
+
+      ctx.fillStyle   = '#666666';
+      ctx.font        = '9px "Space Mono"';
+      ctx.textAlign   = 'center';
+      ctx.strokeStyle = '#1A1A1A';
+      ctx.lineWidth   = 1;
+      let lastLabelX  = -999;
+      for (let hh = new Date(firstHour); hh.getTime() <= lastMs; hh.setHours(hh.getHours() + 1)) {
+        const ratio = (hh.getTime() - firstMs) / spanMs;
+        const x = pad.left + ratio * w;
+        ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + h); ctx.stroke();
+        if (x - lastLabelX >= 44) {
+          ctx.fillText(hh.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }), x, H - 4);
+          lastLabelX = x;
+        }
+      }
+    }
+
+    function renderDirections(detectors) {
+      if (!detectors || !detectors.length) return;
+
+      function avgSpeed(arr) {
+        const valid = arr.filter(d => d.average_speed != null && d.average_speed > 0);
+        return valid.length ? valid.reduce((s, d) => s + d.average_speed, 0) / valid.length : null;
+      }
+      function avgDelay(arr) {
+        const valid = arr.filter(d => d.vehicle_flow != null);
+        return valid.length ? valid.reduce((s, d) => s + d.vehicle_flow, 0) / valid.length : null;
+      }
+      function speedInfo(spd) {
+        if (spd === null) return { label: 'Sin datos', color: 'var(--text-disabled)', pct: 0 };
+        const pct = Math.min(Math.round(spd / 100 * 100), 100);
+        if (spd >= 65) return { label: 'Fluido', color: 'var(--success)', pct };
+        if (spd >= 45) return { label: 'Denso', color: 'var(--warning)', pct };
+        if (spd >= 25) return { label: 'Retenciones', color: 'var(--accent)', pct: Math.max(pct, 8) };
+        return { label: 'Congestión fuerte', color: 'var(--accent)', pct: Math.max(pct, 5) };
+      }
+      // Inferir dirección desde el campo o desde el nombre del detector (fallback)
+      function resolveDir(d) {
+        if (d.direction) return d.direction;
+        const id = (d.detector_id || '').toLowerCase();
+        if (id.includes('cadiz') || id.includes('negativo')) return 'negative';
+        if (id.includes('huelva') || id.includes('positivo')) return 'positive';
+        return null;
+      }
+
+      const pos = detectors.filter(d => resolveDir(d) === 'positive');
+      const neg = detectors.filter(d => resolveDir(d) === 'negative');
+
+      const spdPos = avgSpeed(pos), spdNeg = avgSpeed(neg);
+      const delayPos = avgDelay(pos), delayNeg = avgDelay(neg);
+      const iPos = speedInfo(spdPos), iNeg = speedInfo(spdNeg);
+
+      function update(pfx, spd, delay, count, info) {
+        byId(pfx + '-speed').textContent = spd !== null ? Math.round(spd) : '--';
+        const lvl = byId(pfx + '-level');
+        lvl.textContent = info.label;
+        lvl.style.color = info.color;
+        byId(pfx + '-bar').style.width = info.pct + '%';
+        byId(pfx + '-bar').style.background = info.color;
+        byId(pfx + '-sensors').textContent = count
+          ? count + ' sensor' + (count > 1 ? 'es' : '') + ' activo' + (count > 1 ? 's' : '')
+            + (delay != null && delay > 0 ? ' · +' + Math.round(delay) + 's retardo' : '')
+          : 'Sin sensores activos';
+      }
+
+      update('dir-pos', spdPos, delayPos, pos.length, iPos);
+      update('dir-neg', spdNeg, delayNeg, neg.length, iNeg);
     }
 
     function renderDashboard(data) {
@@ -1386,11 +1599,13 @@ HTML_PAGE = """<!doctype html>
       const sampleCount = state.learning_context && state.learning_context.sample_count != null
         ? ` · muestras franja ${state.learning_context.sample_count}` : "";
       byId("countsLine").textContent = `Paneles ${data.panels.length} · Incidencias ${data.incidents.length} · Cámaras ${data.cameras.length}${sampleCount}`;
+      renderDirections(data.detectors);
       renderPanels(data.panels);
       renderIncidents(data.incidents);
       renderCameras(data.cameras);
-      const trendSource = (data.trend_states && data.trend_states.length) ? data.trend_states : data.recent_states;
-      renderTrend(trendSource);
+      const history = data.tomtom_speed_history || [];
+      renderDirectionPulso('pulso-huelva', history.filter(r => r.detector_id === 'tomtom_route_huelva'));
+      renderDirectionPulso('pulso-cadiz',  history.filter(r => r.detector_id === 'tomtom_route_cadiz'));
       renderSpeedTab(data);
       renderMapTab(data);
       if (latestRun && latestRun.warnings && latestRun.warnings.length > 0) {
@@ -1414,14 +1629,16 @@ HTML_PAGE = """<!doctype html>
 
     function redrawCanvases() {
       if (!lastDashboardData) return;
-      const trendCanvas = byId('trendBars');
-      if (trendCanvas && trendCanvas.offsetWidth > 0) {
-        const src = (lastDashboardData.trend_states && lastDashboardData.trend_states.length)
-          ? lastDashboardData.trend_states : lastDashboardData.recent_states;
-        renderTrend(src);
+      const pulsoH = byId('pulso-huelva');
+      const pulsoC = byId('pulso-cadiz');
+      if ((pulsoH && pulsoH.offsetWidth > 0) || (pulsoC && pulsoC.offsetWidth > 0)) {
+        const history = lastDashboardData.tomtom_speed_history || [];
+        renderDirectionPulso('pulso-huelva', history.filter(r => r.detector_id === 'tomtom_route_huelva'));
+        renderDirectionPulso('pulso-cadiz',  history.filter(r => r.detector_id === 'tomtom_route_cadiz'));
       }
-      const spdCanvas = byId('spd-chart');
-      if (spdCanvas && spdCanvas.offsetWidth > 0) {
+      const spdH = byId('spd-chart-huelva');
+      const spdC = byId('spd-chart-cadiz');
+      if ((spdH && spdH.offsetWidth > 0) || (spdC && spdC.offsetWidth > 0)) {
         renderSpeedTab(lastDashboardData);
       }
     }
@@ -1439,10 +1656,10 @@ HTML_PAGE = """<!doctype html>
     let ndMapMarkers = {};
     let ndMapLoaded = false;
 
-    const TOMTOM_POSITIONS = {
-      'tomtom_km10_huelva': [-5.986923, 37.343820],
-      'tomtom_km11_huelva': [-5.994916, 37.350518],
-      'tomtom_km12_huelva': [-6.002909, 37.357216],
+    // Route endpoints: Huelva starts km10, Cádiz starts km12
+    const ROUTE_POSITIONS = {
+      'tomtom_route_huelva': [-5.986923, 37.343820],
+      'tomtom_route_cadiz':  [-6.002909, 37.357216],
     };
 
     function sensorColor(d) {
@@ -1536,61 +1753,68 @@ HTML_PAGE = """<!doctype html>
 
     function renderMapTab(data) {
       window._lastDashboardData = data;
-      if (!ndMap || !ndMapLoaded) return;
 
       const detectors = data.detectors || [];
-      const tomtom = detectors.filter(d => d.detector_id && d.detector_id.startsWith('tomtom_'));
+      const huelva = detectors.find(d => d.detector_id === 'tomtom_route_huelva');
+      const cadiz  = detectors.find(d => d.detector_id === 'tomtom_route_cadiz');
 
       // Actualizar tarjetas resumen
-      Object.keys(TOMTOM_POSITIONS).forEach(id => {
-        const d = tomtom.find(x => x.detector_id === id);
-        const cardId = 'map-spd-' + id.replace('tomtom_', '').replaceAll('_', '-');
-        const el = byId(cardId);
-        if (el) {
-          const isFreeFlow = d && d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1;
-          el.textContent = d && d.average_speed != null ? d.average_speed.toFixed(0) + ' km/h' : '-';
-          el.style.color = sensorColor(d);
-          el.style.opacity = isFreeFlow ? '0.4' : '1';
+      [
+        { det: huelva, spdId: 'map-spd-huelva', noteId: 'map-delay-huelva' },
+        { det: cadiz,  spdId: 'map-spd-cadiz',  noteId: 'map-delay-cadiz'  },
+      ].forEach(({ det, spdId, noteId }) => {
+        const spdEl  = byId(spdId);
+        const noteEl = byId(noteId);
+        if (!spdEl) return;
+        if (det && det.average_speed != null) {
+          spdEl.textContent = det.average_speed.toFixed(0) + ' km/h';
+          spdEl.style.color = sensorColor(det);
+          const delay = det.vehicle_flow != null ? `+${det.vehicle_flow}s retardo` : '';
+          const free  = det.free_flow_speed != null ? ` · libre ${det.free_flow_speed.toFixed(0)} km/h` : '';
+          if (noteEl) noteEl.textContent = (delay + free) || 'TomTom Routing';
+        } else {
+          spdEl.textContent = '-';
+          spdEl.style.color = '';
+          if (noteEl) noteEl.textContent = 'Sin datos';
         }
       });
+
+      if (!ndMap || !ndMapLoaded) return;
 
       // Limpiar marcadores anteriores
       Object.values(ndMapMarkers).forEach(m => m.remove());
       ndMapMarkers = {};
 
-      // Dibujar marcadores
-      tomtom.forEach(d => {
-        const pos = TOMTOM_POSITIONS[d.detector_id];
+      // Dibujar marcadores en los extremos del tramo
+      [
+        { det: huelva, id: 'tomtom_route_huelva', label: '\u2192 Huelva' },
+        { det: cadiz,  id: 'tomtom_route_cadiz',  label: '\u2190 C\u00e1diz' },
+      ].forEach(({ det, id, label }) => {
+        const pos = ROUTE_POSITIONS[id];
         if (!pos) return;
 
-        const color = sensorColor(d);
-        const isFreeFlow = d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1;
-        const spd = d.average_speed != null ? d.average_speed.toFixed(0) : '--';
-        const isPuente = d.detector_id.includes('km11');
-        const dir = '\u2192 Huelva';
-        const ffsNote = d.free_flow_speed != null
-          ? `<div style="color:#666666;margin-top:2px;">libre ${d.free_flow_speed.toFixed(0)} km/h</div>`
+        const color = sensorColor(det);
+        const spd = det && det.average_speed != null ? det.average_speed.toFixed(0) : '--';
+        const delay = det && det.vehicle_flow != null ? `+${det.vehicle_flow}s` : '';
+        const ffsNote = det && det.free_flow_speed != null
+          ? `<div style="color:#666666;margin-top:2px;">libre ${det.free_flow_speed.toFixed(0)} km/h</div>`
           : '';
-        const statusNote = isFreeFlow
-          ? '<div style="color:#666666;margin-top:4px;font-size:9px;letter-spacing:0.06em;">SIN DATO REAL</div>'
-          : '<div style="color:#4A9E5C;margin-top:4px;font-size:9px;letter-spacing:0.06em;">EN TIEMPO REAL</div>';
 
         const el = document.createElement('div');
         el.className = 'nd-map-marker';
         el.style.borderColor = color;
         el.style.color = color;
-        el.style.width = isPuente ? '52px' : '44px';
-        el.style.height = isPuente ? '52px' : '44px';
-        el.style.fontSize = isPuente ? '13px' : '11px';
-        el.style.opacity = isFreeFlow ? '0.55' : '1';
+        el.style.width = '52px';
+        el.style.height = '52px';
+        el.style.fontSize = '13px';
         el.textContent = spd;
 
         const popup = new maplibregl.Popup({ offset: 12, closeButton: true, maxWidth: '200px' })
           .setHTML(`<div style="font-family:'Space Mono',monospace;font-size:11px;color:#E8E8E8;padding:12px 14px;line-height:1.6;">
-            <div style="font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:#999999;margin-bottom:6px;">${escapeHtml(d.detector_id)}</div>
+            <div style="font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:#999999;margin-bottom:6px;">${label}</div>
             <div style="font-size:24px;font-weight:700;color:${color};">${spd} <span style="font-size:12px;">km/h</span></div>
-            <div style="color:#999999;margin-top:2px;">${isPuente ? dir : 'Acceso'}</div>
-            ${ffsNote}${statusNote}
+            <div style="color:#999999;margin-top:2px;">${delay ? 'Retardo: ' + delay : 'Sin retardo'}</div>
+            ${ffsNote}
           </div>`);
 
         const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
@@ -1598,7 +1822,7 @@ HTML_PAGE = """<!doctype html>
           .setPopup(popup)
           .addTo(ndMap);
 
-        ndMapMarkers[d.detector_id] = marker;
+        ndMapMarkers[id] = marker;
       });
     }
 
@@ -1779,7 +2003,7 @@ HTML_PAGE = """<!doctype html>
       root.innerHTML = '<div class="nd-list">' + sorted.map(d => {
         const spd = d.average_speed != null ? d.average_speed.toFixed(1) + ' km/h' : '-';
         const ffs = d.free_flow_speed != null ? d.free_flow_speed.toFixed(0) + ' km/h' : '-';
-        const flow = d.vehicle_flow != null ? d.vehicle_flow + ' veh/h' : '-';
+        const flow = d.vehicle_flow != null ? '+' + d.vehicle_flow + 's retardo' : '-';
         const isFreeFlow = d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1;
         const sc = isFreeFlow ? 'color:var(--text-disabled)' : speedColor(d.average_speed);
         const ts = d.collected_at ? formatDate(d.collected_at) : '-';
@@ -1789,7 +2013,7 @@ HTML_PAGE = """<!doctype html>
           '<span class="nd-list-title" style="' + sc + '">' + escapeHtml(spd) + freeFlowBadge + '</span>' +
           '<span class="nd-list-km">' + escapeHtml(d.detector_id || '-') + '</span>' +
           '</div>' +
-          '<div class="nd-list-sub">Libre: ' + escapeHtml(ffs) + ' \xb7 Flujo: ' + escapeHtml(flow) + ' \xb7 ' + escapeHtml(ts) + '</div>' +
+          '<div class="nd-list-sub">Libre: ' + escapeHtml(ffs) + ' \xb7 Retardo: ' + escapeHtml(flow) + ' \xb7 ' + escapeHtml(ts) + '</div>' +
           '</div>';
       }).join('') + '</div>';
     }
@@ -1798,86 +2022,69 @@ HTML_PAGE = """<!doctype html>
       const detectors = data.detectors || [];
       const history = data.tomtom_speed_history || [];
 
-      // Current readings from latest detectors — tramo km 10-12 sentido Huelva
-      const tomtom = detectors.filter(d => d.detector_id && d.detector_id.startsWith('tomtom_'));
-      const tramo = tomtom.filter(d => d.detector_id.includes('huelva'));
-      const km10 = tomtom.find(d => d.detector_id === 'tomtom_km10_huelva');
-      const km11 = tomtom.find(d => d.detector_id === 'tomtom_km11_huelva');
-      const km12 = tomtom.find(d => d.detector_id === 'tomtom_km12_huelva');
+      const huelva = detectors.find(d => d.detector_id === 'tomtom_route_huelva');
+      const cadiz  = detectors.find(d => d.detector_id === 'tomtom_route_cadiz');
 
-      const avgTramo = tramo.length
-        ? (tramo.reduce((a, d) => a + (d.average_speed || 0), 0) / tramo.length).toFixed(0)
-        : null;
+      function spdColor(spd) {
+        if (spd == null) return '';
+        if (spd >= 55) return 'color:var(--success)';
+        if (spd >= 35) return 'color:var(--warning)';
+        return 'color:var(--accent)';
+      }
 
-      const allFreeFlow = tramo.length > 0 && tramo.every(
-        d => d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1
-      );
-      byId('spd-hero').textContent = avgTramo ?? '--';
-      byId('spd-hero').style.color = allFreeFlow ? 'var(--text-disabled)' : 'var(--text-display)';
-      byId('spd-hero-meta').textContent = tramo.length === 0
-        ? 'Sin lecturas TomTom del tramo km 10-12'
-        : allFreeFlow
-          ? 'Sin tr\xe1fico real detectado \xb7 TomTom devuelve velocidad libre (dato est\xe1tico)'
-          : `Dato en tiempo real \xb7 ${tramo.length} sensor${tramo.length > 1 ? 'es' : ''} activo${tramo.length > 1 ? 's' : ''}`;
-
-      const _setKm = (kmId, det) => {
-        const el = byId('spd-' + kmId);
-        const note = byId('spd-' + kmId + '-note');
-        if (el && det) {
-          el.textContent = det.average_speed != null ? det.average_speed.toFixed(0) : '-';
-          if (note) note.textContent = `km/h \xb7 ${det.detector_id}`;
+      function fillDir(prefix, det) {
+        const spdEl = byId('spd-' + prefix);
+        const delayEl = byId('spd-' + prefix + '-delay');
+        const freeEl  = byId('spd-' + prefix + '-free');
+        if (!det) {
+          if (spdEl) spdEl.textContent = '-';
+          if (delayEl) delayEl.textContent = 'Sin datos';
+          return;
         }
-      };
-      _setKm('km10', km10);
-      _setKm('km11', km11);
-      _setKm('km12', km12);
-
-      byId('spd-sensor-count').textContent = `${tramo.length} sensor${tramo.length !== 1 ? 'es' : ''} del tramo con datos`;
-      if (tramo.length > 0) {
-        byId('spd-collected-at').textContent = formatDate(tramo[0].collected_at);
+        const spd = det.average_speed;
+        const delaySec = det.vehicle_flow;  // campo reutilizado: retardo en segundos
+        const freeSpd = det.free_flow_speed;
+        if (spdEl) {
+          spdEl.textContent = spd != null ? spd.toFixed(0) : '-';
+          spdEl.style.cssText = spdColor(spd);
+        }
+        if (delayEl) {
+          const delayTxt = delaySec != null && delaySec > 0
+            ? `km/h \xb7 +${delaySec}s de retardo`
+            : 'km/h \xb7 sin retardo';
+          delayEl.textContent = delayTxt;
+        }
+        if (freeEl && freeSpd != null) {
+          freeEl.textContent = `Velocidad libre: ${freeSpd.toFixed(0)} km/h`;
+        }
       }
 
-      // Table — sensores del tramo km 10-12
-      const root = byId('spd-table');
-      if (tramo.length === 0) {
-        root.innerHTML = '<div class="nd-empty">[Sin lecturas TomTom km 10-12 — API key no configurada o sin datos recientes]</div>';
-      } else {
-        root.innerHTML = '<div class="nd-list">' + tramo.map(d => {
-          const spd = d.average_speed != null ? d.average_speed.toFixed(1) + ' km/h' : '-';
-          const flow = d.vehicle_flow != null ? d.vehicle_flow + ' veh/h' : '-';
-          const dir = '\u2192 Huelva';
-          const isFreeFlow = d.free_flow_speed != null && d.average_speed != null && Math.abs(d.average_speed - d.free_flow_speed) < 1;
-          const spdColor = isFreeFlow ? 'color:var(--text-disabled)' :
-            d.average_speed == null ? '' :
-            d.average_speed >= 55 ? 'color:var(--success)' :
-            d.average_speed >= 30 ? 'color:var(--warning)' : 'color:var(--accent)';
-          const freeFlowBadge = isFreeFlow
-            ? ' <span class="nd-chip" style="font-size:9px;padding:2px 6px;border-color:var(--text-disabled);color:var(--text-disabled);">SIN DATOS REALES</span>'
-            : '';
-          const ffsNote = d.free_flow_speed != null ? ` \xb7 libre ${d.free_flow_speed.toFixed(0)} km/h` : '';
-          return `<div class="nd-list-item">
-            <div class="nd-list-head">
-              <span class="nd-list-title" style="${spdColor}">${spd}${freeFlowBadge}</span>
-              <span class="nd-list-km">${dir}</span>
-            </div>
-            <div class="nd-list-sub">${escapeHtml(d.detector_id)}${ffsNote} \xb7 flujo ${flow}</div>
-          </div>`;
-        }).join('') + '</div>';
+      fillDir('huelva', huelva);
+      fillDir('cadiz',  cadiz);
+
+      const withData = [huelva, cadiz].filter(Boolean);
+      byId('spd-sensor-count').textContent = withData.length
+        ? `${withData.length} ruta${withData.length > 1 ? 's' : ''} con datos en tiempo real`
+        : 'Sin datos de ruta';
+      if (withData.length > 0) {
+        byId('spd-collected-at').textContent = formatDate(withData[0].collected_at);
       }
 
-      // History chart — sensores del tramo km 10-12
-      drawSpeedChart(history.filter(r => r.detector_id && r.detector_id.includes('huelva')));
+      // Gráficos de pulso — uno por sentido
+      const colorMap = { 'tomtom_route_huelva': '#4A9E5C', 'tomtom_route_cadiz': '#D4A843' };
+      drawSpeedChart('spd-chart-huelva', history.filter(r => r.detector_id === 'tomtom_route_huelva'), colorMap['tomtom_route_huelva']);
+      drawSpeedChart('spd-chart-cadiz',  history.filter(r => r.detector_id === 'tomtom_route_cadiz'),  colorMap['tomtom_route_cadiz']);
     }
 
-    function drawSpeedChart(history) {
-      const canvas = byId('spd-chart');
+    function drawSpeedChart(canvasId, history, lineColor) {
+      const canvas = byId(canvasId);
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
 
       // Redimensionar canvas al tamaño real del contenedor (responsivo)
-      const cssW = canvas.offsetWidth || canvas.parentElement?.clientWidth || window.innerWidth - 48 || 900;
-      const minH = window.innerWidth < 600 ? 240 : 280;
-      canvas.width  = Math.max(cssW, 200);
+      const cssW = canvas.offsetWidth || canvas.parentElement?.clientWidth || window.innerWidth - 48 || 400;
+      const minH = window.innerWidth < 600 ? 180 : 220;
+      canvas.width  = Math.max(cssW, 120);
       canvas.height = minH;
 
       const W = canvas.width, H = canvas.height;
@@ -1886,35 +2093,33 @@ HTML_PAGE = """<!doctype html>
 
       if (!history || history.length === 0) {
         ctx.fillStyle = '#333333';
-        ctx.font = '700 12px "Space Mono"';
+        ctx.font = '700 11px "Space Mono"';
         ctx.textAlign = 'left';
-        ctx.fillText('[SIN HISTÓRICO DE VELOCIDAD]', 20, 40);
+        ctx.fillText('[SIN HISTÓRICO]', 16, 36);
         return;
       }
 
-      const pad = { top: 32, right: 32, bottom: 36, left: 52 };
+      const pad = { top: 24, right: 28, bottom: 32, left: 46 };
       const w = W - pad.left - pad.right;
       const h = H - pad.top - pad.bottom;
 
-      // Group by detector_id -> sorted timestamps
-      const series = {};
-      history.forEach(r => {
-        if (!series[r.detector_id]) series[r.detector_id] = [];
-        series[r.detector_id].push({ t: r.collected_at, v: r.average_speed });
-      });
+      const points = history
+        .map(r => ({ t: r.collected_at, v: r.average_speed }))
+        .filter(p => p.v != null)
+        .sort((a, b) => a.t.localeCompare(b.t));
 
-      // All unique timestamps sorted
-      const allTimes = [...new Set(history.map(r => r.collected_at))].sort();
-      if (allTimes.length < 2) {
+      const allTimes = points.map(p => p.t);
+
+      if (points.length < 2) {
         ctx.fillStyle = '#333333';
-        ctx.font = '700 12px "Space Mono"';
+        ctx.font = '700 11px "Space Mono"';
         ctx.textAlign = 'left';
-        ctx.fillText('[DATOS INSUFICIENTES PARA TRAZAR TENDENCIA]', 20, 40);
+        ctx.fillText('[DATOS INSUFICIENTES]', 16, 36);
         return;
       }
 
-      const allSpeeds = history.map(r => r.average_speed).filter(v => v != null);
-      const maxV = Math.max(...allSpeeds, 120);
+      const allSpeeds = points.map(p => p.v);
+      const maxV = Math.max(...allSpeeds, 80);
       const minV = Math.min(...allSpeeds, 0);
       const range = maxV - minV || 1;
 
@@ -1924,13 +2129,13 @@ HTML_PAGE = """<!doctype html>
       for (let i = 0; i <= 4; i++) {
         const y = pad.top + (h / 4) * i;
         ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
-        ctx.fillStyle = '#666666';
+        ctx.fillStyle = '#444444';
         ctx.font = '9px "Space Mono"';
         ctx.textAlign = 'right';
-        ctx.fillText((maxV - (range / 4) * i).toFixed(0), pad.left - 6, y + 3);
+        ctx.fillText((maxV - (range / 4) * i).toFixed(0), pad.left - 5, y + 3);
       }
 
-      // Speed limit reference line at 60 km/h (límite puente + radar de tramo)
+      // Línea de límite 60 km/h
       if (60 >= minV && 60 <= maxV) {
         const yLimit = pad.top + h - ((60 - minV) / range) * h;
         ctx.strokeStyle = '#D71921';
@@ -1941,46 +2146,31 @@ HTML_PAGE = """<!doctype html>
         ctx.fillStyle = '#D71921';
         ctx.font = '9px "Space Mono"';
         ctx.textAlign = 'left';
-        ctx.fillText('60', W - pad.right + 4, yLimit + 3);
+        ctx.fillText('60', W - pad.right + 3, yLimit + 3);
       }
 
-      // Color map for series
-      const colorMap = {
-        'tomtom_km10_huelva': '#4A9E5C',
-        'tomtom_km11_huelva': '#D4A843',
-        'tomtom_km12_huelva': '#5B8DBE',
-      };
-
-      // Draw each series
-      Object.entries(series).forEach(([detId, points]) => {
-        const color = colorMap[detId] || '#999999';
-        points.sort((a, b) => a.t.localeCompare(b.t));
-        ctx.strokeStyle = color;
-        ctx.lineWidth = detId.includes('km11') ? 1.5 : 1;
-        ctx.lineJoin = 'miter';
-        ctx.lineCap = 'square';
-        ctx.beginPath();
-        let started = false;
-        points.forEach(p => {
-          if (p.v == null) return;
-          const xi = allTimes.indexOf(p.t);
-          const x = pad.left + (xi / (allTimes.length - 1)) * w;
-          const y = pad.top + h - ((p.v - minV) / range) * h;
-          if (!started) { ctx.moveTo(x, y); started = true; }
-          else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
+      // Línea de velocidad
+      ctx.strokeStyle = lineColor || '#4A9E5C';
+      ctx.lineWidth = 1.5;
+      ctx.lineJoin = 'miter';
+      ctx.lineCap = 'square';
+      ctx.beginPath();
+      points.forEach((p, i) => {
+        const x = pad.left + (i / (points.length - 1)) * w;
+        const y = pad.top + h - ((p.v - minV) / range) * h;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       });
+      ctx.stroke();
 
-      // X labels (time)
-      ctx.fillStyle = '#666666';
+      // Etiquetas eje X
+      ctx.fillStyle = '#555555';
       ctx.font = '9px "Space Mono"';
       ctx.textAlign = 'center';
-      const step = Math.max(1, Math.ceil(allTimes.length / 6));
-      for (let i = 0; i < allTimes.length; i += step) {
-        const x = pad.left + (i / (allTimes.length - 1)) * w;
-        const t = new Date(allTimes[i]);
-        const label = t.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      const maxLabels = Math.max(1, Math.floor(w / 44));
+      const step = Math.max(1, Math.ceil(points.length / maxLabels));
+      for (let i = 0; i < points.length; i += step) {
+        const x = pad.left + (i / (points.length - 1)) * w;
+        const label = new Date(points[i].t).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         ctx.fillText(label, x, H - 4);
       }
     }
@@ -2083,7 +2273,7 @@ HTML_PAGE = """<!doctype html>
           ? '<div style="color:#666;margin-top:4px;font-size:9px;letter-spacing:0.06em;">SIN DATO REAL</div>'
           : '<div style="color:#4A9E5C;margin-top:4px;font-size:9px;letter-spacing:0.06em;">EN TIEMPO REAL</div>';
         const flowNote = d.vehicle_flow != null
-          ? '<div style="color:#999;margin-top:2px;">flujo: ' + d.vehicle_flow + ' veh/h</div>' : '';
+          ? '<div style="color:#999;margin-top:2px;">retardo: +' + d.vehicle_flow + 's</div>' : '';
 
         const popup = new maplibregl.Popup({ offset: 12, closeButton: true, maxWidth: '220px' })
           .setHTML('<div style="font-family:\\'Space Mono\\',monospace;font-size:11px;color:#E8E8E8;padding:12px 14px;line-height:1.6;">' +
@@ -2099,36 +2289,8 @@ HTML_PAGE = """<!doctype html>
         ndMapSE30Markers['tt_' + d.detector_id] = marker;
       });
 
-      // ---- Marcadores DGT (pequeños cuadrados) ----
-      const dgt = (data.detectors || []).filter(d => d.latitude != null && d.longitude != null);
-      dgt.forEach(d => {
-        const sc = d.average_speed != null ? speedColor(d.average_speed) : 'color:var(--text-disabled)';
-        const spd = d.average_speed != null ? d.average_speed.toFixed(1) + ' km/h' : '-';
-        const flow = d.vehicle_flow != null ? d.vehicle_flow + ' veh/h' : '-';
-        const occ = d.occupancy != null ? (d.occupancy * 100).toFixed(1) + '%' : '-';
-
-        const el = document.createElement('div');
-        el.style.cssText = 'width:10px;height:10px;background:#1A1A1A;border:1px solid #555555;cursor:pointer;box-sizing:border-box;';
-
-        const popup = new maplibregl.Popup({ offset: 8, closeButton: false, maxWidth: '200px' })
-          .setHTML('<div style="font-family:\\'Space Mono\\',monospace;font-size:10px;color:#E8E8E8;padding:10px 12px;line-height:1.7;">' +
-            '<div style="font-size:9px;color:#666;margin-bottom:4px;">DGT \xb7 ' + escapeHtml(d.detector_id) + '</div>' +
-            '<div style="' + sc + '">vel: ' + escapeHtml(spd) + '</div>' +
-            '<div style="color:#999;">flujo: ' + escapeHtml(flow) + '</div>' +
-            '<div style="color:#999;">ocup: ' + escapeHtml(occ) + '</div>' +
-            (d.km != null ? '<div style="color:#666;margin-top:2px;">km ' + Number(d.km).toFixed(1) + '</div>' : '') +
-            '</div>');
-
-        const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-          .setLngLat([d.longitude, d.latitude])
-          .setPopup(popup)
-          .addTo(ndMapSE30);
-        ndMapSE30Markers['dgt_' + d.detector_id] = marker;
-      });
-
-      const total = tomtom.length + dgt.length;
-      if (total > 0) {
-        byId('se30-map-status').textContent = 'MapLibre GL \xb7 ' + tomtom.length + ' TomTom \xb7 ' + dgt.length + ' DGT';
+      if (tomtom.length > 0) {
+        byId('se30-map-status').textContent = 'MapLibre GL \xb7 ' + tomtom.length + ' TomTom';
       }
     }
 

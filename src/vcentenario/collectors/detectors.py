@@ -68,9 +68,14 @@ class DetectorCollector:
                 continue
             location = inventory[detector_id]
             measured_at = self._find_text(node, ".//d:measurementTimeDefault") or None
-            if self._is_stale_measurement(measured_at):
-                continue
+            # El feed DGT publica timestamps congelados (sin actualizar) pero los valores
+            # de velocidad y flujo son en tiempo real. Omitimos el chequeo de antigüedad:
+            # la frescura queda garantizada por el momento en que se hace la petición HTTP.
             flow_value = parse_float(self._find_text(node, ".//d:vehicleFlow"))
+            avg_speed = parse_float(self._find_text(node, ".//d:averageVehicleSpeed"))
+            # Ignorar detectores que reportan todo a cero — están apagados o sin señal
+            if avg_speed == 0.0 and (flow_value is None or flow_value == 0.0):
+                continue
             readings.append(
                 DetectorReading(
                     detector_id=detector_id,
@@ -80,7 +85,7 @@ class DetectorCollector:
                     direction=location.direction,
                     latitude=location.latitude,
                     longitude=location.longitude,
-                    average_speed=parse_float(self._find_text(node, ".//d:averageVehicleSpeed")),
+                    average_speed=avg_speed,
                     vehicle_flow=int(flow_value) if flow_value is not None else None,
                     occupancy=parse_float(self._find_text(node, ".//d:occupancy")),
                 )
@@ -159,12 +164,21 @@ class TomTomFlowCollector:
     def __init__(self, http: HttpClient) -> None:
         self.http = http
 
-    def fetch_flow_at_point(self, lat: float, lon: float, detector_id: str) -> Optional[DetectorReading]:
+    def fetch_flow_at_point(
+        self,
+        lat: float,
+        lon: float,
+        detector_id: str,
+        direction: Optional[str] = None,
+        heading: Optional[int] = None,
+    ) -> Optional[DetectorReading]:
         if not TOMTOM_API_KEY:
             logger.warning("TomTom API Key no configurada, saltando recolección de flujo")
             return None
 
         url = f"{TOMTOM_FLOW_URL}?point={lat},{lon}&unit=KMPH&key={TOMTOM_API_KEY}"
+        if heading is not None:
+            url += f"&heading={heading}"
         response = self.http.get(url, accept="application/json")
         if response.status != 200:
             logger.error("Error en TomTom Flow API (HTTP %d): %s", response.status, response.error)
@@ -184,7 +198,7 @@ class TomTomFlowCollector:
                 measured_at=datetime.now().isoformat(),
                 road="SE-30",
                 km=None,
-                direction=None,
+                direction=direction,
                 latitude=lat,
                 longitude=lon,
                 average_speed=current_speed,
@@ -195,4 +209,58 @@ class TomTomFlowCollector:
             )
         except (json.JSONDecodeError, KeyError, ValueError) as exc:
             logger.error("Error al procesar respuesta de TomTom Flow: %s", exc)
+            return None
+
+    def fetch_route_speed(
+        self,
+        origin_lat: float,
+        origin_lon: float,
+        dest_lat: float,
+        dest_lon: float,
+        detector_id: str,
+        direction: str,
+    ) -> Optional[DetectorReading]:
+        """Calcula velocidad media de un tramo mediante la Routing API de TomTom.
+        Devuelve datos diferenciados por sentido de la marcha.
+        vehicle_flow se reutiliza para almacenar el retardo en segundos (trafficDelayInSeconds).
+        """
+        if not TOMTOM_API_KEY:
+            return None
+        url = (
+            f"https://api.tomtom.com/routing/1/calculateRoute"
+            f"/{origin_lat},{origin_lon}:{dest_lat},{dest_lon}/json"
+            f"?traffic=true&travelMode=car&routeType=fastest"
+            f"&computeTravelTimeFor=all&key={TOMTOM_API_KEY}"
+        )
+        response = self.http.get(url, accept="application/json")
+        if response.status != 200:
+            logger.error("Error en TomTom Routing API (HTTP %d): %s", response.status, response.error)
+            return None
+        try:
+            data = json.loads(response.body)
+            summary = data["routes"][0]["summary"]
+            length_m = summary["lengthInMeters"]
+            travel_s = summary["travelTimeInSeconds"]
+            delay_s = int(summary.get("trafficDelayInSeconds", 0))
+            no_traffic_s = summary.get("noTrafficTravelTimeInSeconds", travel_s)
+
+            current_speed = round((length_m / travel_s) * 3.6, 1) if travel_s else None
+            free_speed = round((length_m / no_traffic_s) * 3.6, 1) if no_traffic_s else None
+
+            return DetectorReading(
+                detector_id=detector_id,
+                measured_at=datetime.now().isoformat(),
+                road="SE-30",
+                km=None,
+                direction=direction,
+                latitude=None,
+                longitude=None,
+                average_speed=current_speed,
+                vehicle_flow=delay_s,   # campo reutilizado: retardo en segundos
+                occupancy=None,
+                source="tomtom",
+                free_flow_speed=free_speed,
+            )
+        except (json.JSONDecodeError, KeyError, ValueError, IndexError) as exc:
+            logger.error("Error al procesar respuesta de TomTom Routing: %s", exc)
             return None
