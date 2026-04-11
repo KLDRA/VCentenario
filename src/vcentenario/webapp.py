@@ -297,6 +297,17 @@ HTML_PAGE = """<!doctype html>
       --accent-subtle: rgba(215,25,33,0.15);
       --success: #4A9E5C;
       --warning: #D4A843;
+      /* Canvas / chart tokens (sincronizados con el tema) */
+      --canvas-bg: #000000;
+      --canvas-grid: #1A1A1A;
+      --canvas-grid-strong: #333333;
+      --canvas-text: #666666;
+      --canvas-axis: #FFFFFF;
+      --canvas-accent: #444444;
+      --canvas-empty: #333333;
+      /* Panel VMS (simula LED; permanece oscuro en ambos temas) */
+      --vms-display-bg: #0a0a0a;
+      --vms-display-text: #ffb800;
       --space-xs: 4px;
       --space-sm: 8px;
       --space-md: 16px;
@@ -304,6 +315,29 @@ HTML_PAGE = """<!doctype html>
       --space-xl: 32px;
       --space-2xl: 48px;
       --space-3xl: 64px;
+    }
+    /* ---- Tema claro ---- */
+    [data-theme="light"] {
+      --black: #FFFFFF;
+      --surface: #FAFAFA;
+      --surface-raised: #F0F0F0;
+      --border: #E4E4E4;
+      --border-visible: #C4C4C4;
+      --text-disabled: #A0A0A0;
+      --text-secondary: #606060;
+      --text-primary: #1A1A1A;
+      --text-display: #000000;
+      --accent: #B8141C;
+      --accent-subtle: rgba(184,20,28,0.12);
+      --success: #2E7D3C;
+      --warning: #8C6510;
+      --canvas-bg: #FFFFFF;
+      --canvas-grid: #F0F0F0;
+      --canvas-grid-strong: #D8D8D8;
+      --canvas-text: #888888;
+      --canvas-axis: #000000;
+      --canvas-accent: #CCCCCC;
+      --canvas-empty: #BBBBBB;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html {
@@ -584,7 +618,7 @@ HTML_PAGE = """<!doctype html>
       word-break: break-word;
     }
     .nd-vms-display {
-      background: #0a0a0a;
+      background: var(--vms-display-bg);
       border: 1px solid var(--border-visible);
       padding: var(--space-md);
       font-family: "Space Mono", monospace;
@@ -592,7 +626,7 @@ HTML_PAGE = """<!doctype html>
       font-weight: 700;
       text-transform: uppercase;
       text-align: center;
-      color: #ffb800;
+      color: var(--vms-display-text);
       line-height: 1.5;
       letter-spacing: 0.04em;
       overflow-wrap: break-word;
@@ -785,25 +819,26 @@ HTML_PAGE = """<!doctype html>
     }
     .nd-map-marker:hover { border-color: var(--text-display); }
     .maplibregl-popup-content {
-      background: #111111 !important;
-      border: 1px solid #333333 !important;
+      background: var(--surface) !important;
+      border: 1px solid var(--border-visible) !important;
       border-radius: 0 !important;
       padding: 0 !important;
       box-shadow: none !important;
+      color: var(--text-primary) !important;
     }
     .maplibregl-popup-tip { display: none !important; }
     .maplibregl-ctrl-group {
-      background: #111111 !important;
-      border: 1px solid #333333 !important;
+      background: var(--surface) !important;
+      border: 1px solid var(--border-visible) !important;
       border-radius: 0 !important;
       box-shadow: none !important;
     }
     .maplibregl-ctrl-group button {
-      background: #111111 !important;
-      color: #999999 !important;
+      background: var(--surface) !important;
+      color: var(--text-secondary) !important;
     }
-    .maplibregl-ctrl-group button:hover { background: #1A1A1A !important; color: #FFFFFF !important; }
-    .maplibregl-ctrl-attrib { background: rgba(0,0,0,0.6) !important; color: #666 !important; font-size: 9px !important; }
+    .maplibregl-ctrl-group button:hover { background: var(--surface-raised) !important; color: var(--text-display) !important; }
+    .maplibregl-ctrl-attrib { background: var(--surface-raised) !important; color: var(--text-disabled) !important; font-size: 9px !important; }
 
     /* ---- Direction cards (sentido Huelva / sentido Cádiz) ---- */
     .nd-directions {
@@ -878,6 +913,24 @@ HTML_PAGE = """<!doctype html>
       letter-spacing: 0.04em;
     }
 
+    /* ---- Theme toggle ---- */
+    .nd-theme-toggle {
+      margin-top: var(--space-sm);
+      font-family: "Space Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      padding: 6px 12px;
+      background: var(--surface);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-visible);
+      cursor: pointer;
+      transition: color 150ms, border-color 150ms, background 150ms;
+    }
+    .nd-theme-toggle:hover {
+      color: var(--text-display);
+      border-color: var(--text-primary);
+    }
+
     /* ---- Responsive ---- */
     @media (max-width: 800px) {
       .nd-hero { grid-template-columns: 1fr; gap: var(--space-lg); }
@@ -931,6 +984,10 @@ HTML_PAGE = """<!doctype html>
           <span>Activo</span>
         </div>
         <div class="nd-eyebrow" id="generatedAt" style="margin-top:8px;">Sin datos</div>
+        <button id="themeToggle" class="nd-theme-toggle" type="button"
+                onclick="cycleTheme()" title="Cambiar tema (auto / claro / oscuro)">
+          <span id="themeToggleIcon">AUTO</span>
+        </button>
       </div>
     </header>
 
@@ -1033,11 +1090,11 @@ HTML_PAGE = """<!doctype html>
       <div class="nd-section-body" style="padding:0;">
         <div style="padding:var(--space-sm) var(--space-lg) 2px;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;color:#4A9E5C;">&#8594; HUELVA</div>
         <div class="nd-bars-wrap">
-          <canvas id="pulso-huelva" style="display:block;width:100%;background:#000000;"></canvas>
+          <canvas id="pulso-huelva" style="display:block;width:100%;background:var(--canvas-bg);"></canvas>
         </div>
         <div style="padding:var(--space-sm) var(--space-lg) 2px;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;color:#D4A843;margin-top:var(--space-sm);">&#8592; C&#193;DIZ</div>
         <div class="nd-bars-wrap">
-          <canvas id="pulso-cadiz" style="display:block;width:100%;background:#000000;"></canvas>
+          <canvas id="pulso-cadiz" style="display:block;width:100%;background:var(--canvas-bg);"></canvas>
         </div>
       </div>
       <div class="nd-trend-legend">
@@ -1118,7 +1175,7 @@ HTML_PAGE = """<!doctype html>
             <span class="nd-meta" id="spd-sensor-count">-</span>
           </div>
           <div class="nd-section-body" style="padding:0;">
-            <canvas id="spd-chart-huelva" style="display:block;width:100%;background:#000;"></canvas>
+            <canvas id="spd-chart-huelva" style="display:block;width:100%;background:var(--canvas-bg);"></canvas>
           </div>
         </section>
         <section class="nd-section" style="margin-bottom:0;">
@@ -1127,7 +1184,7 @@ HTML_PAGE = """<!doctype html>
             <span class="nd-meta">&#218;ltimas 6 h</span>
           </div>
           <div class="nd-section-body" style="padding:0;">
-            <canvas id="spd-chart-cadiz" style="display:block;width:100%;background:#000;"></canvas>
+            <canvas id="spd-chart-cadiz" style="display:block;width:100%;background:var(--canvas-bg);"></canvas>
           </div>
         </section>
       </div>
@@ -1301,6 +1358,93 @@ HTML_PAGE = """<!doctype html>
 
     const byId = (id) => document.getElementById(id);
 
+    // ---- Theme management ----
+    // Modos: "auto" | "light" | "dark". Se persiste en localStorage.
+    // En modo "auto", se elige claro si el dispositivo prefiere tema claro
+    // O si la hora local está entre 07:00 y 20:00. En otro caso, oscuro.
+    const THEME_KEY = 'vcentenario_theme';
+    function getThemeMode() {
+      const m = localStorage.getItem(THEME_KEY);
+      return (m === 'light' || m === 'dark') ? m : 'auto';
+    }
+    function resolveAutoTheme() {
+      try {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+          return 'light';
+        }
+      } catch (_) { /* noop */ }
+      const h = new Date().getHours();
+      return (h >= 7 && h < 20) ? 'light' : 'dark';
+    }
+    function effectiveTheme(mode) {
+      return mode === 'auto' ? resolveAutoTheme() : mode;
+    }
+    function applyTheme() {
+      const mode = getThemeMode();
+      const eff  = effectiveTheme(mode);
+      document.documentElement.setAttribute('data-theme', eff);
+      const icon = byId('themeToggleIcon');
+      if (icon) {
+        icon.textContent = mode === 'auto' ? ('AUTO · ' + eff.toUpperCase())
+                                           : mode.toUpperCase();
+      }
+      // Si los mapas ya están creados, actualizar las teselas al tema nuevo
+      try {
+        const tiles = (typeof cartoTilesForTheme === 'function') ? cartoTilesForTheme() : null;
+        const lineColor = eff === 'light' ? '#000000' : '#FFFFFF';
+        if (tiles && typeof ndMap !== 'undefined' && ndMap) {
+          const src = ndMap.getSource('carto-base');
+          if (src && src.setTiles) src.setTiles(tiles);
+          try { if (ndMap.getLayer('tramo-line')) ndMap.setPaintProperty('tramo-line', 'line-color', lineColor); } catch (_) {}
+        }
+        if (tiles && typeof ndMapSE30 !== 'undefined' && ndMapSE30) {
+          const src2 = ndMapSE30.getSource('carto-base');
+          if (src2 && src2.setTiles) src2.setTiles(tiles);
+        }
+      } catch (_) { /* noop */ }
+    }
+    function cycleTheme() {
+      const order = ['auto', 'light', 'dark'];
+      const cur = getThemeMode();
+      const next = order[(order.indexOf(cur) + 1) % order.length];
+      localStorage.setItem(THEME_KEY, next);
+      applyTheme();
+      // Re-render para que los canvas recojan los nuevos colores
+      if (typeof loadDashboard === 'function') {
+        loadDashboard().catch(() => {});
+      }
+    }
+    // Aplicar tema ANTES de cualquier render, antes de DOMContentLoaded.
+    applyTheme();
+    // Si el modo es auto, reaccionar a cambios del dispositivo
+    try {
+      const mq = window.matchMedia('(prefers-color-scheme: light)');
+      const mqHandler = () => {
+        if (getThemeMode() === 'auto') {
+          applyTheme();
+          if (typeof loadDashboard === 'function') loadDashboard().catch(() => {});
+        }
+      };
+      if (mq.addEventListener) mq.addEventListener('change', mqHandler);
+      else if (mq.addListener) mq.addListener(mqHandler);
+    } catch (_) { /* noop */ }
+    // Revaluar el modo "auto" cada 15 min para que siga la hora del día
+    setInterval(() => {
+      if (getThemeMode() === 'auto') {
+        const prev = document.documentElement.getAttribute('data-theme');
+        applyTheme();
+        const now = document.documentElement.getAttribute('data-theme');
+        if (prev !== now && typeof loadDashboard === 'function') {
+          loadDashboard().catch(() => {});
+        }
+      }
+    }, 15 * 60 * 1000);
+
+    // Lee una variable CSS del :root como string (para canvas drawing).
+    function cssVar(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
     function formatDate(value) {
       if (!value) return "Sin timestamp";
       const date = new Date(value);
@@ -1426,12 +1570,19 @@ HTML_PAGE = """<!doctype html>
       canvas.height = minH;
 
       const W = canvas.width, H = canvas.height;
+      const COL_BG     = cssVar('--canvas-bg')     || '#000000';
+      const COL_EMPTY  = cssVar('--canvas-empty')  || '#333333';
+      const COL_TEXT   = cssVar('--canvas-text')   || '#666666';
+      const COL_GRID   = cssVar('--canvas-grid')   || '#1A1A1A';
+      const COL_LEVEL_FLUIDO      = cssVar('--success') || '#4A9E5C';
+      const COL_LEVEL_DENSO       = cssVar('--warning') || '#D4A843';
+      const COL_LEVEL_RETENCIONES = cssVar('--accent')  || '#D71921';
 
-      ctx.fillStyle = "#000000";
+      ctx.fillStyle = COL_BG;
       ctx.fillRect(0, 0, W, H);
 
       if (!states || states.length === 0) {
-        ctx.fillStyle = "#333333";
+        ctx.fillStyle = COL_EMPTY;
         ctx.font = '700 12px "Space Mono"';
         ctx.textAlign = "left";
         ctx.fillText("[SIN HISTÓRICO]", 20, 40);
@@ -1443,10 +1594,10 @@ HTML_PAGE = """<!doctype html>
       const h = H - pad.top - pad.bottom;
 
       const levelColor = {
-        fluido:            "#4A9E5C",
-        denso:             "#D4A843",
-        retenciones:       "#D71921",
-        congestion_fuerte: "#A01418",
+        fluido:            COL_LEVEL_FLUIDO,
+        denso:             COL_LEVEL_DENSO,
+        retenciones:       COL_LEVEL_RETENCIONES,
+        congestion_fuerte: COL_LEVEL_RETENCIONES,
       };
 
       const maxScore = Math.max(...states.map(s => s.traffic_score || 0), 1);
@@ -1459,7 +1610,7 @@ HTML_PAGE = """<!doctype html>
         const barH = Math.max(2, (score / maxScore) * h);
         const x = pad.left + i * barW;
         const y = pad.top + h - barH;
-        ctx.fillStyle = levelColor[s.traffic_level] || "#555555";
+        ctx.fillStyle = levelColor[s.traffic_level] || COL_TEXT;
         ctx.fillRect(x, y, Math.max(1, barW - 1), barH);
       });
 
@@ -1474,10 +1625,10 @@ HTML_PAGE = """<!doctype html>
       firstHour.setMinutes(0, 0, 0);
       if (firstHour.getTime() < firstMs) firstHour.setHours(firstHour.getHours() + 1);
 
-      ctx.fillStyle  = "#666666";
+      ctx.fillStyle  = COL_TEXT;
       ctx.font       = '9px "Space Mono"';
       ctx.textAlign  = "center";
-      ctx.strokeStyle = "#1A1A1A";
+      ctx.strokeStyle = COL_GRID;
       ctx.lineWidth   = 1;
 
       // Saltar etiquetas si no hay espacio mínimo (44 px) para evitar solapamiento en móvil
@@ -1508,7 +1659,15 @@ HTML_PAGE = """<!doctype html>
       canvas.height = minH;
 
       const W = canvas.width, H = canvas.height;
-      ctx.fillStyle = '#000000';
+      const COL_BG    = cssVar('--canvas-bg')    || '#000000';
+      const COL_EMPTY = cssVar('--canvas-empty') || '#333333';
+      const COL_TEXT  = cssVar('--canvas-text')  || '#666666';
+      const COL_GRID  = cssVar('--canvas-grid')  || '#1A1A1A';
+      const COL_FLUIDO      = cssVar('--success') || '#4A9E5C';
+      const COL_DENSO       = cssVar('--warning') || '#D4A843';
+      const COL_RETENCIONES = cssVar('--accent')  || '#D71921';
+
+      ctx.fillStyle = COL_BG;
       ctx.fillRect(0, 0, W, H);
 
       const points = (history || [])
@@ -1516,7 +1675,7 @@ HTML_PAGE = """<!doctype html>
         .sort((a, b) => a.collected_at.localeCompare(b.collected_at));
 
       if (points.length === 0) {
-        ctx.fillStyle = '#333333';
+        ctx.fillStyle = COL_EMPTY;
         ctx.font = '700 12px "Space Mono"';
         ctx.textAlign = 'left';
         ctx.fillText('[SIN HISTÓRICO]', 20, 40);
@@ -1524,10 +1683,10 @@ HTML_PAGE = """<!doctype html>
       }
 
       function speedColor(spd) {
-        if (spd >= 50) return '#4A9E5C';  // fluido
-        if (spd >= 36) return '#D4A843';  // denso
-        if (spd >= 20) return '#D71921';  // retenciones
-        return '#A01418';                  // congestión fuerte
+        if (spd >= 50) return COL_FLUIDO;        // fluido
+        if (spd >= 36) return COL_DENSO;         // denso
+        if (spd >= 20) return COL_RETENCIONES;   // retenciones
+        return COL_RETENCIONES;                   // congestión fuerte
       }
 
       const pad = { top: 8, right: 8, bottom: 28, left: 8 };
@@ -1558,10 +1717,10 @@ HTML_PAGE = """<!doctype html>
       firstHour.setMinutes(0, 0, 0);
       if (firstHour.getTime() < firstMs) firstHour.setHours(firstHour.getHours() + 1);
 
-      ctx.fillStyle   = '#666666';
+      ctx.fillStyle   = COL_TEXT;
       ctx.font        = '9px "Space Mono"';
       ctx.textAlign   = 'center';
-      ctx.strokeStyle = '#1A1A1A';
+      ctx.strokeStyle = COL_GRID;
       ctx.lineWidth   = 1;
       let lastLabelX  = -999;
       for (let hh = new Date(firstHour); hh.getTime() <= lastMs; hh.setHours(hh.getHours() + 1)) {
@@ -1588,11 +1747,27 @@ HTML_PAGE = """<!doctype html>
       }
       function speedInfo(spd) {
         if (spd === null) return { label: 'Sin datos', color: 'var(--text-disabled)', pct: 0 };
-        const pct = Math.min(Math.round(spd / 60 * 100), 100);  // límite real: 60 km/h
-        if (spd >= 50) return { label: 'Fluido',            color: 'var(--success)', pct };
-        if (spd >= 36) return { label: 'Denso',             color: 'var(--warning)', pct };
-        if (spd >= 20) return { label: 'Retenciones',       color: 'var(--accent)',  pct: Math.max(pct, 8) };
-        return                { label: 'Congestión fuerte', color: 'var(--accent)',  pct: Math.max(pct, 5) };
+        // La barra representa intensidad de tráfico: velocidad baja → barra larga.
+        // Tramos discretos no solapados para garantizar monotonicidad visual
+        // (retenciones > denso > fluido), con interpolación dentro de cada tramo.
+        if (spd >= 50) {
+          // Fluido: 50–60 km/h → 30%–10%
+          const pct = Math.round(30 - Math.min(Math.max(spd - 50, 0), 10) * 2);
+          return { label: 'Fluido', color: 'var(--success)', pct };
+        }
+        if (spd >= 36) {
+          // Denso: 36–50 km/h → 55%–35%
+          const pct = Math.round(55 - (spd - 36) / 14 * 20);
+          return { label: 'Denso', color: 'var(--warning)', pct };
+        }
+        if (spd >= 20) {
+          // Retenciones: 20–36 km/h → 80%–60%
+          const pct = Math.round(80 - (spd - 20) / 16 * 20);
+          return { label: 'Retenciones', color: 'var(--accent)', pct };
+        }
+        // Congestión fuerte: 0–20 km/h → 100%–85%
+        const pct = Math.round(100 - Math.max(spd, 0) / 20 * 15);
+        return { label: 'Congestión fuerte', color: 'var(--accent)', pct };
       }
       // Inferir dirección desde el campo o desde el nombre del detector (fallback)
       function resolveDir(d) {
@@ -1808,25 +1983,32 @@ HTML_PAGE = """<!doctype html>
       loadMapLibreAndInit();
     }
 
+    function cartoTilesForTheme() {
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      const variant = isLight ? 'light_all' : 'dark_all';
+      return [
+        `https://a.basemaps.cartocdn.com/${variant}/{z}/{x}/{y}.png`,
+        `https://b.basemaps.cartocdn.com/${variant}/{z}/{x}/{y}.png`,
+      ];
+    }
+
     function _initMapNow() {
       const container = byId('nd-map');
       byId('map-status').textContent = 'Iniciando...';
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
       ndMap = new maplibregl.Map({
         container: 'nd-map',
         style: {
           version: 8,
           sources: {
-            'carto-dark': {
+            'carto-base': {
               type: 'raster',
-              tiles: [
-                'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-                'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
-              ],
+              tiles: cartoTilesForTheme(),
               tileSize: 256,
               attribution: '© OpenStreetMap contributors © CARTO',
             }
           },
-          layers: [{ id: 'carto-dark-layer', type: 'raster', source: 'carto-dark' }]
+          layers: [{ id: 'carto-base-layer', type: 'raster', source: 'carto-base' }]
         },
         center: [-5.9950, 37.3505],
         zoom: 14,
@@ -1839,7 +2021,7 @@ HTML_PAGE = """<!doctype html>
       });
       ndMap.on('load', () => {
         ndMapLoaded = true;
-        byId('map-status').textContent = 'MapLibre GL · CARTO Dark';
+        byId('map-status').textContent = 'MapLibre GL · CARTO ' + (isLight ? 'Light' : 'Dark');
         // Dibujar tramo km 10-12
         ndMap.addSource('tramo', {
           type: 'geojson',
@@ -1860,9 +2042,9 @@ HTML_PAGE = """<!doctype html>
           type: 'line',
           source: 'tramo',
           paint: {
-            'line-color': '#FFFFFF',
+            'line-color': isLight ? '#000000' : '#FFFFFF',
             'line-width': 3,
-            'line-opacity': 0.20,
+            'line-opacity': 0.25,
           }
         });
         // Si ya hay datos, pintarlos ahora
@@ -1916,7 +2098,7 @@ HTML_PAGE = """<!doctype html>
         const spd = det && det.average_speed != null ? det.average_speed.toFixed(0) : '--';
         const delay = det && det.vehicle_flow != null ? `+${det.vehicle_flow}s` : '';
         const ffsNote = det && det.free_flow_speed != null
-          ? `<div style="color:#666666;margin-top:2px;">libre ${det.free_flow_speed.toFixed(0)} km/h</div>`
+          ? `<div style="color:var(--text-disabled);margin-top:2px;">libre ${det.free_flow_speed.toFixed(0)} km/h</div>`
           : '';
 
         const el = document.createElement('div');
@@ -1929,10 +2111,10 @@ HTML_PAGE = """<!doctype html>
         el.textContent = spd;
 
         const popup = new maplibregl.Popup({ offset: 12, closeButton: true, maxWidth: '200px' })
-          .setHTML(`<div style="font-family:'Space Mono',monospace;font-size:11px;color:#E8E8E8;padding:12px 14px;line-height:1.6;">
-            <div style="font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:#999999;margin-bottom:6px;">${label}</div>
+          .setHTML(`<div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text-primary);padding:12px 14px;line-height:1.6;">
+            <div style="font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:6px;">${label}</div>
             <div style="font-size:24px;font-weight:700;color:${color};">${spd} <span style="font-size:12px;">km/h</span></div>
-            <div style="color:#999999;margin-top:2px;">${delay ? 'Retardo: ' + delay : 'Sin retardo'}</div>
+            <div style="color:var(--text-secondary);margin-top:2px;">${delay ? 'Retardo: ' + delay : 'Sin retardo'}</div>
             ${ffsNote}
           </div>`);
 
@@ -2189,10 +2371,11 @@ HTML_PAGE = """<!doctype html>
         byId('spd-collected-at').textContent = formatDate(withData[0].collected_at);
       }
 
-      // Gráficos de pulso — uno por sentido
-      const colorMap = { 'tomtom_route_huelva': '#4A9E5C', 'tomtom_route_cadiz': '#D4A843' };
-      drawSpeedChart('spd-chart-huelva', history.filter(r => r.detector_id === 'tomtom_route_huelva'), colorMap['tomtom_route_huelva']);
-      drawSpeedChart('spd-chart-cadiz',  history.filter(r => r.detector_id === 'tomtom_route_cadiz'),  colorMap['tomtom_route_cadiz']);
+      // Gráficos de pulso — uno por sentido (colores siguen el tema)
+      const colHuelva = cssVar('--success') || '#4A9E5C';
+      const colCadiz  = cssVar('--warning') || '#D4A843';
+      drawSpeedChart('spd-chart-huelva', history.filter(r => r.detector_id === 'tomtom_route_huelva'), colHuelva);
+      drawSpeedChart('spd-chart-cadiz',  history.filter(r => r.detector_id === 'tomtom_route_cadiz'),  colCadiz);
     }
 
     function drawSpeedChart(canvasId, history, lineColor) {
@@ -2207,11 +2390,19 @@ HTML_PAGE = """<!doctype html>
       canvas.height = minH;
 
       const W = canvas.width, H = canvas.height;
-      ctx.fillStyle = '#000000';
+      const COL_BG     = cssVar('--canvas-bg')     || '#000000';
+      const COL_EMPTY  = cssVar('--canvas-empty')  || '#333333';
+      const COL_TEXT   = cssVar('--canvas-text')   || '#666666';
+      const COL_GRID   = cssVar('--canvas-grid')   || '#1A1A1A';
+      const COL_ACCENT = cssVar('--canvas-accent') || '#444444';
+      const COL_LIMIT  = cssVar('--accent')        || '#D71921';
+      const COL_LINE   = lineColor || (cssVar('--success') || '#4A9E5C');
+
+      ctx.fillStyle = COL_BG;
       ctx.fillRect(0, 0, W, H);
 
       if (!history || history.length === 0) {
-        ctx.fillStyle = '#333333';
+        ctx.fillStyle = COL_EMPTY;
         ctx.font = '700 11px "Space Mono"';
         ctx.textAlign = 'left';
         ctx.fillText('[SIN HISTÓRICO]', 16, 36);
@@ -2230,7 +2421,7 @@ HTML_PAGE = """<!doctype html>
       const allTimes = points.map(p => p.t);
 
       if (points.length < 2) {
-        ctx.fillStyle = '#333333';
+        ctx.fillStyle = COL_EMPTY;
         ctx.font = '700 11px "Space Mono"';
         ctx.textAlign = 'left';
         ctx.fillText('[DATOS INSUFICIENTES]', 16, 36);
@@ -2243,12 +2434,12 @@ HTML_PAGE = """<!doctype html>
       const range = maxV - minV || 1;
 
       // Grid
-      ctx.strokeStyle = '#1A1A1A';
+      ctx.strokeStyle = COL_GRID;
       ctx.lineWidth = 1;
       for (let i = 0; i <= 4; i++) {
         const y = pad.top + (h / 4) * i;
         ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
-        ctx.fillStyle = '#444444';
+        ctx.fillStyle = COL_ACCENT;
         ctx.font = '9px "Space Mono"';
         ctx.textAlign = 'right';
         ctx.fillText((maxV - (range / 4) * i).toFixed(0), pad.left - 5, y + 3);
@@ -2257,19 +2448,19 @@ HTML_PAGE = """<!doctype html>
       // Línea de límite 60 km/h
       if (60 >= minV && 60 <= maxV) {
         const yLimit = pad.top + h - ((60 - minV) / range) * h;
-        ctx.strokeStyle = '#D71921';
+        ctx.strokeStyle = COL_LIMIT;
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 4]);
         ctx.beginPath(); ctx.moveTo(pad.left, yLimit); ctx.lineTo(W - pad.right, yLimit); ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = '#D71921';
+        ctx.fillStyle = COL_LIMIT;
         ctx.font = '9px "Space Mono"';
         ctx.textAlign = 'left';
         ctx.fillText('60', W - pad.right + 3, yLimit + 3);
       }
 
       // Línea de velocidad
-      ctx.strokeStyle = lineColor || '#4A9E5C';
+      ctx.strokeStyle = COL_LINE;
       ctx.lineWidth = 1.5;
       ctx.lineJoin = 'miter';
       ctx.lineCap = 'square';
@@ -2282,7 +2473,7 @@ HTML_PAGE = """<!doctype html>
       ctx.stroke();
 
       // Etiquetas eje X
-      ctx.fillStyle = '#555555';
+      ctx.fillStyle = COL_TEXT;
       ctx.font = '9px "Space Mono"';
       ctx.textAlign = 'center';
       const maxLabels = Math.max(1, Math.floor(w / 44));
@@ -2326,22 +2517,20 @@ HTML_PAGE = """<!doctype html>
     function _initMapSE30Now() {
       if (ndMapSE30) return;
       byId('se30-map-status').textContent = 'Iniciando mapa...';
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
       ndMapSE30 = new maplibregl.Map({
         container: 'nd-map-se30',
         style: {
           version: 8,
           sources: {
-            'carto-dark': {
+            'carto-base': {
               type: 'raster',
-              tiles: [
-                'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-                'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
-              ],
+              tiles: cartoTilesForTheme(),
               tileSize: 256,
               attribution: '\xa9 OpenStreetMap contributors \xa9 CARTO',
             }
           },
-          layers: [{ id: 'carto-dark-layer', type: 'raster', source: 'carto-dark' }]
+          layers: [{ id: 'carto-base-layer', type: 'raster', source: 'carto-base' }]
         },
         center: [-5.9950, 37.3505],
         zoom: 14,
@@ -2354,7 +2543,7 @@ HTML_PAGE = """<!doctype html>
       });
       ndMapSE30.on('load', () => {
         ndMapSE30Loaded = true;
-        byId('se30-map-status').textContent = 'MapLibre GL \xb7 CARTO Dark';
+        byId('se30-map-status').textContent = 'MapLibre GL \xb7 CARTO ' + (isLight ? 'Light' : 'Dark');
         if (window._lastSE30Data) renderSE30Map(window._lastSE30Data);
       });
     }
@@ -2387,16 +2576,16 @@ HTML_PAGE = """<!doctype html>
         el.textContent = spd;
 
         const ffsNote = d.free_flow_speed != null
-          ? '<div style="color:#666;margin-top:2px;">libre ' + d.free_flow_speed.toFixed(0) + ' km/h</div>' : '';
+          ? '<div style="color:var(--text-disabled);margin-top:2px;">libre ' + d.free_flow_speed.toFixed(0) + ' km/h</div>' : '';
         const statusNote = isFreeFlow
-          ? '<div style="color:#666;margin-top:4px;font-size:9px;letter-spacing:0.06em;">SIN DATO REAL</div>'
-          : '<div style="color:#4A9E5C;margin-top:4px;font-size:9px;letter-spacing:0.06em;">EN TIEMPO REAL</div>';
+          ? '<div style="color:var(--text-disabled);margin-top:4px;font-size:9px;letter-spacing:0.06em;">SIN DATO REAL</div>'
+          : '<div style="color:var(--success);margin-top:4px;font-size:9px;letter-spacing:0.06em;">EN TIEMPO REAL</div>';
         const flowNote = d.vehicle_flow != null
-          ? '<div style="color:#999;margin-top:2px;">retardo: +' + d.vehicle_flow + 's</div>' : '';
+          ? '<div style="color:var(--text-secondary);margin-top:2px;">retardo: +' + d.vehicle_flow + 's</div>' : '';
 
         const popup = new maplibregl.Popup({ offset: 12, closeButton: true, maxWidth: '220px' })
-          .setHTML('<div style="font-family:\\'Space Mono\\',monospace;font-size:11px;color:#E8E8E8;padding:12px 14px;line-height:1.6;">' +
-            '<div style="font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:#999;margin-bottom:6px;">' + escapeHtml(d.detector_id) + '</div>' +
+          .setHTML('<div style="font-family:\\'Space Mono\\',monospace;font-size:11px;color:var(--text-primary);padding:12px 14px;line-height:1.6;">' +
+            '<div style="font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:6px;">' + escapeHtml(d.detector_id) + '</div>' +
             '<div style="font-size:22px;font-weight:700;color:' + color + ';">' + escapeHtml(spd) + ' <span style="font-size:11px;">km/h</span></div>' +
             ffsNote + statusNote + flowNote +
             '</div>');
