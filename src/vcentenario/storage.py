@@ -172,6 +172,12 @@ class Storage:
                     PRIMARY KEY (weekday, hour)
                 );
 
+                CREATE TABLE IF NOT EXISTS reversible_reports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    reported_at TEXT NOT NULL,
+                    direction TEXT NOT NULL
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_panel_messages_collected_at
                     ON panel_messages (collected_at DESC);
                 CREATE INDEX IF NOT EXISTS idx_incidents_collected_at
@@ -680,6 +686,26 @@ class Storage:
                 ORDER BY collected_at ASC, km ASC
                 """,
                 (f"-{hours} hours",),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def insert_reversible_report(self, direction: str) -> None:
+        with self.connect() as con:
+            con.execute(
+                "INSERT INTO reversible_reports (reported_at, direction) VALUES (datetime('now'), ?)",
+                (direction,),
+            )
+
+    def recent_reversible_reports(self, limit: int = 10) -> List[Dict[str, Any]]:
+        with self.connect() as con:
+            rows = con.execute(
+                """
+                SELECT id, reported_at, direction
+                FROM reversible_reports
+                ORDER BY reported_at DESC
+                LIMIT ?
+                """,
+                (limit,),
             ).fetchall()
         return [dict(row) for row in rows]
 

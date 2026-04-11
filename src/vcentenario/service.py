@@ -151,12 +151,17 @@ class VCentenarioService:
             source_status["tomtom_routing"] = {"status": "skipped", "error": "api key not set"}
 
         recent_states = self.storage.recent_states(limit=48)
+        recent_detector_history = self.storage.tomtom_speed_history(hours=2)
+        recent_reports = self.storage.recent_reversible_reports(limit=1)
+        latest_report = recent_reports[0] if recent_reports else None
         state = infer_bridge_state(
             panel_messages,
             incidents,
             snapshots,
             detector_readings,
             recent_states=recent_states,
+            recent_detector_history=recent_detector_history,
+            latest_report=latest_report,
         )
         state.learning_context = self.storage.update_traffic_profile(state)
         state.forecast = self.storage.predict_traffic(
@@ -254,4 +259,5 @@ class VCentenarioService:
             "detectors": self.storage.latest_detector_readings(limit=24),
             "tomtom_speed_history": self.storage.tomtom_speed_history(hours=6),
             "traffic_profiles": list(self.storage.traffic_profiles().values()),
+            "reversible_reports": self.storage.recent_reversible_reports(limit=10),
         }

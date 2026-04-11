@@ -666,6 +666,19 @@ HTML_PAGE = """<!doctype html>
     }
     .nd-tag.warn { border-color: var(--warning); color: var(--warning); }
 
+    /* ---- Report buttons ---- */
+    .nd-report-btn {
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: opacity 0.15s;
+    }
+    .nd-report-btn:hover { opacity: 0.8; }
+    .nd-report-btn:active { opacity: 0.5; }
+
     /* ---- Cameras ---- */
     .nd-camera-grid {
       display: grid;
@@ -985,12 +998,30 @@ HTML_PAGE = """<!doctype html>
         <div class="nd-label">Carril reversible</div>
         <div id="reversibleState" class="nd-metric-value">-</div>
         <div id="reversibleConfidence" class="nd-metric-note">Confianza -</div>
+        <div id="reversibleObserved" class="nd-metric-note" style="margin-top:4px;"></div>
       </article>
       <article class="nd-metric-card">
         <div class="nd-label">Evidencia visible</div>
         <div id="evidenceCount" class="nd-metric-value">0</div>
         <div id="countsLine" class="nd-metric-note">Paneles 0 · Incidencias 0 · Cámaras 0</div>
       </article>
+    </section>
+
+    <!-- Reporte manual del reversible -->
+    <section class="nd-section" style="margin-top:var(--space-lg);">
+      <div class="nd-section-header">
+        <span class="nd-label">Observaci&#243;n directa</span>
+        <span class="nd-meta">&#191;C&#243;mo est&#225; el carril reversible ahora?</span>
+      </div>
+      <div class="nd-section-body" style="padding:var(--space-md) var(--space-lg);">
+        <div style="display:flex;gap:var(--space-md);flex-wrap:wrap;align-items:center;">
+          <button id="btn-report-huelva" class="nd-report-btn" style="background:#4A9E5C22;border:1px solid #4A9E5C;color:#4A9E5C;" onclick="reportReversible('positive')">&#8594; HUELVA</button>
+          <button id="btn-report-cadiz"  class="nd-report-btn" style="background:#D4A84322;border:1px solid #D4A843;color:#D4A843;" onclick="reportReversible('negative')">&#8592; C&#193;DIZ</button>
+          <button id="btn-report-none"   class="nd-report-btn" style="background:#55555522;border:1px solid #555555;color:#888888;" onclick="reportReversible('none')">SIN REVERSIBLE</button>
+        </div>
+        <div id="reportStatus" style="margin-top:var(--space-sm);font-family:'Space Mono',monospace;font-size:10px;color:#888;min-height:14px;"></div>
+        <div id="recentReports" style="margin-top:var(--space-md);"></div>
+      </div>
     </section>
 
     <!-- Pulso reciente — dos gráficos apilados por sentido -->
@@ -1249,6 +1280,25 @@ HTML_PAGE = """<!doctype html>
       negative: "Sentido Sevilla"
     };
 
+    const incidentLabels = {
+      roadClosed:                          "Carretera cortada",
+      laneClosures:                        "Cierre de carriles",
+      narrowLanes:                         "Carriles estrechos",
+      singleAlternateLineTraffic:          "Paso alternativo",
+      doNotUseSpecifiedLanesOrCarriageways:"Carril prohibido",
+      lanesDeviated:                       "Desvío de carriles",
+      newRoadworksLayout:                  "Nueva disposición por obras",
+      roadworks:                           "Obras en calzada",
+      weightRestrictionInOperation:        "Restricción de vehículos pesados",
+      accident:                            "Accidente",
+      poorRoadConditions:                  "Mal estado de la vía",
+      maintenanceWorks:                    "Trabajos de mantenimiento",
+      roadMaintenance:                     "Mantenimiento vial",
+    };
+    function incidentLabel(type) {
+      return incidentLabels[type] || type || "Incidencia";
+    }
+
     const byId = (id) => document.getElementById(id);
 
     function formatDate(value) {
@@ -1325,7 +1375,7 @@ HTML_PAGE = """<!doctype html>
       root.innerHTML = '<div class="nd-list">' + incidents.map((incident) => `
         <div class="nd-list-item">
           <div class="nd-list-head">
-            <span class="nd-list-title">${escapeHtml(incident.incident_type || incident.cause_type || "Incidencia")}</span>
+            <span class="nd-list-title">${escapeHtml(incidentLabel(incident.incident_type || incident.cause_type))}</span>
             <span class="nd-list-km">${escapeHtml(formatKm(incident.from_km ?? incident.to_km))}</span>
           </div>
           <div class="nd-list-sub">
@@ -1474,22 +1524,24 @@ HTML_PAGE = """<!doctype html>
       }
 
       function speedColor(spd) {
-        if (spd >= 55) return '#4A9E5C';
-        if (spd >= 35) return '#D4A843';
-        if (spd >= 20) return '#D71921';
-        return '#A01418';
+        if (spd >= 50) return '#4A9E5C';  // fluido
+        if (spd >= 36) return '#D4A843';  // denso
+        if (spd >= 20) return '#D71921';  // retenciones
+        return '#A01418';                  // congestión fuerte
       }
 
       const pad = { top: 8, right: 8, bottom: 28, left: 8 };
       const w = W - pad.left - pad.right;
       const h = H - pad.top - pad.bottom;
 
-      const maxV = Math.max(...points.map(p => p.average_speed), 60);
+      const freeFlow = 60;  // límite real del tramo SE-30 km 10-12
       const n = points.length;
       const barW = Math.max(1, w / n);
 
       points.forEach((p, i) => {
-        const barH = Math.max(2, (p.average_speed / maxV) * h);
+        // Barra representa congestión: velocidad baja → barra alta
+        const congestion = Math.max(0, freeFlow - Math.min(p.average_speed, freeFlow));
+        const barH = Math.max(2, (congestion / freeFlow) * h);
         const x = pad.left + i * barW;
         const y = pad.top + h - barH;
         ctx.fillStyle = speedColor(p.average_speed);
@@ -1536,11 +1588,11 @@ HTML_PAGE = """<!doctype html>
       }
       function speedInfo(spd) {
         if (spd === null) return { label: 'Sin datos', color: 'var(--text-disabled)', pct: 0 };
-        const pct = Math.min(Math.round(spd / 100 * 100), 100);
-        if (spd >= 65) return { label: 'Fluido', color: 'var(--success)', pct };
-        if (spd >= 45) return { label: 'Denso', color: 'var(--warning)', pct };
-        if (spd >= 25) return { label: 'Retenciones', color: 'var(--accent)', pct: Math.max(pct, 8) };
-        return { label: 'Congestión fuerte', color: 'var(--accent)', pct: Math.max(pct, 5) };
+        const pct = Math.min(Math.round(spd / 60 * 100), 100);  // límite real: 60 km/h
+        if (spd >= 50) return { label: 'Fluido',            color: 'var(--success)', pct };
+        if (spd >= 36) return { label: 'Denso',             color: 'var(--warning)', pct };
+        if (spd >= 20) return { label: 'Retenciones',       color: 'var(--accent)',  pct: Math.max(pct, 8) };
+        return                { label: 'Congestión fuerte', color: 'var(--accent)',  pct: Math.max(pct, 5) };
       }
       // Inferir dirección desde el campo o desde el nombre del detector (fallback)
       function resolveDir(d) {
@@ -1603,9 +1655,11 @@ HTML_PAGE = """<!doctype html>
       renderPanels(data.panels);
       renderIncidents(data.incidents);
       renderCameras(data.cameras);
+      renderObservedVsInferred(state, data.reversible_reports || []);
       const history = data.tomtom_speed_history || [];
       renderDirectionPulso('pulso-huelva', history.filter(r => r.detector_id === 'tomtom_route_huelva'));
       renderDirectionPulso('pulso-cadiz',  history.filter(r => r.detector_id === 'tomtom_route_cadiz'));
+      renderRecentReports(data.reversible_reports || []);
       renderSpeedTab(data);
       renderMapTab(data);
       if (latestRun && latestRun.warnings && latestRun.warnings.length > 0) {
@@ -1615,6 +1669,71 @@ HTML_PAGE = """<!doctype html>
         warningBox.style.display = "none";
         warningBox.textContent = "";
       }
+    }
+
+    const reportLabels = { positive: '→ Huelva', negative: '← Cádiz', none: 'Sin reversible' };
+    const reportColors = { positive: '#4A9E5C', negative: '#D4A843', none: '#666666' };
+
+    function renderObservedVsInferred(state, reports) {
+      const el = byId('reversibleObserved');
+      if (!reports || reports.length === 0) { el.textContent = ''; return; }
+      const last = reports[0];
+      if (!last || !last.reported_at) { el.textContent = ''; return; }
+      // Calcular antigüedad
+      const reportedUtc = new Date(last.reported_at + 'Z');
+      const ageMin = Math.round((Date.now() - reportedUtc) / 60000);
+      if (ageMin > 90) { el.textContent = ''; return; }  // Ignorar si muy antiguo
+      const obsLabel = reportLabels[last.direction] || last.direction;
+      const obsColor = reportColors[last.direction] || '#666';
+      const inferred = state ? state.reversible_probable : null;
+      let match = '';
+      if (inferred && last.direction !== 'none') {
+        if (inferred === last.direction) {
+          match = ' <span style="color:#4A9E5C;">&#10003;</span>';
+        } else if (inferred !== 'indeterminado') {
+          match = ' <span style="color:#C0392B;">&#10007;</span>';
+        }
+      }
+      el.innerHTML = `Obs. hace ${ageMin}&#160;min: <span style="color:${obsColor};">${escapeHtml(obsLabel)}</span>${match}`;
+    }
+
+    async function reportReversible(direction) {
+      const statusEl = byId('reportStatus');
+      statusEl.textContent = 'Enviando...';
+      try {
+        const res = await fetch('/api/report-reversible', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ direction }),
+        });
+        if (!res.ok) throw new Error('Error ' + res.status);
+        statusEl.style.color = reportColors[direction] || '#888';
+        statusEl.textContent = `Registrado: ${reportLabels[direction]} · ${new Date().toLocaleTimeString('es-ES')}`;
+        // Recarga el dashboard para mostrar el nuevo reporte
+        await loadDashboard();
+      } catch (e) {
+        statusEl.style.color = 'var(--accent)';
+        statusEl.textContent = 'Error al enviar: ' + e.message;
+      }
+    }
+
+    function renderRecentReports(reports) {
+      const el = byId('recentReports');
+      const mono = 'Space Mono, monospace';
+      if (!reports || reports.length === 0) {
+        el.innerHTML = `<div style="font-family:${mono};font-size:10px;color:#444;">Sin observaciones registradas todav&#237;a.</div>`;
+        return;
+      }
+      const rows = reports.map(r => {
+        const color = reportColors[r.direction] || '#666';
+        const label = reportLabels[r.direction] || r.direction;
+        const dt = r.reported_at ? new Date(r.reported_at + 'Z').toLocaleString('es-ES', { timeZone: 'Europe/Madrid', hour12: false }) : '\u2014';
+        return `<div style="display:flex;gap:var(--space-md);align-items:baseline;padding:4px 0;border-bottom:1px solid #111;">
+          <span style="font-family:${mono};font-size:11px;color:${color};min-width:100px;">${escapeHtml(label)}</span>
+          <span style="font-family:${mono};font-size:10px;color:#555;">${escapeHtml(dt)}</span>
+        </div>`;
+      });
+      el.innerHTML = `<div style="font-family:${mono};font-size:9px;letter-spacing:0.08em;color:#444;margin-bottom:4px;">&#218;LTIMAS OBSERVACIONES</div>${rows.join('')}`;
     }
 
     let lastDashboardData = null;
@@ -1975,7 +2094,7 @@ HTML_PAGE = """<!doctype html>
       const sorted = [...incidents].sort((a, b) => (a.from_km ?? a.to_km ?? 999) - (b.from_km ?? b.to_km ?? 999));
       root.innerHTML = '<div class="nd-list">' + sorted.map(inc => {
         const km = inc.from_km != null ? 'km ' + Number(inc.from_km).toFixed(1) + (inc.to_km != null ? '\u2013' + Number(inc.to_km).toFixed(1) : '') : (inc.to_km != null ? 'km ' + Number(inc.to_km).toFixed(1) : 'km -');
-        const title = escapeHtml(inc.incident_type || inc.cause_type || 'Incidencia');
+        const title = escapeHtml(incidentLabel(inc.incident_type || inc.cause_type));
         const dir = dirLabel(inc.direction);
         const muni = escapeHtml(inc.municipality || inc.province || '-');
         const sev = inc.severity || 'sin severidad';
@@ -2383,6 +2502,21 @@ class DashboardServer:
                         self._send_json({"error": str(exc)}, status=500)
                         return
                     self._send_json(service.dashboard_data())
+                    return
+                if parsed.path == "/api/report-reversible":
+                    length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(length) if length else b"{}"
+                    try:
+                        payload = json.loads(body)
+                    except Exception:
+                        self._send_json({"error": "invalid json"}, status=400)
+                        return
+                    direction = payload.get("direction", "")
+                    if direction not in ("positive", "negative", "none"):
+                        self._send_json({"error": "direction must be positive, negative or none"}, status=400)
+                        return
+                    service.storage.insert_reversible_report(direction)
+                    self._send_json({"ok": True, "direction": direction})
                     return
                 self.send_error(HTTPStatus.NOT_FOUND, "Ruta no encontrada")
 

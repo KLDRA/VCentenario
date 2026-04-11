@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from .config import REVERSIBLE_PERSISTENCE_WINDOW, REVERSIBLE_SCHEDULE, TOMTOM_CALIBRATED_FREE_FLOW
@@ -53,6 +53,12 @@ PANEL_IGNORED_LEGEND_FRAGMENTS = {
     "VEHICULO 20T/HUELVA-MERID/POR A4 CADIZ",
 }
 
+# Tipos de incidencia estructurales/permanentes que no reflejan el estado real del tráfico.
+# Se ignoran completamente (peso = 0), no solo reducidos al baseline.
+INCIDENT_IGNORED_TYPES = {
+    "weightRestrictionInOperation",  # Restricción de 20T — señal estática de obras
+}
+
 # Detector weights calibrated for realistic traffic classification:
 # - LOW velocities (30-60 km/h) on a 60 km/h bridge = congestion, but not extreme
 # - Weight reduced from 0.7 to 0.12 to prevent over-scoring (e.g., 30 km/h difference should contribute ~3.6 to score, not 21)
@@ -63,6 +69,17 @@ DETECTOR_DIRECTION_BIAS_WEIGHT = 3.0  # Reduced from 10.0
 PERSISTENT_BASELINE_SCALE = 0.15
 CALIBRATION_EXCLUDED_SOURCES = {"camera_availability", "camera_change", "vehicle_count"}
 
+# TomTom reversible inference thresholds
+# Asimetría: diferencia de velocidad entre sentidos para inferir el reversible.
+# Con radar de tramo en 60 km/h, el rango útil es estrecho (30–58 km/h).
+# 8 km/h es conservador — se calibrará con datos reales de la semana.
+TOMTOM_ASYMMETRY_THRESHOLD = 8.0    # km/h mínima diferencia para considerar asimetría real
+TOMTOM_ASYMMETRY_MAX_WEIGHT = 8.0   # peso máximo por asimetría
+# Salto de velocidad: subida repentina en un sentido indica apertura del reversible.
+TOMTOM_JUMP_THRESHOLD = 7.0         # km/h de subida respecto a media reciente
+TOMTOM_JUMP_MAX_WEIGHT = 5.0        # peso máximo por salto de velocidad
+TOMTOM_HISTORY_WINDOW = 4           # número de lecturas recientes para calcular media (~20 min)
+
 
 def infer_bridge_state(
     panels: Iterable[PanelMessage],
@@ -70,6 +87,8 @@ def infer_bridge_state(
     snapshots: Iterable[CameraSnapshot],
     detectors: Iterable[DetectorReading] = (),
     recent_states: Optional[Sequence[Dict[str, object]]] = None,
+    recent_detector_history: Optional[Sequence[Dict[str, object]]] = None,
+    latest_report: Optional[Dict[str, object]] = None,
 ) -> BridgeState:
     panels = list(panels)
     incidents = list(incidents)
@@ -108,6 +127,8 @@ def infer_bridge_state(
             evidence.append(panel_evidence)
 
     for incident in incidents:
+        if (incident.incident_type or "") in INCIDENT_IGNORED_TYPES:
+            continue
         incident_score = SEVERITY_WEIGHT.get((incident.severity or "").lower(), 8.0)
         incident_score += INCIDENT_TYPE_WEIGHT.get(incident.incident_type or "", 6.0)
         incident_label = incident.incident_type or incident.cause_type or "incident"
@@ -155,6 +176,13 @@ def infer_bridge_state(
         for direction, score in detector_direction_pressure.items():
             direction_pressure[direction] += score
 
+    tomtom_dir_pressure, tomtom_evidence = score_tomtom_reversible_signals(
+        detectors, list(recent_detector_history or [])
+    )
+    for direction, weight in tomtom_dir_pressure.items():
+        direction_pressure[direction] += weight
+    evidence.extend(tomtom_evidence)
+
     apply_historical_calibration(breakdown, recent_states, evidence)
     traffic_score = round(sum(breakdown.values()), 2)
     traffic_level = classify_traffic_level(traffic_score)
@@ -165,6 +193,7 @@ def infer_bridge_state(
         recent_states=recent_states,
         persistence_window=REVERSIBLE_PERSISTENCE_WINDOW,
         schedule=REVERSIBLE_SCHEDULE,
+        latest_report=latest_report,
     )
     evidence.extend(direction_evidence)
 
@@ -214,6 +243,15 @@ def classify_traffic_level(score: float) -> str:
     return "congestion_fuerte"
 
 
+def _report_age_seconds(reported_at: str) -> Optional[float]:
+    """Devuelve los segundos transcurridos desde el reporte (UTC). None si no parseable."""
+    try:
+        dt = datetime.strptime(reported_at, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - dt).total_seconds()
+    except Exception:
+        return None
+
+
 def infer_reversible(
     direction_pressure: Dict[str, float],
     panels: List[PanelMessage],
@@ -221,10 +259,35 @@ def infer_reversible(
     recent_states: Optional[Sequence[Dict[str, object]]] = None,
     persistence_window: int = 8,
     schedule: str = "",
+    latest_report: Optional[Dict[str, object]] = None,
 ) -> tuple[str, float, List[str]]:
     recent_states = list(recent_states or [])
     direction_pressure = defaultdict(float, direction_pressure)
     evidence: List[str] = []
+
+    # — Señal de observación directa del usuario —
+    # Peso decreciente con la antigüedad: 14 pts si < 15 min, 8 pts hasta 30 min,
+    # 4 pts hasta 60 min. Más antiguo se ignora.
+    # "none" no añade presión pero sí cancela la presión acumulada del algoritmo.
+    if latest_report:
+        report_dir = str(latest_report.get("direction", ""))
+        age = _report_age_seconds(str(latest_report.get("reported_at", "")))
+        if age is not None and age <= 3600:
+            age_min = int(age // 60)
+            if report_dir in ("positive", "negative"):
+                if age <= 900:
+                    report_weight = 14.0
+                elif age <= 1800:
+                    report_weight = 8.0
+                else:
+                    report_weight = 4.0
+                direction_pressure[report_dir] += report_weight
+                evidence.append(f"reversible:user-report:{report_dir}:{age_min}min:{report_weight:.0f}")
+            elif report_dir == "none":
+                # Sin reversible activo: limpiar presión acumulada para evitar falsos positivos
+                for k in list(direction_pressure.keys()):
+                    direction_pressure[k] *= 0.2
+                evidence.append(f"reversible:user-report:none:{age_min}min")
 
     schedule_direction, schedule_weight = get_schedule_bias(schedule)
     if schedule_direction:
@@ -260,6 +323,81 @@ def infer_reversible(
     if difference < 8.0:
         return "indeterminado", round(max(0.2, confidence - 0.08), 2), evidence + ["reversible:low-asymmetry"]
     return lead_direction, confidence, evidence
+
+
+def score_tomtom_reversible_signals(
+    detectors: Sequence[DetectorReading],
+    recent_history: Sequence[Dict[str, object]],
+) -> Tuple[Dict[str, float], List[str]]:
+    """
+    Two complementary signals from TomTom Routing speed data:
+
+    1. Asymmetry — if one direction is significantly faster than the other,
+       the SLOWER direction gets extra pressure (demand signal: congestion
+       suggests the reversible is needed or open for that direction).
+
+    2. Speed jump — a sudden speed increase in one direction vs. its recent
+       average suggests the reversible just opened for it (supply signal:
+       more lane capacity → speed recovered).
+    """
+    dir_pressure: Dict[str, float] = defaultdict(float)
+    evidence: List[str] = []
+
+    # Extract current speeds from TomTom route detectors
+    current_speeds: Dict[str, float] = {}
+    for d in detectors:
+        if d.source != "tomtom" or d.average_speed is None:
+            continue
+        det_id = (d.detector_id or "").lower()
+        if det_id.endswith("_huelva"):
+            current_speeds["positive"] = d.average_speed
+        elif det_id.endswith("_cadiz"):
+            current_speeds["negative"] = d.average_speed
+
+    if len(current_speeds) < 2:
+        return {}, []
+
+    speed_pos = current_speeds["positive"]
+    speed_neg = current_speeds["negative"]
+
+    # — Asymmetry signal —
+    diff = speed_pos - speed_neg  # >0 → Huelva faster, <0 → Cádiz faster
+    abs_diff = abs(diff)
+    if abs_diff >= TOMTOM_ASYMMETRY_THRESHOLD:
+        slower_dir = "negative" if diff > 0 else "positive"
+        # Escala lineal más allá del umbral, cap en el máximo configurado
+        weight = min(
+            TOMTOM_ASYMMETRY_MAX_WEIGHT * abs_diff / max(TOMTOM_ASYMMETRY_THRESHOLD * 2, 1.0),
+            TOMTOM_ASYMMETRY_MAX_WEIGHT,
+        )
+        dir_pressure[slower_dir] += round(weight, 2)
+        evidence.append(f"tomtom:asymmetry:{slower_dir}:{abs_diff:.1f}kmh:{weight:.1f}")
+
+    # — Speed jump signal —
+    if recent_history:
+        history_speeds: Dict[str, List[float]] = defaultdict(list)
+        for row in recent_history:
+            dir_ = str(row.get("direction") or "")
+            spd = row.get("average_speed")
+            if dir_ in ("positive", "negative") and spd is not None:
+                history_speeds[dir_].append(float(spd))
+
+        for dir_, hist in history_speeds.items():
+            current_spd = current_speeds.get(dir_)
+            if current_spd is None or len(hist) < 2:
+                continue
+            window = hist[-TOMTOM_HISTORY_WINDOW:]
+            recent_avg = sum(window) / len(window)
+            jump = current_spd - recent_avg
+            if jump >= TOMTOM_JUMP_THRESHOLD:
+                weight = min(
+                    TOMTOM_JUMP_MAX_WEIGHT * jump / max(TOMTOM_JUMP_THRESHOLD * 2, 1.0),
+                    TOMTOM_JUMP_MAX_WEIGHT,
+                )
+                dir_pressure[dir_] += round(weight, 2)
+                evidence.append(f"tomtom:jump:{dir_}:+{jump:.1f}kmh:{weight:.1f}")
+
+    return dict(dir_pressure), evidence
 
 
 def score_detectors(detectors: Sequence[DetectorReading]) -> Tuple[float, List[str], Dict[str, float]]:
