@@ -12,7 +12,12 @@ from .collectors.cameras import CameraCollector
 from .collectors.detectors import DetectorCollector, TomTomFlowCollector
 from .collectors.incidents import IncidentCollector, TomTomIncidentCollector
 from .collectors.panels import PanelCollector
-from .config import DEFAULT_DB_PATH, DEFAULT_SNAPSHOTS_DIR, TOMTOM_API_KEY
+from .config import (
+    DEFAULT_DB_PATH,
+    DEFAULT_SNAPSHOTS_DIR,
+    TOMTOM_API_KEY,
+    TOMTOM_DIRECTION_BASELINE_OFFSET,
+)
 from .http import HttpClient
 from .inference import infer_bridge_state
 from .storage import Storage
@@ -154,6 +159,13 @@ class VCentenarioService:
         recent_detector_history = self.storage.tomtom_speed_history(hours=2)
         recent_reports = self.storage.recent_reversible_reports(limit=1)
         latest_report = recent_reports[0] if recent_reports else None
+        try:
+            observed_direction_profile = self.storage.observed_direction_profile(
+                days=7,
+                baseline_offset=TOMTOM_DIRECTION_BASELINE_OFFSET,
+            )
+        except Exception:
+            observed_direction_profile = None
         state = infer_bridge_state(
             panel_messages,
             incidents,
@@ -162,6 +174,7 @@ class VCentenarioService:
             recent_states=recent_states,
             recent_detector_history=recent_detector_history,
             latest_report=latest_report,
+            observed_direction_profile=observed_direction_profile,
         )
         state.learning_context = self.storage.update_traffic_profile(state)
         state.forecast = self.storage.predict_traffic(
@@ -182,14 +195,13 @@ class VCentenarioService:
             "detector_readings": len(detector_readings),
         }
         self.storage.insert_collection_run(collected_at, counts, source_status, warnings)
-        cleanup = self.storage.prune_history()
+        self.storage.maybe_update_daily_stats()
 
         return {
             "collected_at": collected_at,
             "counts": counts,
             "source_status": source_status,
             "warnings": warnings,
-            "cleanup": cleanup,
             "state": asdict(state),
         }
 

@@ -97,6 +97,10 @@ TOMTOM_FLOW_URL = "https://api.tomtom.com/traffic/services/4/flowSegmentData/abs
 TOMTOM_INCIDENTS_URL = "https://api.tomtom.com/traffic/services/4/incidentDetails/s3/{bbox}/10/-1/json"
 TOMTOM_SPEED_CAMERAS_URL = "https://api.tomtom.com/traffic/services/4/speedLimitInfo/s3/{bbox}/10/-1/json"
 TOMTOM_CALIBRATED_FREE_FLOW = 60.0
+# Offset estructural direccional: Huelva(+) es ~4 km/h más rápido que Cádiz(−)
+# en TomTom Routing incluso con tráfico muerto. Se resta a Huelva antes de
+# calcular asimetría direccional en la inferencia del reversible.
+TOMTOM_DIRECTION_BASELINE_OFFSET = _env_float("VCENTENARIO_TOMTOM_DIRECTION_BASELINE_OFFSET", 4.0)
 
 # Alert settings
 ALERT_EMAIL_ENABLED = _env_bool("VCENTENARIO_ALERT_EMAIL_ENABLED", False)

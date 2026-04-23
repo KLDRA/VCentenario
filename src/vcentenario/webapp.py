@@ -281,7 +281,7 @@ HTML_PAGE = """<!doctype html>
   <title>VCentenario Monitor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Doto:ROND@0&family=Space+Grotesk:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Doto:ROND@0&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --black: #000000;
@@ -967,6 +967,137 @@ HTML_PAGE = """<!doctype html>
       .nd-section-header { padding: var(--space-sm) var(--space-md); }
       .nd-tab { padding: 10px 8px; font-size: 10px; letter-spacing: 0.02em; }
     }
+
+    /* ============================================================
+       TAB VISTA — nuevo diseño (Inter + JetBrains Mono)
+    ============================================================ */
+    #tab-nuevo {
+      --nv-bg: oklch(0.17 0.006 260);
+      --nv-surface: oklch(0.205 0.008 260);
+      --nv-surface-2: oklch(0.235 0.009 260);
+      --nv-border: oklch(0.28 0.01 260);
+      --nv-border-strong: oklch(0.35 0.012 260);
+      --nv-text: oklch(0.97 0.003 260);
+      --nv-text-2: oklch(0.72 0.01 260);
+      --nv-text-3: oklch(0.55 0.01 260);
+      --nv-accent: oklch(0.7 0.14 255);
+      --nv-ok: oklch(0.72 0.15 155);
+      --nv-warn: oklch(0.8 0.16 85);
+      --nv-alert: oklch(0.72 0.18 45);
+      --nv-danger: oklch(0.68 0.2 25);
+      --nv-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 8px rgba(0,0,0,0.2);
+      --nv-shadow-lg: 0 2px 8px rgba(0,0,0,0.3), 0 12px 32px rgba(0,0,0,0.4);
+      --nv-radius: 14px;
+      --nv-led: #FFB300;
+      font-family: 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      letter-spacing: -0.01em;
+      padding-bottom: 48px;
+    }
+    [data-theme="light"] #tab-nuevo {
+      --nv-bg: oklch(0.99 0.003 80);
+      --nv-surface: oklch(1 0 0);
+      --nv-surface-2: oklch(0.975 0.003 80);
+      --nv-border: oklch(0.92 0.004 80);
+      --nv-border-strong: oklch(0.85 0.005 80);
+      --nv-text: oklch(0.2 0.01 260);
+      --nv-text-2: oklch(0.45 0.01 260);
+      --nv-text-3: oklch(0.62 0.01 260);
+      --nv-accent: oklch(0.55 0.15 255);
+      --nv-ok: oklch(0.62 0.14 155);
+      --nv-warn: oklch(0.72 0.15 85);
+      --nv-alert: oklch(0.65 0.18 45);
+      --nv-danger: oklch(0.58 0.2 25);
+      --nv-shadow: 0 1px 2px oklch(0.2 0.01 260 / 0.04), 0 1px 8px oklch(0.2 0.01 260 / 0.03);
+      --nv-shadow-lg: 0 2px 8px oklch(0.2 0.01 260 / 0.06), 0 12px 32px oklch(0.2 0.01 260 / 0.06);
+    }
+    #tab-nuevo .nv-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; letter-spacing: -0.02em; }
+    /* Hero */
+    #tab-nuevo .nv-hero { background: var(--nv-surface); border: 1px solid var(--nv-border); border-radius: 20px; padding: 36px 40px 32px; box-shadow: var(--nv-shadow); margin-bottom: 32px; }
+    @media (max-width: 720px) { #tab-nuevo .nv-hero { padding: 24px 22px; border-radius: 16px; } }
+    #tab-nuevo .nv-hero-label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: var(--nv-text-3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; }
+    #tab-nuevo .nv-hero-label-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--nv-text-3); }
+    #tab-nuevo .nv-hero-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 36px; align-items: center; }
+    @media (max-width: 820px) { #tab-nuevo .nv-hero-grid { grid-template-columns: 1fr; gap: 28px; } }
+    #tab-nuevo .nv-verdict { font-size: clamp(38px, 6vw, 68px); font-weight: 700; line-height: 0.95; letter-spacing: -0.04em; margin: 0 0 10px; }
+    #tab-nuevo .nv-verdict-sub { font-size: 16px; color: var(--nv-text-2); line-height: 1.45; max-width: 38ch; }
+    #tab-nuevo .nv-score-row { display: flex; align-items: baseline; gap: 18px; margin-top: 20px; }
+    #tab-nuevo .nv-score-num { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 600; letter-spacing: -0.04em; }
+    #tab-nuevo .nv-score-meta { font-size: 13px; color: var(--nv-text-3); line-height: 1.4; }
+    #tab-nuevo .nv-level-chip { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: color-mix(in oklch, var(--nv-chip-color, var(--nv-ok)) 14%, transparent); color: var(--nv-chip-color, var(--nv-ok)); border: 1px solid color-mix(in oklch, var(--nv-chip-color, var(--nv-ok)) 28%, transparent); }
+    /* Reversible */
+    #tab-nuevo .nv-reversible { background: var(--nv-surface-2); border: 1px solid var(--nv-border); border-radius: 16px; padding: 24px; }
+    #tab-nuevo .nv-rev-label { font-size: 11px; font-weight: 600; color: var(--nv-text-3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 14px; }
+    #tab-nuevo .nv-rev-arrow-wrap { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+    #tab-nuevo .nv-rev-arrow { width: 48px; height: 48px; border-radius: 50%; background: var(--nv-text); color: var(--nv-bg); display: grid; place-items: center; font-size: 22px; font-weight: 700; flex-shrink: 0; transition: transform .4s cubic-bezier(.5,0,.2,1); }
+    #tab-nuevo .nv-rev-dir { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
+    #tab-nuevo .nv-rev-dir-sub { font-size: 13px; color: var(--nv-text-2); margin-top: 2px; }
+    #tab-nuevo .nv-conf-track { height: 4px; flex: 1; background: var(--nv-border); border-radius: 999px; overflow: hidden; }
+    #tab-nuevo .nv-conf-fill { height: 100%; background: var(--nv-accent); border-radius: 999px; transition: width .6s; }
+    #tab-nuevo .nv-rev-confidence { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--nv-text-2); }
+    /* Sections / cards */
+    #tab-nuevo .nv-section { margin-top: 28px; }
+    #tab-nuevo .nv-section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
+    #tab-nuevo .nv-section-title { font-size: 13px; font-weight: 600; color: var(--nv-text-3); text-transform: uppercase; letter-spacing: 0.1em; }
+    #tab-nuevo .nv-section-aside { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--nv-text-3); }
+    #tab-nuevo .nv-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 720px) { #tab-nuevo .nv-grid-2 { grid-template-columns: 1fr; } }
+    #tab-nuevo .nv-card { background: var(--nv-surface); border: 1px solid var(--nv-border); border-radius: var(--nv-radius); padding: 22px; }
+    /* Direction cards */
+    #tab-nuevo .nv-dir-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+    #tab-nuevo .nv-dir-name { font-size: 12px; font-weight: 600; color: var(--nv-text-3); text-transform: uppercase; letter-spacing: 0.1em; }
+    #tab-nuevo .nv-dir-city { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; margin-top: 4px; }
+    #tab-nuevo .nv-dir-badge { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: var(--nv-accent); color: white; letter-spacing: 0.05em; text-transform: uppercase; }
+    #tab-nuevo .nv-dir-speed { font-family: 'JetBrains Mono', monospace; font-size: 38px; font-weight: 600; letter-spacing: -0.04em; line-height: 1; margin-top: 6px; }
+    #tab-nuevo .nv-dir-speed-unit { font-size: 14px; color: var(--nv-text-3); font-weight: 500; margin-left: 6px; letter-spacing: 0; }
+    #tab-nuevo .nv-dir-meta { display: flex; gap: 18px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--nv-border); font-size: 12px; }
+    #tab-nuevo .nv-dir-meta .nv-k { color: var(--nv-text-3); }
+    #tab-nuevo .nv-dir-meta .nv-v { font-family: 'JetBrains Mono', monospace; color: var(--nv-text); margin-left: 4px; font-weight: 500; }
+    #tab-nuevo .nv-speedbar { height: 4px; background: var(--nv-border); border-radius: 999px; margin-top: 12px; overflow: hidden; }
+    #tab-nuevo .nv-speedbar-fill { height: 100%; border-radius: 999px; transition: width .8s cubic-bezier(.2,.8,.2,1); }
+    /* Scene */
+    #tab-nuevo .nv-scene-wrap { position: relative; aspect-ratio: 16 / 5.5; min-height: 180px; width: 100%; overflow: hidden; }
+    @media (max-width: 600px) { #tab-nuevo .nv-scene-wrap { aspect-ratio: 16 / 8; } }
+    #tab-nuevo #nv-sceneSvg { width: 100%; height: 100%; display: block; }
+    #tab-nuevo .nv-scene-bar { display: flex; gap: 10px; padding: 10px 22px 18px; font-size: 11px; color: var(--nv-text-3); font-family: 'JetBrains Mono', monospace; border-top: 1px solid var(--nv-border); justify-content: space-between; flex-wrap: wrap; }
+    #tab-nuevo .nv-scene-bar b { color: var(--nv-text); font-weight: 600; }
+    /* Chart */
+    #tab-nuevo .nv-chart-container { position: relative; height: 220px; width: 100%; }
+    #tab-nuevo #nv-chartSvg { width: 100%; height: 100%; display: block; overflow: visible; }
+    #tab-nuevo .nv-chart-legend { display: flex; gap: 18px; font-size: 11px; color: var(--nv-text-3); margin-top: 12px; flex-wrap: wrap; }
+    #tab-nuevo .nv-chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    #tab-nuevo .nv-chart-legend i { width: 10px; height: 2px; border-radius: 2px; display: inline-block; }
+    #tab-nuevo .nv-tooltip { position: absolute; pointer-events: none; opacity: 0; transition: opacity .15s; background: var(--nv-text); color: var(--nv-bg); padding: 8px 10px; border-radius: 8px; font-size: 12px; white-space: nowrap; transform: translate(-50%, -110%); z-index: 10; }
+    /* VMS */
+    #tab-nuevo .nv-vms-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    @media (max-width: 820px) { #tab-nuevo .nv-vms-grid { grid-template-columns: 1fr; } }
+    #tab-nuevo .nv-vms { background: #0a0a0a; border: 1px solid #222; border-radius: 12px; padding: 20px 18px; }
+    #tab-nuevo .nv-vms-meta { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+    #tab-nuevo .nv-vms-screen { background: #000; border-radius: 6px; padding: 14px 16px; min-height: 90px; font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 15px; letter-spacing: 0.12em; color: var(--nv-led); text-shadow: 0 0 6px #ffb30099, 0 0 14px #ffb30055; line-height: 1.5; white-space: pre-line; display: flex; align-items: center; }
+    #tab-nuevo .nv-vms-screen.empty { color: #333; text-shadow: none; font-weight: 400; font-size: 12px; letter-spacing: 0.05em; }
+    #tab-nuevo .nv-vms-footer { margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #666; display: flex; justify-content: space-between; }
+    /* Incidents */
+    #tab-nuevo .nv-incident-list { display: flex; flex-direction: column; gap: 10px; }
+    #tab-nuevo .nv-incident { display: flex; gap: 14px; padding: 14px 16px; background: var(--nv-surface); border: 1px solid var(--nv-border); border-radius: 12px; align-items: flex-start; }
+    #tab-nuevo .nv-inc-ic { width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; display: grid; place-items: center; background: color-mix(in oklch, var(--nv-inc-color, var(--nv-warn)) 15%, transparent); color: var(--nv-inc-color, var(--nv-warn)); }
+    #tab-nuevo .nv-inc-main { flex: 1; min-width: 0; }
+    #tab-nuevo .nv-inc-title { font-size: 14px; font-weight: 600; line-height: 1.3; }
+    #tab-nuevo .nv-inc-meta { display: flex; gap: 12px; font-size: 12px; color: var(--nv-text-3); margin-top: 4px; flex-wrap: wrap; }
+    #tab-nuevo .nv-inc-severity { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.08em; background: color-mix(in oklch, var(--nv-inc-color, var(--nv-warn)) 15%, transparent); color: var(--nv-inc-color, var(--nv-warn)); }
+    #tab-nuevo .nv-empty { padding: 32px; text-align: center; color: var(--nv-text-3); font-size: 13px; }
+    /* Report */
+    #tab-nuevo .nv-report-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 16px; }
+    @media (max-width: 560px) { #tab-nuevo .nv-report-actions { grid-template-columns: 1fr; } }
+    #tab-nuevo .nv-report-btn { padding: 14px 16px; border-radius: 10px; border: 1px solid var(--nv-border); background: var(--nv-surface); font-family: 'Inter', system-ui, sans-serif; cursor: pointer; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; transition: all .15s; color: var(--nv-text); }
+    #tab-nuevo .nv-report-btn:hover { background: var(--nv-surface-2); border-color: var(--nv-border-strong); transform: translateY(-1px); }
+    #tab-nuevo .nv-report-btn .nv-dir { font-size: 14px; font-weight: 600; }
+    #tab-nuevo .nv-report-btn .nv-hint { font-size: 11px; color: var(--nv-text-3); }
+    #tab-nuevo .nv-report-btn.success { background: color-mix(in oklch, var(--nv-ok) 12%, transparent); border-color: var(--nv-ok); }
+    /* Range tabs */
+    #tab-nuevo .nv-tabs { display: flex; gap: 2px; padding: 3px; background: var(--nv-surface-2); border: 1px solid var(--nv-border); border-radius: 10px; width: fit-content; }
+    #tab-nuevo .nv-tab-btn { padding: 7px 14px; font-size: 13px; font-weight: 500; color: var(--nv-text-2); background: transparent; border: none; border-radius: 7px; cursor: pointer; transition: all .15s; font-family: 'Inter', system-ui, sans-serif; }
+    #tab-nuevo .nv-tab-btn:hover { color: var(--nv-text); }
+    #tab-nuevo .nv-tab-btn.active { background: var(--nv-surface); color: var(--nv-text); box-shadow: var(--nv-shadow); }
   </style>
 </head>
 <body>
@@ -975,7 +1106,7 @@ HTML_PAGE = """<!doctype html>
     <!-- Header -->
     <header class="nd-header">
       <div>
-        <div class="nd-eyebrow">Monitor Operativo · SE-30 km 10–12 · Sentido Huelva</div>
+        <div class="nd-eyebrow">Monitor Operativo · SE-30 km 10–12 · Ambos sentidos</div>
         <div class="nd-header-title">VCentenario</div>
       </div>
       <div class="nd-header-right">
@@ -997,6 +1128,8 @@ HTML_PAGE = """<!doctype html>
       <button class="nd-tab" id="btn-velocidades" onclick="showTab('velocidades')">VELOCIDADES</button>
       <button class="nd-tab" id="btn-mapa" onclick="showTab('mapa')">MAPA</button>
       <button class="nd-tab" id="btn-se30" onclick="showTab('se30')">DETALLE</button>
+      <button class="nd-tab" id="btn-historico" onclick="showTab('historico')">HIST&#211;RICO</button>
+      <button class="nd-tab" id="btn-nuevo" onclick="showTab('nuevo')">VISTA &#9733;</button>
     </nav>
 
     <div id="tab-estado">
@@ -1076,6 +1209,7 @@ HTML_PAGE = """<!doctype html>
           <button id="btn-report-cadiz"  class="nd-report-btn" style="background:#D4A84322;border:1px solid #D4A843;color:#D4A843;" onclick="reportReversible('negative')">&#8592; C&#193;DIZ</button>
           <button id="btn-report-none"   class="nd-report-btn" style="background:#55555522;border:1px solid #555555;color:#888888;" onclick="reportReversible('none')">SIN REVERSIBLE</button>
         </div>
+        <input id="reportNote" type="text" maxlength="280" placeholder="Nota opcional (duda, transici&#243;n, contexto...)" style="margin-top:var(--space-sm);width:100%;padding:6px 8px;font-family:'Space Mono',monospace;font-size:11px;background:transparent;border:1px solid #222;color:var(--text-display);box-sizing:border-box;" />
         <div id="reportStatus" style="margin-top:var(--space-sm);font-family:'Space Mono',monospace;font-size:10px;color:#888;min-height:14px;"></div>
         <div id="recentReports" style="margin-top:var(--space-md);"></div>
       </div>
@@ -1318,20 +1452,223 @@ HTML_PAGE = """<!doctype html>
 
     </div><!-- /tab-se30 -->
 
+    <!-- Histórico de velocidades diarias -->
+    <div id="tab-historico" style="display:none;">
+      <section class="nd-section" style="margin-bottom:var(--space-2xl);">
+        <div class="nd-section-header">
+          <span class="nd-label">Velocidades diarias · M&#237;nima y m&#225;xima por sentido</span>
+          <span class="nd-meta" id="hist-status">Cargando...</span>
+        </div>
+        <div class="nd-section-body" style="padding:0;overflow-x:auto;">
+          <table id="hist-table" style="width:100%;border-collapse:collapse;font-family:'Space Mono',monospace;font-size:12px;">
+            <thead>
+              <tr style="border-bottom:2px solid var(--border-visible);">
+                <th style="padding:10px 16px;text-align:left;color:var(--text-secondary);font-weight:400;letter-spacing:0.06em;white-space:nowrap;">FECHA</th>
+                <th style="padding:10px 16px;text-align:right;color:#4A9E5C;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8594; HUELVA M&#205;N</th>
+                <th style="padding:10px 16px;text-align:right;color:#4A9E5C;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8594; HUELVA M&#193;X</th>
+                <th style="padding:10px 16px;text-align:right;color:#4A9E5C;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8594; HUELVA MEDIA</th>
+                <th style="padding:10px 16px;text-align:right;color:#D4A843;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8592; C&#193;DIZ M&#205;N</th>
+                <th style="padding:10px 16px;text-align:right;color:#D4A843;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8592; C&#193;DIZ M&#193;X</th>
+                <th style="padding:10px 16px;text-align:right;color:#D4A843;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8592; C&#193;DIZ MEDIA</th>
+                <th style="padding:10px 16px;text-align:right;color:var(--text-secondary);font-weight:400;letter-spacing:0.06em;white-space:nowrap;">MUESTRAS</th>
+              </tr>
+            </thead>
+            <tbody id="hist-tbody">
+              <tr><td colspan="8" style="padding:24px 16px;text-align:center;color:var(--text-secondary);">Cargando datos...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="padding:10px 16px;border-top:1px solid var(--border);">
+          <span class="nd-meta">Velocidades en km/h · Las muestras son el total de ambos sentidos · El d&#237;a en curso se actualiza en tiempo real; los anteriores son definitivos</span>
+        </div>
+      </section>
+    </div><!-- /tab-historico -->
+
+    <!-- ===== TAB VISTA — nuevo diseño ===== -->
+    <div id="tab-nuevo" style="display:none;">
+
+      <!-- Hero -->
+      <section class="nv-hero">
+        <div class="nv-hero-label">
+          <span class="nv-hero-label-dot" id="nv-verdictDot"></span>
+          <span id="nv-verdictLabel">Estado actual</span>
+        </div>
+        <div class="nv-hero-grid">
+          <div>
+            <h2 class="nv-verdict" id="nv-verdict">Cargando&hellip;</h2>
+            <p class="nv-verdict-sub" id="nv-verdictSub">Obteniendo datos del puente.</p>
+            <div class="nv-score-row">
+              <div class="nv-score-num" id="nv-scoreNum">&mdash;</div>
+              <div class="nv-score-meta">
+                <span class="nv-level-chip" id="nv-levelChip">&mdash;</span>
+                <div style="margin-top:6px;">Puntuaci&#243;n de congestión · 0 = libre</div>
+              </div>
+            </div>
+          </div>
+          <div class="nv-reversible">
+            <div class="nv-rev-label">Carril reversible</div>
+            <div class="nv-rev-arrow-wrap">
+              <div class="nv-rev-arrow" id="nv-revArrow">&mdash;</div>
+              <div>
+                <div class="nv-rev-dir" id="nv-revDir">Cargando&hellip;</div>
+                <div class="nv-rev-dir-sub" id="nv-revSub"></div>
+              </div>
+            </div>
+            <div class="nv-rev-confidence">
+              <span class="nv-mono" id="nv-confLabel">&mdash;</span>
+              <div class="nv-conf-track"><div class="nv-conf-fill" id="nv-confFill" style="width:0%"></div></div>
+              <span style="flex-shrink:0">confianza</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Animated bridge scene -->
+      <section class="nv-section">
+        <div class="nv-section-head">
+          <div class="nv-section-title">El puente ahora</div>
+          <div class="nv-section-aside" id="nv-sceneTempo">&mdash; km/h media</div>
+        </div>
+        <div class="nv-card" style="padding:0;overflow:hidden;">
+          <div class="nv-scene-wrap">
+            <svg id="nv-sceneSvg" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid slice"></svg>
+          </div>
+          <div class="nv-scene-bar">
+            <span>&rarr; <b id="nv-sceneHuelvaCount">0</b> veh. sentido Huelva</span>
+            <span>SE-30 &middot; km 10 &mdash;&mdash; km 12</span>
+            <span><b id="nv-sceneCadizCount">0</b> veh. sentido C&aacute;diz &larr;</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Speed cards -->
+      <section class="nv-section">
+        <div class="nv-section-head">
+          <div class="nv-section-title">Velocidades por sentido</div>
+          <div class="nv-section-aside">l&iacute;mite 60 km/h</div>
+        </div>
+        <div class="nv-grid-2">
+          <div class="nv-card">
+            <div class="nv-dir-head">
+              <div>
+                <div class="nv-dir-name">Sentido Huelva</div>
+                <div class="nv-dir-city">&rarr; Hacia Huelva</div>
+              </div>
+              <span class="nv-dir-badge" id="nv-badgeHuelva" style="display:none">Reversible</span>
+            </div>
+            <div><span class="nv-dir-speed" id="nv-speedHuelva">&mdash;</span><span class="nv-dir-speed-unit">km/h</span></div>
+            <div class="nv-speedbar"><div class="nv-speedbar-fill" id="nv-barHuelva"></div></div>
+            <div class="nv-dir-meta">
+              <div><span class="nv-k">Libre</span><span class="nv-v" id="nv-freeHuelva">60</span></div>
+              <div><span class="nv-k">Retardo</span><span class="nv-v" id="nv-delayHuelva">&mdash;</span></div>
+              <div><span class="nv-k">km</span><span class="nv-v">10&rarr;12</span></div>
+            </div>
+          </div>
+          <div class="nv-card">
+            <div class="nv-dir-head">
+              <div>
+                <div class="nv-dir-name">Sentido C&aacute;diz</div>
+                <div class="nv-dir-city">&larr; Hacia C&aacute;diz</div>
+              </div>
+              <span class="nv-dir-badge" id="nv-badgeCadiz" style="display:none">Reversible</span>
+            </div>
+            <div><span class="nv-dir-speed" id="nv-speedCadiz">&mdash;</span><span class="nv-dir-speed-unit">km/h</span></div>
+            <div class="nv-speedbar"><div class="nv-speedbar-fill" id="nv-barCadiz"></div></div>
+            <div class="nv-dir-meta">
+              <div><span class="nv-k">Libre</span><span class="nv-v" id="nv-freeCadiz">60</span></div>
+              <div><span class="nv-k">Retardo</span><span class="nv-v" id="nv-delayCadiz">&mdash;</span></div>
+              <div><span class="nv-k">km</span><span class="nv-v">12&rarr;10</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Score chart -->
+      <section class="nv-section">
+        <div class="nv-section-head">
+          <div class="nv-section-title">Histórico de congestión</div>
+          <div class="nv-tabs" id="nv-rangeTabs">
+            <button class="nv-tab-btn" data-nv-range="1">1h</button>
+            <button class="nv-tab-btn" data-nv-range="6">6h</button>
+            <button class="nv-tab-btn active" data-nv-range="24">24h</button>
+          </div>
+        </div>
+        <div class="nv-card" style="padding:22px;">
+          <div class="nv-chart-container" id="nv-chartContainer">
+            <svg id="nv-chartSvg" preserveAspectRatio="none"></svg>
+            <div class="nv-tooltip" id="nv-tooltip">
+              <div style="font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,0.5);font-size:10px;" id="nv-ttTime">&mdash;</div>
+              <div style="font-weight:600;font-family:'JetBrains Mono',monospace;" id="nv-ttVal">&mdash;</div>
+            </div>
+          </div>
+          <div class="nv-chart-legend">
+            <span><i style="background:var(--nv-ok)"></i>fluido</span>
+            <span><i style="background:var(--nv-warn)"></i>denso</span>
+            <span><i style="background:var(--nv-alert)"></i>retenciones</span>
+            <span><i style="background:var(--nv-danger)"></i>congestión</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- VMS panels -->
+      <section class="nv-section">
+        <div class="nv-section-head">
+          <div class="nv-section-title">Paneles DGT en el tramo</div>
+          <div class="nv-section-aside">SE-30</div>
+        </div>
+        <div class="nv-vms-grid" id="nv-vmsGrid"></div>
+      </section>
+
+      <!-- Incidents -->
+      <section class="nv-section">
+        <div class="nv-section-head">
+          <div class="nv-section-title">Incidencias activas</div>
+          <div class="nv-section-aside" id="nv-incCount">&mdash;</div>
+        </div>
+        <div class="nv-incident-list" id="nv-incidentList"></div>
+      </section>
+
+      <!-- Report -->
+      <section class="nv-section">
+        <div class="nv-card" style="padding:22px;">
+          <div style="font-size:15px;font-weight:600;">&iquest;Est&aacute;s viendo el puente ahora mismo?</div>
+          <div style="font-size:13px;color:var(--nv-text-2);margin-top:4px;">Ayúdanos a afinar la predicción del carril reversible. Tu reporte pesa más cuanto más reciente sea.</div>
+          <div class="nv-report-actions">
+            <button class="nv-report-btn" id="nv-btn-report-huelva" onclick="nvReportReversible('positive')">
+              <span class="nv-dir">&rarr; Sentido Huelva</span>
+              <span class="nv-hint">reversible abierto hacia Huelva</span>
+            </button>
+            <button class="nv-report-btn" id="nv-btn-report-cadiz" onclick="nvReportReversible('negative')">
+              <span class="nv-dir">&larr; Sentido C&aacute;diz</span>
+              <span class="nv-hint">reversible abierto hacia Cádiz</span>
+            </button>
+            <button class="nv-report-btn" id="nv-btn-report-none" onclick="nvReportReversible('none')">
+              <span class="nv-dir">&mdash; Sin reversible</span>
+              <span class="nv-hint">ambos sentidos normales</span>
+            </button>
+          </div>
+          <input id="nv-reportNote" type="text" maxlength="280" placeholder="Nota opcional (duda, transici&oacute;n, contexto...)" style="margin-top:10px;width:100%;padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:12px;background:transparent;border:1px solid var(--nv-border);color:var(--nv-text);box-sizing:border-box;border-radius:6px;" />
+          <div id="nv-reportStatus" style="margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--nv-text-3);min-height:14px;"></div>
+        </div>
+      </section>
+
+    </div><!-- /tab-nuevo -->
+
     <!-- Footer -->
     <footer class="nd-footer">
       <span class="nd-eyebrow">Actualización automática cada 60 s</span>
-      <span class="nd-eyebrow">SE-30 km 10–12 · Sentido Huelva · Sevilla</span>
+      <span class="nd-eyebrow">SE-30 km 10–12 · Ambos sentidos · Sevilla</span>
     </footer>
 
   </div>
 
   <script>
     const stateLabels = {
-      fluido: "Fluido",
-      denso: "Denso",
-      retenciones: "Retenciones",
-      congestion_fuerte: "Congestión fuerte",
+      fluido: "Muy fluido",
+      denso: "Fluido",
+      retenciones: "Denso",
+      congestion_fuerte: "Retenciones",
+      colapso: "Circulación muy lenta",
       indeterminado: "Indeterminado",
       positive: "Sentido Huelva",
       negative: "Sentido Sevilla"
@@ -1837,6 +2174,7 @@ HTML_PAGE = """<!doctype html>
       renderRecentReports(data.reversible_reports || []);
       renderSpeedTab(data);
       renderMapTab(data);
+      renderNuevo(data);
       if (latestRun && latestRun.warnings && latestRun.warnings.length > 0) {
         warningBox.style.display = "block";
         warningBox.innerHTML = latestRun.warnings.map((item) => escapeHtml(item)).join("<br>");
@@ -1874,21 +2212,37 @@ HTML_PAGE = """<!doctype html>
 
     async function reportReversible(direction) {
       const statusEl = byId('reportStatus');
+      const noteEl = byId('reportNote');
+      const note = noteEl && noteEl.value ? noteEl.value.trim() : '';
       statusEl.textContent = 'Enviando...';
       try {
         const res = await fetch('/api/report-reversible', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ direction }),
+          body: JSON.stringify({ direction, note: note || undefined }),
         });
         if (!res.ok) throw new Error('Error ' + res.status);
         statusEl.style.color = reportColors[direction] || '#888';
         statusEl.textContent = `Registrado: ${reportLabels[direction]} · ${new Date().toLocaleTimeString('es-ES')}`;
-        // Recarga el dashboard para mostrar el nuevo reporte
+        if (noteEl) noteEl.value = '';
         await loadDashboard();
       } catch (e) {
         statusEl.style.color = 'var(--accent)';
         statusEl.textContent = 'Error al enviar: ' + e.message;
+      }
+    }
+
+    async function deleteReport(id) {
+      const statusEl = byId('reportStatus');
+      try {
+        const res = await fetch('/api/report-reversible/' + id, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Error ' + res.status);
+        statusEl.style.color = '#888';
+        statusEl.textContent = 'Registro eliminado.';
+        await loadDashboard();
+      } catch (e) {
+        statusEl.style.color = 'var(--accent)';
+        statusEl.textContent = 'Error al eliminar: ' + e.message;
       }
     }
 
@@ -1903,9 +2257,14 @@ HTML_PAGE = """<!doctype html>
         const color = reportColors[r.direction] || '#666';
         const label = reportLabels[r.direction] || r.direction;
         const dt = r.reported_at ? new Date(r.reported_at + 'Z').toLocaleString('es-ES', { timeZone: 'Europe/Madrid', hour12: false }) : '\u2014';
-        return `<div style="display:flex;gap:var(--space-md);align-items:baseline;padding:4px 0;border-bottom:1px solid #111;">
-          <span style="font-family:${mono};font-size:11px;color:${color};min-width:100px;">${escapeHtml(label)}</span>
-          <span style="font-family:${mono};font-size:10px;color:#555;">${escapeHtml(dt)}</span>
+        const noteHtml = r.note ? `<div style="font-family:${mono};font-size:10px;color:#777;padding:2px 0 0 100px;font-style:italic;">&#8220;${escapeHtml(r.note)}&#8221;</div>` : '';
+        return `<div style="padding:4px 0;border-bottom:1px solid #111;">
+          <div style="display:flex;gap:var(--space-md);align-items:center;">
+            <span style="font-family:${mono};font-size:11px;color:${color};min-width:100px;">${escapeHtml(label)}</span>
+            <span style="font-family:${mono};font-size:10px;color:#555;flex:1;">${escapeHtml(dt)}</span>
+            <button onclick="deleteReport(${r.id})" title="Eliminar este registro" style="background:none;border:none;cursor:pointer;color:#444;font-size:14px;line-height:1;padding:0 2px;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='#444'">&#x2715;</button>
+          </div>
+          ${noteHtml}
         </div>`;
       });
       el.innerHTML = `<div style="font-family:${mono};font-size:9px;letter-spacing:0.08em;color:#444;margin-bottom:4px;">&#218;LTIMAS OBSERVACIONES</div>${rows.join('')}`;
@@ -2127,19 +2486,103 @@ HTML_PAGE = """<!doctype html>
       });
     }
 
+    // ---- Histórico de velocidades diarias ----
+
+    async function loadHistorico() {
+      const status = document.getElementById('hist-status');
+      status.textContent = 'Cargando...';
+      try {
+        const res = await fetch('/api/daily-stats');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const rows = await res.json();
+        renderHistorico(rows);
+        const numDays = new Set(rows.map(r => r.date)).size;
+        status.textContent = numDays + ' d\u00eda' + (numDays !== 1 ? 's' : '') + ' registrado' + (numDays !== 1 ? 's' : '');
+        status.style.color = 'var(--success)';
+      } catch (e) {
+        status.textContent = 'Error: ' + e.message;
+        status.style.color = 'var(--accent)';
+      }
+    }
+
+    function fmtSpd(v) {
+      if (v == null || isNaN(v)) return '\u2014';
+      return parseFloat(v).toFixed(1) + ' km/h';
+    }
+
+    function fmtTime(isoStr) {
+      if (!isoStr) return '';
+      try {
+        return new Date(isoStr).toLocaleTimeString('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' });
+      } catch (e) { return ''; }
+    }
+
+    function spdCell(speed, time, color) {
+      const t = fmtTime(time);
+      return `<td style="padding:9px 16px;text-align:right;color:${color};">`
+        + fmtSpd(speed)
+        + (t ? `<div style="font-size:10px;color:var(--text-secondary);margin-top:1px;">${t}</div>` : '')
+        + '</td>';
+    }
+
+    function renderHistorico(rows) {
+      const tbody = document.getElementById('hist-tbody');
+      if (!rows || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="padding:24px 16px;text-align:center;color:var(--text-secondary);">Sin datos todav\u00eda.</td></tr>';
+        return;
+      }
+      const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+      const byDate = {};
+      rows.forEach(r => {
+        if (!byDate[r.date]) byDate[r.date] = {};
+        byDate[r.date][r.direction] = r;
+      });
+      const dates = Object.keys(byDate).sort().reverse();
+      const colH = '#4A9E5C';
+      const colC = '#D4A843';
+      let html = '';
+      dates.forEach(date => {
+        const isToday = date === todayStr;
+        const h = byDate[date]['positive'] || {};
+        const c = byDate[date]['negative'] || {};
+        const samples = (h.sample_count || 0) + (c.sample_count || 0);
+        const dateLabel = isToday
+          ? `<span style="color:var(--text-primary)">${date}</span> <span style="color:var(--text-secondary);font-size:10px;">EN CURSO</span>`
+          : `<span>${date}</span>`;
+        const rowOpacity = isToday ? 'opacity:0.75;' : '';
+        html += `<tr style="border-bottom:1px solid var(--border);${rowOpacity}">
+          <td style="padding:9px 16px;white-space:nowrap;">${dateLabel}</td>
+          ${spdCell(h.min_speed, h.min_speed_time, colH)}
+          ${spdCell(h.max_speed, h.max_speed_time, colH)}
+          <td style="padding:9px 16px;text-align:right;color:${colH};">${fmtSpd(h.avg_speed)}</td>
+          ${spdCell(c.min_speed, c.min_speed_time, colC)}
+          ${spdCell(c.max_speed, c.max_speed_time, colC)}
+          <td style="padding:9px 16px;text-align:right;color:${colC};">${fmtSpd(c.avg_speed)}</td>
+          <td style="padding:9px 16px;text-align:right;color:var(--text-secondary);">${samples}</td>
+        </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
     function showTab(name) {
       document.getElementById('tab-estado').style.display = name === 'estado' ? '' : 'none';
       document.getElementById('tab-velocidades').style.display = name === 'velocidades' ? '' : 'none';
       document.getElementById('tab-mapa').style.display = name === 'mapa' ? '' : 'none';
       document.getElementById('tab-se30').style.display = name === 'se30' ? '' : 'none';
+      document.getElementById('tab-historico').style.display = name === 'historico' ? '' : 'none';
+      document.getElementById('tab-nuevo').style.display = name === 'nuevo' ? '' : 'none';
       document.getElementById('btn-estado').classList.toggle('active', name === 'estado');
       document.getElementById('btn-velocidades').classList.toggle('active', name === 'velocidades');
       document.getElementById('btn-mapa').classList.toggle('active', name === 'mapa');
       document.getElementById('btn-se30').classList.toggle('active', name === 'se30');
+      document.getElementById('btn-historico').classList.toggle('active', name === 'historico');
+      document.getElementById('btn-nuevo').classList.toggle('active', name === 'nuevo');
       if (name === 'mapa') requestAnimationFrame(initMap);
       if (name === 'se30') { loadSE30Data(); requestAnimationFrame(initMapSE30); }
-      // Redibujar canvas al mostrar la pestaña (offsetWidth es 0 cuando estaba oculto)
+      if (name === 'historico') loadHistorico();
       if (name === 'estado' || name === 'velocidades') requestAnimationFrame(redrawCanvases);
+      if (name === 'nuevo') { requestAnimationFrame(() => { nv_renderChart(); nv_startScene(); }); }
+      else { nv_stopScene(); }
     }
 
     // ---- SE-30 Completa ----
@@ -2602,6 +3045,400 @@ HTML_PAGE = """<!doctype html>
       }
     }
 
+    /* ============================================================
+       TAB VISTA — nuevo diseño: datos + animación
+    ============================================================ */
+    const NV_LEVELS = {
+      fluido:            { color: 'var(--nv-ok)',     label: 'MUY FLUIDO',  verdict: 'Circulación libre',       sub: 'El puente fluye con total normalidad. Velocidades próximas al límite en ambos sentidos.' },
+      denso:             { color: 'var(--nv-ok)',     label: 'FLUIDO',      verdict: 'Tráfico fluido',          sub: 'Tráfico notable pero ágil. Puedes cruzar sin problema a buena velocidad.' },
+      retenciones:       { color: 'var(--nv-warn)',   label: 'DENSO',       verdict: 'Tráfico denso',           sub: 'Velocidad reducida. Espera más tiempo del habitual para cruzar.' },
+      congestion_fuerte: { color: 'var(--nv-alert)',  label: 'RETENCIONES', verdict: 'Retenciones',             sub: 'Velocidades muy bajas y paradas frecuentes. Considera una ruta alternativa.' },
+      colapso:           { color: 'var(--nv-danger)', label: 'COLAPSO',     verdict: 'Circulación muy lenta',   sub: 'El puente está colapsado. Evítalo y busca alternativa urgente.' },
+    };
+    function nv_scoreToLevel(s) {
+      if (s < 8)  return 'fluido';
+      if (s < 20) return 'denso';
+      if (s < 42) return 'retenciones';
+      if (s < 70) return 'congestion_fuerte';
+      return 'colapso';
+    }
+    const nv_state = { trendStates: [], chartRange: 24, sceneSpeedH: null, sceneSpeedC: null, sceneRev: 'indeterminado' };
+
+    function renderNuevo(data) {
+      if (!data || !data.state) return;
+      const state = data.state;
+      nv_state.trendStates = data.trend_states || data.recent_states || [];
+      nv_state.sceneSpeedH = null;
+      nv_state.sceneSpeedC = null;
+      const detectors = data.detectors || [];
+      detectors.forEach(d => {
+        if (d.detector_id === 'tomtom_route_huelva') nv_state.sceneSpeedH = d.average_speed;
+        if (d.detector_id === 'tomtom_route_cadiz')  nv_state.sceneSpeedC = d.average_speed;
+      });
+      nv_state.sceneRev = state.reversible_probable || 'indeterminado';
+      nv_renderHero(state);
+      nv_renderSpeeds(detectors);
+      if (byId('tab-nuevo') && byId('tab-nuevo').style.display !== 'none') {
+        nv_renderChart();
+      }
+      nv_renderVms(data.panels || []);
+      nv_renderIncidents(data.incidents || []);
+      nv_updateRevVisual();
+    }
+
+    function nv_renderHero(state) {
+      const score = parseFloat(state.traffic_score) || 0;
+      const key = nv_scoreToLevel(score);
+      const lv = NV_LEVELS[key];
+      const v = byId('nv-verdict'); if (v) v.textContent = lv.verdict;
+      const sub = byId('nv-verdictSub'); if (sub) sub.textContent = lv.sub;
+      const sn = byId('nv-scoreNum'); if (sn) sn.textContent = score.toFixed(1);
+      const chip = byId('nv-levelChip');
+      if (chip) { chip.textContent = lv.label; chip.style.setProperty('--nv-chip-color', lv.color); }
+      const dot = byId('nv-verdictDot'); if (dot) dot.style.background = lv.color;
+      const label = byId('nv-verdictLabel');
+      if (label) label.textContent = 'Estado · ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      const rev = state.reversible_probable;
+      const conf = parseFloat(state.confidence) || 0;
+      const arrow = byId('nv-revArrow');
+      const dir = byId('nv-revDir');
+      const rsub = byId('nv-revSub');
+      const badgeH = byId('nv-badgeHuelva');
+      const badgeC = byId('nv-badgeCadiz');
+      if (rev === 'positive') {
+        if (arrow) { arrow.textContent = '→'; arrow.style.transform = 'none'; }
+        if (dir) dir.textContent = 'Sentido Huelva';
+        if (rsub) rsub.textContent = 'Carril reversible — sentido Huelva';
+        if (badgeH) badgeH.style.display = 'inline-flex';
+        if (badgeC) badgeC.style.display = 'none';
+      } else if (rev === 'negative') {
+        if (arrow) { arrow.textContent = '→'; arrow.style.transform = 'scaleX(-1)'; }
+        if (dir) dir.textContent = 'Sentido Cádiz';
+        if (rsub) rsub.textContent = 'Carril reversible — sentido Cádiz';
+        if (badgeH) badgeH.style.display = 'none';
+        if (badgeC) badgeC.style.display = 'inline-flex';
+      } else {
+        if (arrow) { arrow.textContent = '—'; arrow.style.transform = 'none'; }
+        if (dir) dir.textContent = 'Indeterminado';
+        if (rsub) rsub.textContent = 'Sin señal clara del carril reversible';
+        if (badgeH) badgeH.style.display = 'none';
+        if (badgeC) badgeC.style.display = 'none';
+      }
+      const confPct = Math.round(conf * 100);
+      const confLabel = byId('nv-confLabel'); if (confLabel) confLabel.textContent = confPct + '%';
+      const confFill = byId('nv-confFill'); if (confFill) confFill.style.width = confPct + '%';
+    }
+
+    function nv_renderSpeeds(detectors) {
+      const h = detectors.find(d => d.detector_id === 'tomtom_route_huelva');
+      const c = detectors.find(d => d.detector_id === 'tomtom_route_cadiz');
+      const apply = (idSpd, idBar, idFree, idDelay, d) => {
+        if (!d || d.average_speed == null) { const el = byId(idSpd); if (el) el.textContent = '—'; return; }
+        const spd = Math.round(d.average_speed);
+        const pct = Math.min(100, (spd / 60) * 100);
+        const ratio = spd / 60;
+        const color = ratio > 0.8 ? 'var(--nv-ok)' : ratio > 0.55 ? 'var(--nv-warn)' : ratio > 0.3 ? 'var(--nv-alert)' : 'var(--nv-danger)';
+        const sp = byId(idSpd); if (sp) sp.textContent = spd;
+        const bar = byId(idBar); if (bar) { bar.style.width = pct + '%'; bar.style.background = color; }
+        const fr = byId(idFree); if (fr) fr.textContent = Math.round(d.free_flow_speed || 60);
+        const dl = byId(idDelay); if (dl) dl.textContent = d.vehicle_flow != null ? '+' + d.vehicle_flow + 's' : '—';
+      };
+      apply('nv-speedHuelva', 'nv-barHuelva', 'nv-freeHuelva', 'nv-delayHuelva', h);
+      apply('nv-speedCadiz',  'nv-barCadiz',  'nv-freeCadiz',  'nv-delayCadiz',  c);
+    }
+
+    function nv_renderChart() {
+      const svg = byId('nv-chartSvg');
+      const container = byId('nv-chartContainer');
+      if (!svg || !container) return;
+      const W = container.clientWidth || 600;
+      const H = container.clientHeight || 220;
+      const pad = { l: 36, r: 12, t: 8, b: 22 };
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      svg.innerHTML = '';
+      const hrs = nv_state.chartRange || 24;
+      const pts = Math.round(hrs * 12);
+      const allData = nv_state.trendStates || [];
+      const data = allData.slice(-pts).map(s => ({ score: parseFloat(s.traffic_score) || 0, t: new Date(s.generated_at) }));
+      if (!data.length) return;
+      const maxY = Math.max(40, ...data.map(d => d.score)) * 1.1;
+      const xp = (i) => pad.l + (i / Math.max(data.length - 1, 1)) * (W - pad.l - pad.r);
+      const yp = (v) => pad.t + (1 - v / maxY) * (H - pad.t - pad.b);
+      const NS = 'http://www.w3.org/2000/svg';
+      const mk = (tag, attrs) => { const el = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v)); return el; };
+      [{ v: 12, c: 'var(--nv-ok)' }, { v: 24, c: 'var(--nv-warn)' }, { v: 36, c: 'var(--nv-alert)' }].forEach(th => {
+        if (th.v >= maxY) return;
+        svg.appendChild(mk('line', { x1: pad.l, x2: W - pad.r, y1: yp(th.v), y2: yp(th.v), stroke: th.c, 'stroke-width': '1', 'stroke-dasharray': '3 3', opacity: '0.4' }));
+      });
+      [0, 12, 24, 36].forEach(v => {
+        if (v > maxY) return;
+        const t = mk('text', { x: pad.l - 8, y: yp(v) + 3, 'text-anchor': 'end', fill: 'var(--nv-text-3)', 'font-size': '10', 'font-family': 'JetBrains Mono, monospace' });
+        t.textContent = v; svg.appendChild(t);
+      });
+      const step = Math.max(1, Math.floor(data.length / 6));
+      for (let i = 0; i < data.length; i += step) {
+        const t = mk('text', { x: xp(i), y: H - 6, 'text-anchor': 'middle', fill: 'var(--nv-text-3)', 'font-size': '10', 'font-family': 'JetBrains Mono, monospace' });
+        t.textContent = data[i].t.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); svg.appendChild(t);
+      }
+      const lastKey = nv_scoreToLevel(data[data.length - 1].score);
+      const c = NV_LEVELS[lastKey].color;
+      const defs = document.createElementNS(NS, 'defs');
+      const lg = mk('linearGradient', { id: 'nvAreaGrad', x1: '0', y1: '0', x2: '0', y2: '1' });
+      lg.innerHTML = `<stop offset="0%" stop-color="${c}" stop-opacity="0.32"/><stop offset="100%" stop-color="${c}" stop-opacity="0"/>`;
+      defs.appendChild(lg); svg.appendChild(defs);
+      const pathD = data.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xp(i)} ${yp(p.score)}`).join(' ');
+      svg.appendChild(mk('path', { d: `${pathD} L ${xp(data.length - 1)} ${yp(0)} L ${xp(0)} ${yp(0)} Z`, fill: 'url(#nvAreaGrad)' }));
+      svg.appendChild(mk('path', { d: pathD, fill: 'none', stroke: c, 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+      const li = data.length - 1;
+      svg.appendChild(mk('circle', { cx: xp(li), cy: yp(data[li].score), r: '4', fill: c, stroke: 'var(--nv-surface)', 'stroke-width': '2' }));
+      const hvr = mk('circle', { r: '4', fill: c, stroke: 'var(--nv-surface)', 'stroke-width': '2', opacity: '0' }); svg.appendChild(hvr);
+      const vl = mk('line', { y1: pad.t, y2: H - pad.b, stroke: 'var(--nv-border-strong)', 'stroke-width': '1', opacity: '0' }); svg.appendChild(vl);
+      const overlay = mk('rect', { x: pad.l, y: pad.t, width: W - pad.l - pad.r, height: H - pad.t - pad.b, fill: 'transparent' }); svg.appendChild(overlay);
+      const tooltip = byId('nv-tooltip');
+      overlay.addEventListener('mousemove', (e) => {
+        const rect = overlay.getBoundingClientRect();
+        const idx = Math.round(((e.clientX - rect.left) / rect.width) * (data.length - 1));
+        if (idx < 0 || idx >= data.length) return;
+        const px = xp(idx), py = yp(data[idx].score);
+        hvr.setAttribute('cx', px); hvr.setAttribute('cy', py); hvr.setAttribute('opacity', '1');
+        vl.setAttribute('x1', px); vl.setAttribute('x2', px); vl.setAttribute('opacity', '0.5');
+        if (tooltip) {
+          tooltip.style.opacity = '1'; tooltip.style.left = px + 'px'; tooltip.style.top = py + 'px';
+          const ttTime = byId('nv-ttTime'); if (ttTime) ttTime.textContent = data[idx].t.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+          const ttVal = byId('nv-ttVal'); if (ttVal) { const lk = nv_scoreToLevel(data[idx].score); ttVal.textContent = data[idx].score.toFixed(1) + ' · ' + NV_LEVELS[lk].label.toLowerCase(); }
+        }
+      });
+      overlay.addEventListener('mouseleave', () => { hvr.setAttribute('opacity', '0'); vl.setAttribute('opacity', '0'); if (tooltip) tooltip.style.opacity = '0'; });
+    }
+
+    document.querySelectorAll('#nv-rangeTabs .nv-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#nv-rangeTabs .nv-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        nv_state.chartRange = parseInt(btn.dataset.nvRange, 10);
+        nv_renderChart();
+      });
+    });
+
+    function nv_renderVms(panels) {
+      const grid = byId('nv-vmsGrid'); if (!grid) return;
+      const byLoc = {};
+      panels.forEach(p => { if (!byLoc[p.location_id]) byLoc[p.location_id] = p; });
+      const knownIds = ['60514', '60833', '60516'];
+      let list = knownIds.map(id => byLoc[id] || byLoc['GUID_PMV_' + id]).filter(Boolean);
+      if (!list.length) list = Object.values(byLoc).slice(0, 3);
+      if (!list.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1;padding:24px;text-align:center;color:var(--nv-text-3);font-size:13px;">Sin mensajes de panel en el tramo.</div>';
+        return;
+      }
+      grid.innerHTML = list.map(p => {
+        const text = (p.legends || []).join('\\n').trim();
+        const dirText = p.direction === 'positive' ? 'SENTIDO HUELVA' : p.direction === 'negative' ? 'SENTIDO CÁDIZ' : 'SE-30';
+        const kmText = p.km != null ? 'KM ' + parseFloat(p.km).toFixed(1) : '—';
+        return `<div class="nv-vms"><div class="nv-vms-meta"><span>PANEL ${escapeHtml(String(p.location_id))}</span><span>${escapeHtml(kmText)}</span></div><div class="nv-vms-screen${text ? '' : ' empty'}">${text ? escapeHtml(text) : '— SIN MENSAJE —'}</div><div class="nv-vms-footer"><span>${escapeHtml(dirText)}</span><span>SE-30</span></div></div>`;
+      }).join('');
+    }
+
+    const NV_INC_ICONS = {
+      accident: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      roadClosed: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
+      roadworks: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m14.7 6.3-1 1a2 2 0 0 0 0 2.8l1.3 1.3a2 2 0 0 0 2.8 0l1-1"/><path d="m2 22 3-3"/><path d="M17 22 7 12l3-3 10 10"/></svg>',
+    };
+    const NV_INC_COLORS = { high: 'var(--nv-danger)', highest: 'var(--nv-danger)', medium: 'var(--nv-alert)', low: 'var(--nv-warn)', lowest: 'var(--nv-text-2)' };
+
+    function nv_renderIncidents(incidents) {
+      const list = byId('nv-incidentList'); if (!list) return;
+      const count = byId('nv-incCount');
+      const active = incidents.filter(i => (i.validity_status || '') !== 'suspended');
+      if (count) count.textContent = active.length ? active.length + ' activa' + (active.length > 1 ? 's' : '') : '0 activas';
+      if (!active.length) { list.innerHTML = '<div class="nv-card nv-empty">Ninguna incidencia activa en el tramo. ✓</div>'; return; }
+      list.innerHTML = active.slice(0, 8).map(inc => {
+        const color = NV_INC_COLORS[inc.severity] || 'var(--nv-text-2)';
+        const dirText = inc.direction === 'positive' ? 'Sentido Huelva' : inc.direction === 'negative' ? 'Sentido Cádiz' : 'Ambos';
+        const icon = NV_INC_ICONS[inc.incident_type] || NV_INC_ICONS.accident;
+        const km = inc.from_km != null ? `<span class="nv-mono">km ${parseFloat(inc.from_km).toFixed(1)}</span>` : '';
+        return `<div class="nv-incident" style="--nv-inc-color:${color}"><div class="nv-inc-ic">${icon}</div><div class="nv-inc-main"><div class="nv-inc-title">${escapeHtml(incidentLabel(inc.incident_type))}</div><div class="nv-inc-meta"><span class="nv-inc-severity">${escapeHtml(inc.severity || '—')}</span><span>${escapeHtml(dirText)}</span>${km}<span>${escapeHtml(inc.source || 'DGT')}</span></div></div></div>`;
+      }).join('');
+    }
+
+    async function nvReportReversible(direction) {
+      const statusEl = byId('nv-reportStatus');
+      const noteEl = byId('nv-reportNote');
+      const note = noteEl && noteEl.value ? noteEl.value.trim() : '';
+      if (statusEl) { statusEl.style.color = 'var(--nv-text-3)'; statusEl.textContent = 'Enviando…'; }
+      try {
+        const res = await fetch('/api/report-reversible', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ direction, note: note || undefined }) });
+        if (!res.ok) throw new Error('Error ' + res.status);
+        const labels = { positive: '→ Huelva', negative: '← Cádiz', none: 'Sin reversible' };
+        if (statusEl) { statusEl.style.color = 'var(--nv-ok)'; statusEl.textContent = 'Registrado: ' + (labels[direction] || direction) + ' · ' + new Date().toLocaleTimeString('es-ES'); }
+        if (noteEl) noteEl.value = '';
+        ['nv-btn-report-huelva', 'nv-btn-report-cadiz', 'nv-btn-report-none'].forEach(id => { const b = byId(id); if (b) b.classList.remove('success'); });
+        const ids = { positive: 'nv-btn-report-huelva', negative: 'nv-btn-report-cadiz', none: 'nv-btn-report-none' };
+        const ab = byId(ids[direction]); if (ab) { ab.classList.add('success'); setTimeout(() => ab.classList.remove('success'), 3000); }
+        await loadDashboard();
+      } catch (e) {
+        if (statusEl) { statusEl.style.color = 'var(--nv-danger)'; statusEl.textContent = 'Error: ' + e.message; }
+      }
+    }
+
+    /* ---- Bridge scene animation ---- */
+    const nv_scene = { huelva: [], cadiz: [], lastTs: 0, raf: null };
+
+    function nv_initSceneSvg() {
+      const svg = byId('nv-sceneSvg'); if (!svg) return;
+      const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+      const sky1 = isDark ? '#0a0d15' : '#eef1f6', sky2 = isDark ? '#151b2a' : '#f7f9fc';
+      const water1 = isDark ? '#0d1628' : '#d8e2ee', water2 = isDark ? '#070b14' : '#c4d2e2';
+      const deck = isDark ? '#1a2030' : '#2a2f3a', deckLine = isDark ? '#242b3d' : '#3a404c';
+      const cable = isDark ? '#3a4560' : '#7a8398', pylon = isDark ? '#2a3246' : '#1f2430';
+      const ripple = isDark ? '#1b2438' : '#b8c6d8';
+      svg.innerHTML = `<defs>
+        <linearGradient id="nv-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${sky1}"/><stop offset="100%" stop-color="${sky2}"/></linearGradient>
+        <linearGradient id="nv-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${water1}"/><stop offset="100%" stop-color="${water2}"/></linearGradient>
+        <filter id="nv-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5"/></filter>
+      </defs>
+      <rect x="0" y="0" width="800" height="155" fill="url(#nv-sky)"/>
+      <rect x="0" y="155" width="800" height="85" fill="url(#nv-water)"/>
+      <g stroke="${ripple}" stroke-width="0.5" opacity="0.6">
+        <line x1="60" y1="195" x2="120" y2="195"/><line x1="220" y1="210" x2="290" y2="210"/>
+        <line x1="420" y1="200" x2="490" y2="200"/><line x1="600" y1="220" x2="680" y2="220"/>
+      </g>
+      <line x1="200" y1="152" x2="170" y2="38" stroke="${pylon}" stroke-width="5" stroke-linecap="round"/>
+      <line x1="600" y1="152" x2="630" y2="38" stroke="${pylon}" stroke-width="5" stroke-linecap="round"/>
+      <g stroke="${cable}" stroke-width="0.8" opacity="0.75">
+        <line x1="170" y1="38" x2="50" y2="148"/><line x1="170" y1="38" x2="100" y2="148"/>
+        <line x1="170" y1="38" x2="150" y2="148"/><line x1="170" y1="38" x2="200" y2="148"/>
+        <line x1="170" y1="38" x2="270" y2="148"/><line x1="170" y1="38" x2="340" y2="148"/>
+        <line x1="170" y1="38" x2="400" y2="148"/>
+      </g>
+      <g stroke="${cable}" stroke-width="0.8" opacity="0.75">
+        <line x1="630" y1="38" x2="750" y2="148"/><line x1="630" y1="38" x2="700" y2="148"/>
+        <line x1="630" y1="38" x2="650" y2="148"/><line x1="630" y1="38" x2="600" y2="148"/>
+        <line x1="630" y1="38" x2="530" y2="148"/><line x1="630" y1="38" x2="460" y2="148"/>
+        <line x1="630" y1="38" x2="400" y2="148"/>
+      </g>
+      <circle cx="170" cy="38" r="3" fill="${pylon}"/>
+      <circle cx="630" cy="38" r="3" fill="${pylon}"/>
+      <rect x="0" y="148" width="800" height="16" fill="${deck}"/>
+      <line x1="0" y1="148" x2="800" y2="148" stroke="${deckLine}" stroke-width="1"/>
+      <line x1="0" y1="164" x2="800" y2="164" stroke="${deckLine}" stroke-width="1"/>
+      <line x1="0" y1="151" x2="800" y2="151" stroke="${deckLine}" stroke-width="0.5"/>
+      <line x1="0" y1="156" x2="800" y2="156" stroke="${deckLine}" stroke-width="0.5" stroke-dasharray="6 4"/>
+      <line x1="0" y1="161" x2="800" y2="161" stroke="${deckLine}" stroke-width="0.5"/>
+      <rect id="nv-revGlow" x="0" y="154" width="800" height="4" fill="#4a80ff" opacity="0"/>
+      <g font-family="JetBrains Mono, monospace" font-size="8" fill="${isDark ? '#4a5470' : '#7a8398'}">
+        <text x="8" y="178">KM 10</text><text x="772" y="178" text-anchor="end">KM 12</text>
+      </g>
+      <g id="nv-carsHuelva"></g>
+      <g id="nv-carsCadiz"></g>
+      <g id="nv-revArrowScene" opacity="0">
+        <circle cx="400" cy="124" r="12" fill="#4a80ff" opacity="0.2"/>
+        <circle cx="400" cy="124" r="8" fill="#4a80ff"/>
+        <text id="nv-revArrowText" x="400" y="128" text-anchor="middle" font-size="10" font-weight="700" fill="white">→</text>
+      </g>`;
+    }
+
+    function nv_updateRevVisual() {
+      const glow = byId('nv-revGlow'), arrow = byId('nv-revArrowScene'), arrowText = byId('nv-revArrowText');
+      if (!glow || !arrow) return;
+      const rev = nv_state.sceneRev;
+      if (rev === 'positive') {
+        glow.setAttribute('y', '150'); glow.setAttribute('opacity', '0.25'); arrow.setAttribute('opacity', '1'); if (arrowText) arrowText.textContent = '→';
+      } else if (rev === 'negative') {
+        glow.setAttribute('y', '158'); glow.setAttribute('opacity', '0.25'); arrow.setAttribute('opacity', '1'); if (arrowText) arrowText.textContent = '←';
+      } else {
+        glow.setAttribute('opacity', '0'); arrow.setAttribute('opacity', '0');
+      }
+    }
+
+    function nv_spawnCar(dir, speedKmh) {
+      const x = dir === 'huelva' ? -40 : 840;
+      const laneY = dir === 'huelva' ? 152 : 160;
+      const kmh = Math.max(5, speedKmh + (Math.random() - 0.5) * 6);
+      const speed = (kmh / 60) * 120;
+      return { x, y: laneY, vx: (dir === 'huelva' ? 1 : -1) * speed, w: 14 + Math.random() * 3, h: 5, color: nv_pickCarColor(), brake: Math.random() < 0.08, brakeTimer: 1 + Math.random() * 2 };
+    }
+
+    function nv_pickCarColor() {
+      const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+      const p = isDark ? ['#d9dde7','#b0b7c9','#8891a8','#e8c9a8','#a4c8e4','#e4a8a8'] : ['#ffffff','#e2e6ee','#c8ccd5','#f2d4b4','#b4cfeb','#eab4b4'];
+      return p[Math.floor(Math.random() * p.length)];
+    }
+
+    function nv_renderCars() {
+      const NS = 'http://www.w3.org/2000/svg';
+      const renderLayer = (id, cars, isHuelva) => {
+        const layer = byId(id); if (!layer) return; layer.innerHTML = '';
+        cars.forEach(c => {
+          const g = document.createElementNS(NS, 'g'); g.setAttribute('transform', `translate(${c.x},${c.y})`);
+          const body = document.createElementNS(NS, 'rect');
+          body.setAttribute('x', -c.w/2); body.setAttribute('y', -c.h/2);
+          body.setAttribute('width', c.w); body.setAttribute('height', c.h);
+          body.setAttribute('rx', '1.2'); body.setAttribute('fill', c.color); g.appendChild(body);
+          const front = document.createElementNS(NS, 'rect');
+          front.setAttribute('width', '1.4'); front.setAttribute('height', '2'); front.setAttribute('y', '-1');
+          front.setAttribute('x', isHuelva ? c.w/2 - 1.4 : -c.w/2); front.setAttribute('fill', '#fff6c8'); front.setAttribute('opacity', '0.9'); g.appendChild(front);
+          if (c.brake || Math.abs(c.vx) < 15) {
+            const bl = document.createElementNS(NS, 'rect');
+            bl.setAttribute('width', '1.4'); bl.setAttribute('height', '2'); bl.setAttribute('y', '-1');
+            bl.setAttribute('x', isHuelva ? -c.w/2 : c.w/2 - 1.4); bl.setAttribute('fill', '#ff3b2f'); bl.setAttribute('filter', 'url(#nv-glow)'); g.appendChild(bl);
+          }
+          layer.appendChild(g);
+        });
+      };
+      renderLayer('nv-carsHuelva', nv_scene.huelva, true);
+      renderLayer('nv-carsCadiz', nv_scene.cadiz, false);
+    }
+
+    function nv_stepScene(ts) {
+      if (!nv_scene.lastTs) nv_scene.lastTs = ts;
+      const dt = Math.min(0.08, (ts - nv_scene.lastTs) / 1000);
+      nv_scene.lastTs = ts;
+      const spdH = nv_state.sceneSpeedH != null ? nv_state.sceneSpeedH : 55;
+      const spdC = nv_state.sceneSpeedC != null ? nv_state.sceneSpeedC : 52;
+      const avgSpd = (spdH + spdC) / 2;
+      const density = avgSpd > 50 ? 0.7 : avgSpd > 35 ? 1.4 : avgSpd > 20 ? 2.2 : 3.0;
+      const canSpawn = (cars, sign) => { const ex = sign > 0 ? -40 : 840; for (const o of cars) { const d = (o.x - ex) * sign; if (d >= 0 && d < 30) return false; } return true; };
+      if (Math.random() < density * 0.9 * dt && canSpawn(nv_scene.huelva, 1)) nv_scene.huelva.push(nv_spawnCar('huelva', spdH));
+      if (Math.random() < density * 0.85 * dt && canSpawn(nv_scene.cadiz, -1)) nv_scene.cadiz.push(nv_spawnCar('cadiz', spdC));
+      const updateCars = (cars, dirSign) => {
+        cars.sort((a, b) => dirSign > 0 ? b.x - a.x : a.x - b.x);
+        for (let i = 0; i < cars.length; i++) {
+          const c = cars[i], leader = cars[i - 1];
+          let tv = c.brake ? Math.abs(c.vx) * 0.3 : Math.abs(c.vx);
+          if (leader) { const gap = (leader.x - c.x) * dirSign - (leader.w / 2 + c.w / 2); if (gap < 24) tv = Math.min(tv, Math.abs(leader.vx) * Math.max(0, Math.min(1, (gap - 4) / 20))); }
+          if (c.brake) { c.brakeTimer -= dt; if (c.brakeTimer <= 0) c.brake = false; }
+          let nx = c.x + dirSign * tv * dt;
+          if (leader) { const mx = leader.x - dirSign * (leader.w / 2 + c.w / 2 + 4); nx = dirSign > 0 ? Math.min(nx, mx) : Math.max(nx, mx); }
+          c.x = nx;
+          if ((dirSign > 0 && c.x > 840) || (dirSign < 0 && c.x < -40)) { cars.splice(i, 1); i--; }
+        }
+      };
+      updateCars(nv_scene.huelva, 1);
+      updateCars(nv_scene.cadiz, -1);
+      const cap = avgSpd < 20 ? 55 : 38;
+      if (nv_scene.huelva.length > cap) nv_scene.huelva.splice(0, nv_scene.huelva.length - cap);
+      if (nv_scene.cadiz.length  > cap) nv_scene.cadiz.splice(0, nv_scene.cadiz.length - cap);
+      nv_renderCars();
+      const hc = byId('nv-sceneHuelvaCount'); if (hc) hc.textContent = nv_scene.huelva.length;
+      const cc = byId('nv-sceneCadizCount'); if (cc) cc.textContent = nv_scene.cadiz.length;
+      const st = byId('nv-sceneTempo'); if (st) st.textContent = 'media ' + Math.round(avgSpd) + ' km/h';
+      nv_scene.raf = requestAnimationFrame(nv_stepScene);
+    }
+
+    function nv_startScene() {
+      if (nv_scene.raf) return;
+      nv_initSceneSvg();
+      nv_updateRevVisual();
+      nv_scene.lastTs = 0;
+      nv_scene.raf = requestAnimationFrame(nv_stepScene);
+    }
+
+    function nv_stopScene() {
+      if (nv_scene.raf) { cancelAnimationFrame(nv_scene.raf); nv_scene.raf = null; }
+      nv_scene.huelva = []; nv_scene.cadiz = [];
+    }
+
     loadDashboard().catch((error) => {
       byId("heroDetail").textContent = `[ERROR] ${error.message}`;
     });
@@ -2650,6 +3487,9 @@ class DashboardServer:
                     return
                 if parsed.path == "/api/se30":
                     self._send_json(service.se30_live_data())
+                    return
+                if parsed.path == "/api/daily-stats":
+                    self._send_json(service.storage.get_daily_speed_stats())
                     return
                 if parsed.path == "/healthz":
                     self._send_json({"ok": True})
@@ -2704,8 +3544,27 @@ class DashboardServer:
                     if direction not in ("positive", "negative", "none"):
                         self._send_json({"error": "direction must be positive, negative or none"}, status=400)
                         return
-                    service.storage.insert_reversible_report(direction)
+                    note = payload.get("note")
+                    if note is not None and not isinstance(note, str):
+                        self._send_json({"error": "note must be a string"}, status=400)
+                        return
+                    service.storage.insert_reversible_report(direction, note=note)
                     self._send_json({"ok": True, "direction": direction})
+                    return
+                self.send_error(HTTPStatus.NOT_FOUND, "Ruta no encontrada")
+
+            def do_DELETE(self) -> None:
+                parsed = urlparse(self.path)
+                # /api/report-reversible/<id>
+                import re as _re
+                m = _re.match(r"^/api/report-reversible/(\d+)$", parsed.path)
+                if m:
+                    report_id = int(m.group(1))
+                    deleted = service.storage.delete_reversible_report(report_id)
+                    if deleted:
+                        self._send_json({"ok": True, "id": report_id})
+                    else:
+                        self._send_json({"error": "not found"}, status=404)
                     return
                 self.send_error(HTTPStatus.NOT_FOUND, "Ruta no encontrada")
 

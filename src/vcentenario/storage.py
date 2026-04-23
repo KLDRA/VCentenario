@@ -5,6 +5,7 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
+from zoneinfo import ZoneInfo
 
 from .config import (
     KEEP_BATCHES,
@@ -175,7 +176,21 @@ class Storage:
                 CREATE TABLE IF NOT EXISTS reversible_reports (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     reported_at TEXT NOT NULL,
-                    direction TEXT NOT NULL
+                    direction TEXT NOT NULL,
+                    note TEXT
+                );
+
+                CREATE TABLE IF NOT EXISTS daily_speed_stats (
+                    date TEXT NOT NULL,
+                    direction TEXT NOT NULL,
+                    min_speed REAL,
+                    max_speed REAL,
+                    avg_speed REAL,
+                    sample_count INTEGER NOT NULL DEFAULT 0,
+                    computed_at TEXT NOT NULL,
+                    min_speed_time TEXT,
+                    max_speed_time TEXT,
+                    PRIMARY KEY (date, direction)
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_panel_messages_collected_at
@@ -218,6 +233,24 @@ class Storage:
                 table_name="bridge_state",
                 column_name="learning_context_json",
                 column_definition="TEXT NOT NULL DEFAULT '{}'",
+            )
+            self._ensure_column(
+                con,
+                table_name="daily_speed_stats",
+                column_name="min_speed_time",
+                column_definition="TEXT",
+            )
+            self._ensure_column(
+                con,
+                table_name="daily_speed_stats",
+                column_name="max_speed_time",
+                column_definition="TEXT",
+            )
+            self._ensure_column(
+                con,
+                table_name="reversible_reports",
+                column_name="note",
+                column_definition="TEXT",
             )
 
     def upsert_panel_locations(self, locations: Iterable[PanelLocation]) -> None:
@@ -674,6 +707,70 @@ class Storage:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def observed_direction_profile(
+        self,
+        days: int = 7,
+        baseline_offset: float = 4.0,
+    ) -> Dict[tuple[int, int], Dict[str, Any]]:
+        """Perfil observado de dirección probable del reversible por (weekday, hora local).
+
+        Agrupa las lecturas TomTom Routing de los últimos N días por slot horario
+        local, calcula la diferencia media (Huelva - offset) - Cádiz. El signo
+        indica qué sentido circula más rápido después de corregir el offset
+        estructural; |diff| indica la fuerza.
+
+        Devuelve { (weekday, hour): { direction, abs_diff, sample_count } } solo
+        para slots con al menos 3 pares y |diff| >= 1.0 km/h.
+        """
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        local_tz = ZoneInfo(LOCAL_TIMEZONE)
+        with self.connect() as con:
+            rows = con.execute(
+                """
+                SELECT collected_at, detector_id, average_speed
+                FROM detector_readings
+                WHERE detector_id IN ('tomtom_route_huelva', 'tomtom_route_cadiz')
+                  AND average_speed IS NOT NULL
+                  AND collected_at >= ?
+                """,
+                (cutoff,),
+            ).fetchall()
+
+        # Emparejar H y C por minuto dentro del mismo slot local
+        by_minute: Dict[str, Dict[str, float]] = {}
+        for row in rows:
+            ts = row["collected_at"]
+            key = ts[:16]  # YYYY-MM-DDTHH:MM (precisión de minuto)
+            by_minute.setdefault(key, {})[row["detector_id"]] = float(row["average_speed"])
+
+        slot_diffs: Dict[tuple[int, int], List[float]] = {}
+        for key, speeds in by_minute.items():
+            h = speeds.get("tomtom_route_huelva")
+            c = speeds.get("tomtom_route_cadiz")
+            if h is None or c is None:
+                continue
+            try:
+                dt_utc = datetime.fromisoformat(key + ":00").replace(tzinfo=timezone.utc)
+            except ValueError:
+                continue
+            dt_local = dt_utc.astimezone(local_tz)
+            slot = (dt_local.weekday(), dt_local.hour)
+            slot_diffs.setdefault(slot, []).append((h - baseline_offset) - c)
+
+        profile: Dict[tuple[int, int], Dict[str, Any]] = {}
+        for slot, diffs in slot_diffs.items():
+            if len(diffs) < 3:
+                continue
+            mean_diff = sum(diffs) / len(diffs)
+            if abs(mean_diff) < 1.0:
+                continue
+            profile[slot] = {
+                "direction": "positive" if mean_diff > 0 else "negative",
+                "abs_diff": round(abs(mean_diff), 2),
+                "sample_count": len(diffs),
+            }
+        return profile
+
     def tomtom_speed_history(self, hours: int = 6) -> List[Dict[str, Any]]:
         with self.connect() as con:
             rows = con.execute(
@@ -689,18 +786,21 @@ class Storage:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def insert_reversible_report(self, direction: str) -> None:
+    def insert_reversible_report(self, direction: str, note: Optional[str] = None) -> None:
+        clean_note = (note or "").strip() or None
+        if clean_note and len(clean_note) > 280:
+            clean_note = clean_note[:280]
         with self.connect() as con:
             con.execute(
-                "INSERT INTO reversible_reports (reported_at, direction) VALUES (datetime('now'), ?)",
-                (direction,),
+                "INSERT INTO reversible_reports (reported_at, direction, note) VALUES (datetime('now'), ?, ?)",
+                (direction, clean_note),
             )
 
     def recent_reversible_reports(self, limit: int = 10) -> List[Dict[str, Any]]:
         with self.connect() as con:
             rows = con.execute(
                 """
-                SELECT id, reported_at, direction
+                SELECT id, reported_at, direction, note
                 FROM reversible_reports
                 ORDER BY reported_at DESC
                 LIMIT ?
@@ -708,6 +808,14 @@ class Storage:
                 (limit,),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def delete_reversible_report(self, report_id: int) -> bool:
+        with self.connect() as con:
+            cur = con.execute(
+                "DELETE FROM reversible_reports WHERE id = ?",
+                (report_id,),
+            )
+        return cur.rowcount > 0
 
     def update_traffic_profile(self, state: BridgeState) -> Dict[str, Any]:
         weekday, hour, local_time = local_slot_from_iso(state.generated_at, LOCAL_TIMEZONE)
@@ -766,6 +874,89 @@ class Storage:
             profiles=self.traffic_profiles(),
             timezone_name=LOCAL_TIMEZONE,
         )
+
+    def compute_and_save_daily_stats(self, date_str: str) -> None:
+        """Calcula y guarda velocidades mín/máx/media de las rutas TomTom para la fecha local dada (YYYY-MM-DD)."""
+        local_tz = ZoneInfo(LOCAL_TIMEZONE)
+        day_start = datetime.fromisoformat(date_str).replace(tzinfo=local_tz)
+        day_end = day_start + timedelta(days=1)
+        start_utc = day_start.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        end_utc = day_end.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        routes = [
+            ("tomtom_route_huelva", "positive"),
+            ("tomtom_route_cadiz", "negative"),
+        ]
+        with self.connect() as con:
+            for detector_id, direction in routes:
+                row = con.execute(
+                    """
+                    SELECT
+                        MIN(average_speed) AS min_speed,
+                        MAX(average_speed) AS max_speed,
+                        AVG(average_speed) AS avg_speed,
+                        COUNT(*) AS sample_count
+                    FROM detector_readings
+                    WHERE detector_id = ?
+                      AND average_speed IS NOT NULL
+                      AND collected_at >= ? AND collected_at < ?
+                    """,
+                    (detector_id, start_utc, end_utc),
+                ).fetchone()
+                if row and row["sample_count"] > 0:
+                    min_row = con.execute(
+                        "SELECT collected_at FROM detector_readings WHERE detector_id = ? AND average_speed IS NOT NULL AND collected_at >= ? AND collected_at < ? ORDER BY average_speed ASC, collected_at ASC LIMIT 1",
+                        (detector_id, start_utc, end_utc),
+                    ).fetchone()
+                    max_row = con.execute(
+                        "SELECT collected_at FROM detector_readings WHERE detector_id = ? AND average_speed IS NOT NULL AND collected_at >= ? AND collected_at < ? ORDER BY average_speed DESC, collected_at ASC LIMIT 1",
+                        (detector_id, start_utc, end_utc),
+                    ).fetchone()
+                    min_speed_time = min_row["collected_at"] if min_row else None
+                    max_speed_time = max_row["collected_at"] if max_row else None
+                    con.execute(
+                        """
+                        INSERT INTO daily_speed_stats
+                            (date, direction, min_speed, max_speed, avg_speed, sample_count, computed_at, min_speed_time, max_speed_time)
+                        VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
+                        ON CONFLICT(date, direction) DO UPDATE SET
+                            min_speed=excluded.min_speed,
+                            max_speed=excluded.max_speed,
+                            avg_speed=excluded.avg_speed,
+                            sample_count=excluded.sample_count,
+                            computed_at=excluded.computed_at,
+                            min_speed_time=excluded.min_speed_time,
+                            max_speed_time=excluded.max_speed_time
+                        """,
+                        (date_str, direction, row["min_speed"], row["max_speed"], row["avg_speed"], row["sample_count"], min_speed_time, max_speed_time),
+                    )
+
+    def maybe_update_daily_stats(self) -> None:
+        """Guarda las estadísticas de ayer (si aún no existen) y actualiza las de hoy (siempre)."""
+        local_tz = ZoneInfo(LOCAL_TIMEZONE)
+        today = datetime.now(local_tz).date().isoformat()
+        yesterday = (datetime.now(local_tz) - timedelta(days=1)).date().isoformat()
+        # Siempre actualizar hoy (datos parciales del día en curso)
+        self.compute_and_save_daily_stats(today)
+        # Ayer: solo si aún no está registrado
+        with self.connect() as con:
+            existing = con.execute(
+                "SELECT COUNT(*) AS cnt FROM daily_speed_stats WHERE date = ?",
+                (yesterday,),
+            ).fetchone()
+        if not existing or existing["cnt"] == 0:
+            self.compute_and_save_daily_stats(yesterday)
+
+    def get_daily_speed_stats(self) -> List[Dict[str, Any]]:
+        """Devuelve todas las filas de daily_speed_stats ordenadas por fecha descendente."""
+        with self.connect() as con:
+            rows = con.execute(
+                """
+                SELECT date, direction, min_speed, max_speed, avg_speed, sample_count, min_speed_time, max_speed_time
+                FROM daily_speed_stats
+                ORDER BY date DESC, direction ASC
+                """
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def prune_history(
         self,

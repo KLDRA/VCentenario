@@ -4,7 +4,12 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
-from .config import REVERSIBLE_PERSISTENCE_WINDOW, REVERSIBLE_SCHEDULE, TOMTOM_CALIBRATED_FREE_FLOW
+from .config import (
+    REVERSIBLE_PERSISTENCE_WINDOW,
+    REVERSIBLE_SCHEDULE,
+    TOMTOM_CALIBRATED_FREE_FLOW,
+    TOMTOM_DIRECTION_BASELINE_OFFSET as _CONFIG_BASELINE_OFFSET,
+)
 from .learning import MLPredictor
 from .models import BridgeState, CameraSnapshot, DetectorReading, Incident, PanelMessage
 from .utils import clamp, utc_now_iso
@@ -79,6 +84,11 @@ TOMTOM_ASYMMETRY_MAX_WEIGHT = 8.0   # peso máximo por asimetría
 TOMTOM_JUMP_THRESHOLD = 7.0         # km/h de subida respecto a media reciente
 TOMTOM_JUMP_MAX_WEIGHT = 5.0        # peso máximo por salto de velocidad
 TOMTOM_HISTORY_WINDOW = 4           # número de lecturas recientes para calcular media (~20 min)
+# Offset estructural TomTom: la ruta Huelva es sistemáticamente ~4 km/h más rápida
+# que la Cádiz durante tráfico muerto (00–05h). No es el reversible, es el cálculo
+# de TomTom (trazado, semáforos de acceso). Se resta a Huelva antes de medir asimetría.
+# Calculado sobre 5 días de datos (abr 2026); ajustable vía env var.
+TOMTOM_DIRECTION_BASELINE_OFFSET = _CONFIG_BASELINE_OFFSET  # km/h
 
 
 def infer_bridge_state(
@@ -89,6 +99,7 @@ def infer_bridge_state(
     recent_states: Optional[Sequence[Dict[str, object]]] = None,
     recent_detector_history: Optional[Sequence[Dict[str, object]]] = None,
     latest_report: Optional[Dict[str, object]] = None,
+    observed_direction_profile: Optional[Dict[Tuple[int, int], Dict[str, object]]] = None,
 ) -> BridgeState:
     panels = list(panels)
     incidents = list(incidents)
@@ -194,6 +205,7 @@ def infer_bridge_state(
         persistence_window=REVERSIBLE_PERSISTENCE_WINDOW,
         schedule=REVERSIBLE_SCHEDULE,
         latest_report=latest_report,
+        observed_direction_profile=observed_direction_profile,
     )
     evidence.extend(direction_evidence)
 
@@ -232,15 +244,18 @@ def infer_bridge_state(
 
 
 def classify_traffic_level(score: float) -> str:
-    # Thresholds calibrated for normalized detector weights
-    # With updated detector weights and reduced camera contribution, score reflects real traffic
-    if score < 12:
-        return "fluido"
-    if score < 24:
-        return "denso"
-    if score < 36:
-        return "retenciones"
-    return "congestion_fuerte"
+    # Umbrales calibrados con datos reales del tramo SE-30 km 10-12:
+    # velocidad máxima observada ~53 km/h, mínima ~5 km/h.
+    # Distribución real (7 días, N=1140): p25=6.8 | p50=13.7 | p75=38.2 | p90=66.8 | p100=115
+    if score < 8:
+        return "fluido"           # ≥50 km/h aprox — muy fluido, circulación libre
+    if score < 20:
+        return "denso"            # 35–50 km/h aprox — fluido con tráfico notable
+    if score < 42:
+        return "retenciones"      # 20–35 km/h aprox — denso, velocidad reducida
+    if score < 70:
+        return "congestion_fuerte"  # 10–20 km/h aprox — retenciones importantes
+    return "colapso"              # <10 km/h aprox — circulación muy lenta, colapso
 
 
 def _report_age_seconds(reported_at: str) -> Optional[float]:
@@ -260,6 +275,7 @@ def infer_reversible(
     persistence_window: int = 8,
     schedule: str = "",
     latest_report: Optional[Dict[str, object]] = None,
+    observed_direction_profile: Optional[Dict[Tuple[int, int], Dict[str, object]]] = None,
 ) -> tuple[str, float, List[str]]:
     recent_states = list(recent_states or [])
     direction_pressure = defaultdict(float, direction_pressure)
@@ -293,6 +309,12 @@ def infer_reversible(
     if schedule_direction:
         direction_pressure[schedule_direction] += schedule_weight
         evidence.append(f"reversible:schedule:{schedule_direction}:{schedule_weight:.1f}")
+
+    if observed_direction_profile:
+        prior_dir, prior_weight, prior_ev = get_observed_hour_prior(observed_direction_profile)
+        if prior_dir:
+            direction_pressure[prior_dir] += prior_weight
+            evidence.extend(prior_ev)
 
     persisted_direction, persisted_weight, persistence_evidence = get_persistence_bias(
         recent_states,
@@ -361,7 +383,10 @@ def score_tomtom_reversible_signals(
     speed_neg = current_speeds["negative"]
 
     # — Asymmetry signal —
-    diff = speed_pos - speed_neg  # >0 → Huelva faster, <0 → Cádiz faster
+    # Corregimos el offset estructural de ~4 km/h a favor de Huelva observado
+    # en tráfico muerto. Sin esta corrección (positive - negative) tiene un sesgo
+    # fijo +4 que enmascara la asimetría real del reversible.
+    diff = (speed_pos - TOMTOM_DIRECTION_BASELINE_OFFSET) - speed_neg
     abs_diff = abs(diff)
     if abs_diff >= TOMTOM_ASYMMETRY_THRESHOLD:
         slower_dir = "negative" if diff > 0 else "positive"
@@ -371,7 +396,9 @@ def score_tomtom_reversible_signals(
             TOMTOM_ASYMMETRY_MAX_WEIGHT,
         )
         dir_pressure[slower_dir] += round(weight, 2)
-        evidence.append(f"tomtom:asymmetry:{slower_dir}:{abs_diff:.1f}kmh:{weight:.1f}")
+        evidence.append(
+            f"tomtom:asymmetry:{slower_dir}:{abs_diff:.1f}kmh(corr):{weight:.1f}"
+        )
 
     # — Speed jump signal —
     if recent_history:
@@ -588,6 +615,32 @@ def get_persistence_bias(
     average_confidence = confidence_total / max(len(directional_states), 1)
     weight = round(lead_count * average_confidence * 2.2, 2)
     return lead_direction, weight, [f"reversible:persistence:{lead_direction}:{lead_count}"]
+
+
+def get_observed_hour_prior(
+    profile: Dict[Tuple[int, int], Dict[str, object]],
+) -> Tuple[Optional[str], float, List[str]]:
+    """Prior observado por slot (weekday, hour) a partir de la asimetría corregida
+    histórica. Peso bajo (hasta 3.0) porque es una señal estadística de fondo,
+    no una observación en tiempo real. Usa hora LOCAL, asumiendo Europe/Madrid
+    (UTC+2 en horario de verano)."""
+    now = datetime.now()
+    slot = (now.weekday(), now.hour)
+    entry = profile.get(slot)
+    if not entry:
+        return None, 0.0, []
+    direction = str(entry.get("direction", ""))
+    if direction not in ("positive", "negative"):
+        return None, 0.0, []
+    abs_diff = float(entry.get("abs_diff", 0.0) or 0.0)
+    samples = int(entry.get("sample_count", 0) or 0)
+    if samples < 3 or abs_diff < 1.0:
+        return None, 0.0, []
+    # Escalado: 1 km/h → 1 pt, 4 km/h → 3 pt, cap 3.0. Peso intencionalmente bajo.
+    weight = round(min(abs_diff * 0.75, 3.0), 2)
+    return direction, weight, [
+        f"reversible:hour-prior:{direction}:{abs_diff:.1f}kmh(n={samples}):{weight:.1f}"
+    ]
 
 
 def get_schedule_bias(schedule: str) -> Tuple[Optional[str], float]:
