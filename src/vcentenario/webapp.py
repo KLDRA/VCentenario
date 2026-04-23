@@ -3451,6 +3451,65 @@ HTML_PAGE = """<!doctype html>
 """
 
 
+def _build_public_page(admin_html: str) -> str:
+    nav_marker = "    <!-- Tab navigation -->"
+    vista_marker = "    <!-- ===== TAB VISTA — nuevo diseño ===== -->"
+    i = admin_html.index(nav_marker)
+    j = admin_html.index(vista_marker)
+    trimmed = admin_html[:i] + admin_html[j:]
+    trimmed = trimmed.replace(
+        '<div id="tab-nuevo" style="display:none;">',
+        '<div id="tab-nuevo">',
+        1,
+    )
+    trimmed = trimmed.replace(
+        "<title>VCentenario Monitor</title>",
+        "<title>VCentenario · Puente del Centenario</title>",
+        1,
+    )
+    # El bundle JS está diseñado para el dashboard completo y referencia elementos
+    # de pestañas que aquí ya no existen; este proxy hace que document.getElementById
+    # devuelva un stub no-op para IDs ausentes y evita romper render compartido.
+    proxy_and_boot = """  <script>
+    (function(){
+      const _get = document.getElementById.bind(document);
+      const _classList = { add: () => {}, remove: () => {}, toggle: () => {}, contains: () => false };
+      const _rect = () => ({ width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 });
+      // Stub auto-encadenable: cualquier propiedad devuelve el propio stub y
+      // también se puede invocar como función. Así `byId('x').getContext('2d').fillStyle = '#000'`
+      // y `canvas.width = N` no rompen cuando el nodo real no existe en la vista pública.
+      const _stub = new Proxy(function(){ return _stub; }, {
+        get(_, k){
+          if (k === 'classList') return _classList;
+          if (k === 'getBoundingClientRect') return _rect;
+          if (k === 'offsetWidth' || k === 'offsetHeight' || k === 'clientWidth' || k === 'clientHeight') return 0;
+          if (k === 'textContent' || k === 'innerHTML' || k === 'value' || k === 'tagName' || k === 'nodeName') return '';
+          if (k === 'children' || k === 'childNodes') return [];
+          if (k === 'parentNode' || k === 'parentElement' || k === 'firstChild' || k === 'lastChild') return null;
+          if (k === 'querySelector') return () => null;
+          if (k === 'querySelectorAll') return () => [];
+          if (k === 'contains') return () => false;
+          if (k === Symbol.toPrimitive) return () => '';
+          return _stub;
+        },
+        set: () => true,
+        apply: () => _stub,
+      });
+      document.getElementById = function(id){ return _get(id) || _stub; };
+    })();
+    window.addEventListener('DOMContentLoaded', () => {
+      if (typeof nv_startScene === 'function') { try { nv_startScene(); } catch(_){} }
+    });
+  </script>
+"""
+    script_anchor = "  <script>\n    const stateLabels"
+    trimmed = trimmed.replace(script_anchor, proxy_and_boot + script_anchor, 1)
+    return trimmed
+
+
+PUBLIC_PAGE = _build_public_page(HTML_PAGE)
+
+
 class DashboardServer:
     def __init__(
         self,
@@ -3480,6 +3539,9 @@ class DashboardServer:
             def do_GET(self) -> None:
                 parsed = urlparse(self.path)
                 if parsed.path == "/":
+                    self._send_html(PUBLIC_PAGE)
+                    return
+                if parsed.path in ("/admin", "/admin/"):
                     self._send_html(HTML_PAGE)
                     return
                 if parsed.path == "/api/dashboard":

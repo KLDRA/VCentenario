@@ -160,12 +160,30 @@ systemctl enable "$REFRESH_TIMER_NAME"
 systemctl restart "$REFRESH_TIMER_NAME"
 systemctl start "$REFRESH_SERVICE_NAME"
 
+ADMIN_HTPASSWD_FILE="${ADMIN_HTPASSWD_FILE:-/etc/nginx/vcentenario.htpasswd}"
+if [ ! -f "$ADMIN_HTPASSWD_FILE" ]; then
+    echo "AVISO: $ADMIN_HTPASSWD_FILE no existe. Crea el usuario admin antes de usar /admin:"
+    echo "  sudo htpasswd -c $ADMIN_HTPASSWD_FILE admin"
+fi
+
 echo "Escribiendo configuración Nginx en $NGINX_CONF..."
 cat > "$NGINX_CONF" <<EOF
 server {
     listen $PUBLIC_PORT;
     server_name $SERVER_NAME;
     client_max_body_size 1m;
+
+    location = /admin {
+        auth_basic "VCentenario admin";
+        auth_basic_user_file $ADMIN_HTPASSWD_FILE;
+        proxy_pass http://$APP_HOST:$APP_PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 120s;
+    }
 
     location / {
         proxy_pass http://$APP_HOST:$APP_PORT;
