@@ -15,7 +15,7 @@ SERVICE_USER="${SERVICE_USER:-${SUDO_USER:-$USER}}"
 SERVICE_GROUP="${SERVICE_GROUP:-$SERVICE_USER}"
 APP_HOST="${APP_HOST:-127.0.0.1}"
 APP_PORT="${APP_PORT:-5000}"
-PUBLIC_PORT="${PUBLIC_PORT:-8088}"
+PUBLIC_PORT="${PUBLIC_PORT:-80}"
 SERVER_NAME="${SERVER_NAME:-_}"
 REFRESH_INTERVAL_MINUTES="${REFRESH_INTERVAL_MINUTES:-5}"
 REFRESH_BOOT_DELAY_SECONDS="${REFRESH_BOOT_DELAY_SECONDS:-90}"
@@ -173,7 +173,7 @@ server {
     server_name $SERVER_NAME;
     client_max_body_size 1m;
 
-    location = /admin {
+    location ~ ^/admin/?$ {
         auth_basic "VCentenario admin";
         auth_basic_user_file $ADMIN_HTPASSWD_FILE;
         proxy_pass http://$APP_HOST:$APP_PORT;

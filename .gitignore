@@ -5,6 +5,8 @@ __pycache__/
 *.pyo
 *.pyd
 .DS_Store
+.env
+.env.local
 src/*.egg-info/
 var/*.db
 var/*.log

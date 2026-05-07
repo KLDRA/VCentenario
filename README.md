@@ -203,11 +203,22 @@ El script [`deploy.sh`](/home/kldra/descargas/VCentenario/deploy.sh) ahora:
 - endurece las unidades `systemd` con restricciones basicas
 - configura Nginx como proxy inverso
 
-Ejemplo:
+Ejemplo (acceso directo desde el dominio, sin puerto):
 
 ```bash
-sudo APP_HOST=127.0.0.1 APP_PORT=5000 PUBLIC_PORT=8088 ./deploy.sh
+sudo SERVER_NAME=tu-dominio.com APP_HOST=127.0.0.1 APP_PORT=5000 PUBLIC_PORT=80 ./deploy.sh
 ```
+
+Antes del primer despliegue:
+
+1. Copia `.env.example` a `.env` y rellena `VCENTENARIO_TOMTOM_API_KEY`. **Nunca** commitees `.env`.
+2. Crea el htpasswd para `/admin`:
+
+   ```bash
+   sudo htpasswd -c /etc/nginx/vcentenario.htpasswd admin
+   ```
+
+3. Apunta el DNS A/AAAA del dominio al servidor y abre el puerto 80 (y 443 si añades TLS con certbot).
 
 Si quieres cambiar la cadencia del refresco automatico:
 
