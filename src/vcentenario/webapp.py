@@ -3244,8 +3244,12 @@ HTML_PAGE = """<!doctype html>
 
     function nv_renderVms(panels) {
       const grid = byId('nv-vmsGrid'); if (!grid) return;
+      // Agrupar todos los mensajes (páginas) de cada panel
       const byLoc = {};
-      panels.forEach(p => { if (!byLoc[p.location_id]) byLoc[p.location_id] = p; });
+      panels.forEach(p => {
+        if (!byLoc[p.location_id]) byLoc[p.location_id] = { meta: p, msgs: [] };
+        byLoc[p.location_id].msgs.push(p);
+      });
       const knownIds = ['60514', '60833', '60516'];
       let list = knownIds.map(id => byLoc[id] || byLoc['GUID_PMV_' + id]).filter(Boolean);
       if (!list.length) list = Object.values(byLoc).slice(0, 3);
@@ -3253,19 +3257,25 @@ HTML_PAGE = """<!doctype html>
         grid.innerHTML = '<div style="grid-column:1/-1;padding:24px;text-align:center;color:var(--nv-text-3);font-size:13px;">Sin mensajes de panel en el tramo.</div>';
         return;
       }
-      grid.innerHTML = list.map(p => {
-        // Las leyendas de DGT vienen como una sola cadena con '/' separando líneas
-        // (p.ej. "EN SE-30/KM 10 -> 15/STDO. HUELVA"). Las dividimos para mostrar
-        // cada línea por separado y eliminamos las barras del texto final.
-        const lines = (p.legends || [])
-          .flatMap(l => String(l).split('/'))
-          .map(s => s.trim())
-          .filter(Boolean);
-        const text = lines.join('\\n');
+      grid.innerHTML = list.map(group => {
+        const p = group.meta;
+        // Cada panel puede mostrar varias páginas que rotan. Construimos cada
+        // página por separado y las unimos con una línea separadora.
+        const pages = group.msgs.map(m => {
+          const lines = (m.legends || [])
+            .flatMap(l => String(l).split('/'))
+            .map(s => s.trim())
+            .filter(Boolean);
+          return lines.join('\\n');
+        }).filter(Boolean);
+        // Eliminar páginas duplicadas
+        const uniquePages = [...new Set(pages)];
+        const text = uniquePages.join('\\n──────\\n');
         const dirText = p.direction === 'positive' ? 'SENTIDO HUELVA' : p.direction === 'negative' ? 'SENTIDO CÁDIZ' : 'SE-30';
         const kmText = p.km != null ? 'KM ' + parseFloat(p.km).toFixed(1) : '—';
         const idShort = String(p.location_id).replace(/^GUID_PMV_/, '');
-        return `<div class="nv-vms"><div class="nv-vms-meta"><span>PANEL ${escapeHtml(idShort)}</span><span>${escapeHtml(kmText)}</span></div><div class="nv-vms-screen${text ? '' : ' empty'}">${text ? escapeHtml(text) : '— SIN MENSAJE —'}</div><div class="nv-vms-footer"><span>${escapeHtml(dirText)}</span><span>SE-30</span></div></div>`;
+        const pagesLabel = uniquePages.length > 1 ? ' · ' + uniquePages.length + ' pág.' : '';
+        return `<div class="nv-vms"><div class="nv-vms-meta"><span>PANEL ${escapeHtml(idShort)}${escapeHtml(pagesLabel)}</span><span>${escapeHtml(kmText)}</span></div><div class="nv-vms-screen${text ? '' : ' empty'}">${text ? escapeHtml(text) : '— SIN MENSAJE —'}</div><div class="nv-vms-footer"><span>${escapeHtml(dirText)}</span><span>SE-30</span></div></div>`;
       }).join('');
     }
 
