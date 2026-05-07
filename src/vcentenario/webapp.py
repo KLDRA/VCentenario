@@ -3556,26 +3556,15 @@ def _build_public_page(admin_html: str) -> str:
     script_anchor = "  <script>\n    const stateLabels"
     trimmed = trimmed.replace(script_anchor, proxy_and_boot + script_anchor, 1)
 
-    # Inyectar meta de verificación en <head>; el script se carga diferido
-    # tras window.load para no bloquear el render del dashboard.
+    # Inyectar SOLO la meta de verificación de propiedad. El script
+    # adsbygoogle.js no se carga aquí porque, aun sin Auto Ads activado,
+    # interfiere con el canvas y los listeners de visibilitychange.
+    # El script se cargará junto a las unidades manuales cuando se añadan.
     if ADSENSE_CLIENT_ID:
         adsense_meta = (
             f'  <meta name="google-adsense-account" content="{ADSENSE_CLIENT_ID}">\n'
         )
-        adsense_deferred = (
-            "  <script>\n"
-            "    window.addEventListener('load', function() {\n"
-            "      setTimeout(function() {\n"
-            "        var s = document.createElement('script');\n"
-            "        s.async = true;\n"
-            f"        s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={ADSENSE_CLIENT_ID}';\n"
-            "        s.crossOrigin = 'anonymous';\n"
-            "        document.head.appendChild(s);\n"
-            "      }, 2000);\n"
-            "    });\n"
-            "  </script>\n"
-        )
-        trimmed = trimmed.replace("</head>", adsense_meta + adsense_deferred + "</head>", 1)
+        trimmed = trimmed.replace("</head>", adsense_meta + "</head>", 1)
 
     # Sección descriptiva + anuncio superior (antes del header)
     about_block = """  <!-- Sección informativa para motores de búsqueda y visitantes -->
