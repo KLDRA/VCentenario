@@ -3654,6 +3654,14 @@ class DashboardServer:
                 if parsed.path in ("/privacidad", "/privacidad/"):
                     self._send_html(_PRIVACIDAD_PAGE)
                     return
+                if parsed.path == "/ads.txt":
+                    if ADSENSE_CLIENT_ID:
+                        pub_id = ADSENSE_CLIENT_ID.replace("ca-", "", 1)
+                        body = f"google.com, {pub_id}, DIRECT, f08c47fec0942fa0\n"
+                        self._send_text(body)
+                    else:
+                        self.send_error(HTTPStatus.NOT_FOUND, "ads.txt no configurado")
+                    return
                 if parsed.path in ("/admin", "/admin/"):
                     self._send_html(HTML_PAGE)
                     return
@@ -3762,6 +3770,15 @@ class DashboardServer:
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
                 self.send_header("Cache-Control", "no-store")
+                self._send_common_headers()
+                self.end_headers()
+                self.wfile.write(body)
+
+            def _send_text(self, text: str, status: int = 200) -> None:
+                body = text.encode("utf-8")
+                self.send_response(status)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
                 self._send_common_headers()
                 self.end_headers()
                 self.wfile.write(body)
