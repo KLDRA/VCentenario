@@ -3273,12 +3273,10 @@ HTML_PAGE = """<!doctype html>
 
     function nv_renderVms(panels) {
       const grid = byId('nv-vmsGrid'); if (!grid) return;
-      // Agrupar todos los mensajes (páginas) de cada panel
+      // Solo el primer mensaje por panel (los paneles rotan páginas pero la
+      // información esencial es la misma; mostrar todas duplica el motivo).
       const byLoc = {};
-      panels.forEach(p => {
-        if (!byLoc[p.location_id]) byLoc[p.location_id] = { meta: p, msgs: [] };
-        byLoc[p.location_id].msgs.push(p);
-      });
+      panels.forEach(p => { if (!byLoc[p.location_id]) byLoc[p.location_id] = p; });
       const knownIds = ['60514', '60833', '60516'];
       let list = knownIds.map(id => byLoc[id] || byLoc['GUID_PMV_' + id]).filter(Boolean);
       if (!list.length) list = Object.values(byLoc).slice(0, 3);
@@ -3286,26 +3284,17 @@ HTML_PAGE = """<!doctype html>
         grid.innerHTML = '<div style="grid-column:1/-1;padding:24px;text-align:center;color:var(--nv-text-3);font-size:13px;">Sin mensajes de panel en el tramo.</div>';
         return;
       }
-      grid.innerHTML = list.map(group => {
-        const p = group.meta;
-        // Cada página combina el motivo (pictograma) + ubicación (legends),
-        // todo en una sola línea separado por ' · '.
-        const pages = group.msgs.map(m => {
-          const reason = nv_picto2text(m.pictograms);
-          const location = (m.legends || [])
-            .flatMap(l => String(l).split('/'))
-            .map(s => s.trim())
-            .filter(Boolean);
-          return [...reason, ...location].join(' · ');
-        }).filter(Boolean);
-        // Eliminar páginas duplicadas; varias páginas se separan con un guion largo.
-        const uniquePages = [...new Set(pages)];
-        const text = uniquePages.join('  —  ');
+      grid.innerHTML = list.map(p => {
+        const reason = nv_picto2text(p.pictograms);
+        const location = (p.legends || [])
+          .flatMap(l => String(l).split('/'))
+          .map(s => s.trim())
+          .filter(Boolean);
+        const text = [...reason, ...location].join(' · ');
         const dirText = p.direction === 'positive' ? 'SENTIDO HUELVA' : p.direction === 'negative' ? 'SENTIDO CÁDIZ' : 'SE-30';
         const kmText = p.km != null ? 'KM ' + parseFloat(p.km).toFixed(1) : '—';
         const idShort = String(p.location_id).replace(/^GUID_PMV_/, '');
-        const pagesLabel = uniquePages.length > 1 ? ' · ' + uniquePages.length + ' pág.' : '';
-        return `<div class="nv-vms"><div class="nv-vms-meta"><span>PANEL ${escapeHtml(idShort)}${escapeHtml(pagesLabel)}</span><span>${escapeHtml(kmText)}</span></div><div class="nv-vms-screen${text ? '' : ' empty'}">${text ? escapeHtml(text) : '— SIN MENSAJE —'}</div><div class="nv-vms-footer"><span>${escapeHtml(dirText)}</span><span>SE-30</span></div></div>`;
+        return `<div class="nv-vms"><div class="nv-vms-meta"><span>PANEL ${escapeHtml(idShort)}</span><span>${escapeHtml(kmText)}</span></div><div class="nv-vms-screen${text ? '' : ' empty'}">${text ? escapeHtml(text) : '— SIN MENSAJE —'}</div><div class="nv-vms-footer"><span>${escapeHtml(dirText)}</span><span>SE-30</span></div></div>`;
       }).join('');
     }
 
