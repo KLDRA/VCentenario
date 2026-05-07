@@ -3566,11 +3566,23 @@ def _build_public_page(admin_html: str) -> str:
         )
         trimmed = trimmed.replace("</head>", adsense_meta + "</head>", 1)
 
-    # Sección descriptiva (dentro de nd-shell, hereda el max-width del contenedor)
+    # Sección descriptiva. En móvil ocultamos el párrafo (queda en el DOM
+    # para SEO) y mantenemos solo el h1 compacto. El título principal del
+    # dashboard ya da contexto al usuario.
     about_block = """    <!-- Sección informativa para motores de búsqueda y visitantes -->
-    <section style="margin-bottom:var(--space-lg);font-family:'Space Grotesk',system-ui,sans-serif;">
-      <h1 style="font-size:1.1rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;">Monitor de tráfico · Puente del Centenario (SE-30, Sevilla)</h1>
-      <p style="font-size:0.85rem;color:var(--text-secondary);line-height:1.6;">
+    <style>
+      .nd-about { margin-bottom: var(--space-lg); font-family: 'Space Grotesk', system-ui, sans-serif; }
+      .nd-about h1 { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+      .nd-about p { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; }
+      @media (max-width: 720px) {
+        .nd-about { margin-bottom: var(--space-md); }
+        .nd-about h1 { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); }
+        .nd-about p { display: none; }
+      }
+    </style>
+    <section class="nd-about">
+      <h1>Monitor de tráfico · Puente del Centenario (SE-30, Sevilla)</h1>
+      <p>
         Seguimiento en tiempo real del estado del tráfico en el <strong>Puente del Centenario</strong> (SE-30, km 10–12, Sevilla).
         Datos actualizados cada 5 minutos a partir de fuentes oficiales de la DGT y TomTom.
         Se muestran velocidades por sentido (Huelva / Cádiz), nivel de congestión y estado estimado del carril reversible.
