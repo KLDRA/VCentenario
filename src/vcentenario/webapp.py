@@ -3457,6 +3457,7 @@ _PRIVACIDAD_PAGE = """<!DOCTYPE html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-1589098356793173">
   <title>Política de Privacidad · 5centenario.es</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.7; }
@@ -3555,13 +3556,14 @@ def _build_public_page(admin_html: str) -> str:
     script_anchor = "  <script>\n    const stateLabels"
     trimmed = trimmed.replace(script_anchor, proxy_and_boot + script_anchor, 1)
 
-    # Inyectar AdSense en <head> si está configurado
+    # Inyectar meta de verificación + script AdSense en <head> si está configurado
     if ADSENSE_CLIENT_ID:
-        adsense_script = (
+        adsense_head = (
+            f'  <meta name="google-adsense-account" content="{ADSENSE_CLIENT_ID}">\n'
             f'  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'
             f'?client={ADSENSE_CLIENT_ID}" crossorigin="anonymous"></script>\n'
         )
-        trimmed = trimmed.replace("</head>", adsense_script + "</head>", 1)
+        trimmed = trimmed.replace("</head>", adsense_head + "</head>", 1)
 
     # Sección descriptiva + anuncio superior (antes del header)
     about_block = """  <!-- Sección informativa para motores de búsqueda y visitantes -->
