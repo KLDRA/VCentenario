@@ -3291,7 +3291,17 @@ HTML_PAGE = """<!doctype html>
           .map(s => s.trim())
           .filter(Boolean);
         const text = [...reason, ...location].join(' · ');
-        const dirText = p.direction === 'positive' ? 'SENTIDO HUELVA' : p.direction === 'negative' ? 'SENTIDO CÁDIZ' : 'SE-30';
+        // El mensaje del panel puede referirse al sentido contrario al lado en
+        // el que está físicamente. Priorizamos lo que dice el propio mensaje.
+        const upperText = text.toUpperCase();
+        let dirText;
+        if (upperText.includes('STDO. HUELVA') || upperText.includes('SENTIDO HUELVA') || upperText.includes('STDO HUELVA')) {
+          dirText = 'SENTIDO HUELVA';
+        } else if (upperText.includes('STDO. CÁDIZ') || upperText.includes('SENTIDO CÁDIZ') || upperText.includes('STDO. CADIZ') || upperText.includes('STDO CADIZ')) {
+          dirText = 'SENTIDO CÁDIZ';
+        } else {
+          dirText = p.direction === 'positive' ? 'SENTIDO HUELVA' : p.direction === 'negative' ? 'SENTIDO CÁDIZ' : 'SE-30';
+        }
         const kmText = p.km != null ? 'KM ' + parseFloat(p.km).toFixed(1) : '—';
         const idShort = String(p.location_id).replace(/^GUID_PMV_/, '');
         return `<div class="nv-vms"><div class="nv-vms-meta"><span>PANEL ${escapeHtml(idShort)}</span><span>${escapeHtml(kmText)}</span></div><div class="nv-vms-screen${text ? '' : ' empty'}">${text ? escapeHtml(text) : '— SIN MENSAJE —'}</div><div class="nv-vms-footer"><span>${escapeHtml(dirText)}</span><span>SE-30</span></div></div>`;
