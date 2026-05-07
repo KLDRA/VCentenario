@@ -3566,16 +3566,16 @@ def _build_public_page(admin_html: str) -> str:
         )
         trimmed = trimmed.replace("</head>", adsense_meta + "</head>", 1)
 
-    # Sección descriptiva + anuncio superior (antes del header)
-    about_block = """  <!-- Sección informativa para motores de búsqueda y visitantes -->
-  <section style="max-width:860px;margin:0 auto 0;padding:0 var(--space-md) var(--space-md);font-family:'Space Grotesk',system-ui,sans-serif;">
-    <h1 style="font-size:1.1rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;">Monitor de tráfico · Puente del Centenario (SE-30, Sevilla)</h1>
-    <p style="font-size:0.85rem;color:var(--text-secondary);line-height:1.6;margin-bottom:10px;">
-      Seguimiento en tiempo real del estado del tráfico en el <strong>Puente del Centenario</strong> (SE-30, km 10–12, Sevilla).
-      Datos actualizados cada 5 minutos a partir de fuentes oficiales de la DGT y TomTom.
-      Se muestran velocidades por sentido (Huelva / Cádiz), nivel de congestión y estado estimado del carril reversible.
-    </p>
-  </section>\n"""
+    # Sección descriptiva (dentro de nd-shell, hereda el max-width del contenedor)
+    about_block = """    <!-- Sección informativa para motores de búsqueda y visitantes -->
+    <section style="margin-bottom:var(--space-lg);font-family:'Space Grotesk',system-ui,sans-serif;">
+      <h1 style="font-size:1.1rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;">Monitor de tráfico · Puente del Centenario (SE-30, Sevilla)</h1>
+      <p style="font-size:0.85rem;color:var(--text-secondary);line-height:1.6;">
+        Seguimiento en tiempo real del estado del tráfico en el <strong>Puente del Centenario</strong> (SE-30, km 10–12, Sevilla).
+        Datos actualizados cada 5 minutos a partir de fuentes oficiales de la DGT y TomTom.
+        Se muestran velocidades por sentido (Huelva / Cádiz), nivel de congestión y estado estimado del carril reversible.
+      </p>
+    </section>\n"""
 
     # Insertar sección descriptiva justo antes del header principal.
     # No insertamos unidades manuales: AdSense decide colocaciones via Auto Ads.
