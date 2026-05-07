@@ -1557,7 +1557,7 @@ HTML_PAGE = """<!doctype html>
             <div class="nv-dir-head">
               <div>
                 <div class="nv-dir-name">Sentido Huelva</div>
-                <div class="nv-dir-city">&rarr; Hacia Huelva</div>
+                <div class="nv-dir-city">&larr; Hacia Huelva</div>
               </div>
               <span class="nv-dir-badge" id="nv-badgeHuelva" style="display:none">Reversible</span>
             </div>
@@ -1573,7 +1573,7 @@ HTML_PAGE = """<!doctype html>
             <div class="nv-dir-head">
               <div>
                 <div class="nv-dir-name">Sentido C&aacute;diz</div>
-                <div class="nv-dir-city">&larr; Hacia C&aacute;diz</div>
+                <div class="nv-dir-city">&rarr; Hacia C&aacute;diz</div>
               </div>
               <span class="nv-dir-badge" id="nv-badgeCadiz" style="display:none">Reversible</span>
             </div>
