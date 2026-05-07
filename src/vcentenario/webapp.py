@@ -3191,16 +3191,19 @@ HTML_PAGE = """<!doctype html>
         return;
       }
 
-      const maxY = 90;
+      // Límite legal del tramo: 60 km/h. Cualquier valor por encima se ajusta visualmente al techo.
+      const maxY = 60;
       const xp = (i) => pad.l + (i / Math.max(data.length - 1, 1)) * (W - pad.l - pad.r);
-      const yp = (v) => pad.t + (1 - v / maxY) * (H - pad.t - pad.b);
+      const yp = (v) => pad.t + (1 - Math.min(v, maxY) / maxY) * (H - pad.t - pad.b);
 
-      // Líneas de referencia: 30 km/h y 55 km/h
+      // Líneas de referencia: 30 km/h (denso) y 55 km/h (fluido)
       [{ v: 30, c: '#D71921' }, { v: 55, c: '#4A9E5C' }].forEach(th => {
         svg.appendChild(mk('line', { x1: pad.l, x2: W - pad.r, y1: yp(th.v), y2: yp(th.v), stroke: th.c, 'stroke-width': '1', 'stroke-dasharray': '3 3', opacity: '0.35' }));
       });
+      // Línea del límite (60 km/h) en el techo
+      svg.appendChild(mk('line', { x1: pad.l, x2: W - pad.r, y1: yp(60), y2: yp(60), stroke: 'var(--nv-text-3)', 'stroke-width': '1', opacity: '0.35' }));
       // Etiquetas eje Y
-      [0, 30, 55, 90].forEach(v => {
+      [0, 30, 55, 60].forEach(v => {
         const t = mk('text', { x: pad.l - 8, y: yp(v) + 3, 'text-anchor': 'end', fill: 'var(--nv-text-3)', 'font-size': '10', 'font-family': 'JetBrains Mono, monospace' });
         t.textContent = v; svg.appendChild(t);
       });
