@@ -3550,7 +3550,7 @@ _PRIVACIDAD_PAGE = """<!DOCTYPE html>
   <p>Última actualización: mayo de 2026</p>
 
   <h2>Responsable</h2>
-  <p>Este sitio web, <strong>5centenario.es</strong>, es un proyecto personal sin ánimo de lucro que monitoriza el tráfico en el Puente del Centenario (SE-30, Sevilla). No existe una entidad legal asociada. Para cualquier consulta: <a href="mailto:kldra@icloud.com">kldra@icloud.com</a></p>
+  <p>Este sitio web, <strong>5centenario.es</strong>, es un proyecto personal sin ánimo de lucro que monitoriza el tráfico en el Puente del Centenario (SE-30, Sevilla). No existe una entidad legal asociada. Para cualquier consulta: <a href="mailto:bis_ceros.7v@icloud.com">bis_ceros.7v@icloud.com</a></p>
 
   <h2>Datos que recogemos</h2>
   <p>Este sitio <strong>no recoge datos personales</strong> directamente. No hay formularios de registro, ni cuentas de usuario, ni seguimiento individualizado de visitantes.</p>
@@ -3570,7 +3570,7 @@ _PRIVACIDAD_PAGE = """<!DOCTYPE html>
   <p>No se recogen, almacenan ni comparten datos de identificación de vehículos ni conductores.</p>
 
   <h2>Tus derechos</h2>
-  <p>Dado que no procesamos datos personales identificables, no aplican los derechos de acceso, rectificación o eliminación de datos personales del RGPD. Si tienes dudas, contáctanos en <a href="mailto:kldra@icloud.com">kldra@icloud.com</a>.</p>
+  <p>Dado que no procesamos datos personales identificables, no aplican los derechos de acceso, rectificación o eliminación de datos personales del RGPD. Si tienes dudas, contáctanos en <a href="mailto:bis_ceros.7v@icloud.com">bis_ceros.7v@icloud.com</a>.</p>
 
   <footer>
     <a href="/">← Volver al monitor de tráfico</a>
