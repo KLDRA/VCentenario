@@ -93,6 +93,7 @@ YOLO_ENABLE_TILING = _env_bool("VCENTENARIO_YOLO_ENABLE_TILING", True)
 YOLO_TILE_OVERLAP = _env_float("VCENTENARIO_YOLO_TILE_OVERLAP", 0.2)
 DETECTOR_MAX_AGE = timedelta(minutes=max(1, DETECTOR_MAX_AGE_MINUTES))
 TOMTOM_API_KEY = os.getenv("VCENTENARIO_TOMTOM_API_KEY", "").strip()
+ADSENSE_CLIENT_ID = os.getenv("VCENTENARIO_ADSENSE_CLIENT_ID", "").strip()
 TOMTOM_FLOW_URL = "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json"
 TOMTOM_INCIDENTS_URL = "https://api.tomtom.com/traffic/services/4/incidentDetails/s3/{bbox}/10/-1/json"
 TOMTOM_SPEED_CAMERAS_URL = "https://api.tomtom.com/traffic/services/4/speedLimitInfo/s3/{bbox}/10/-1/json"

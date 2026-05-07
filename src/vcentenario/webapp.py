@@ -11,6 +11,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from .config import (
+    ADSENSE_CLIENT_ID,
     DEFAULT_DB_PATH,
     DEFAULT_SNAPSHOTS_DIR,
     ENABLE_REFRESH_ENDPOINT,
@@ -3451,6 +3452,55 @@ HTML_PAGE = """<!doctype html>
 """
 
 
+_PRIVACIDAD_PAGE = """<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Política de Privacidad · 5centenario.es</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.7; }
+    h1 { font-size: 1.6rem; margin-bottom: 8px; }
+    h2 { font-size: 1.1rem; margin-top: 32px; margin-bottom: 8px; }
+    p, li { font-size: 0.95rem; color: #444; }
+    a { color: #B8141C; }
+    footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #e0e0e0; font-size: 0.85rem; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>Política de Privacidad</h1>
+  <p>Última actualización: mayo de 2026</p>
+
+  <h2>Responsable</h2>
+  <p>Este sitio web, <strong>5centenario.es</strong>, es un proyecto personal sin ánimo de lucro que monitoriza el tráfico en el Puente del Centenario (SE-30, Sevilla). No existe una entidad legal asociada. Para cualquier consulta: <a href="mailto:kldra@icloud.com">kldra@icloud.com</a></p>
+
+  <h2>Datos que recogemos</h2>
+  <p>Este sitio <strong>no recoge datos personales</strong> directamente. No hay formularios de registro, ni cuentas de usuario, ni seguimiento individualizado de visitantes.</p>
+  <p>Nuestro servidor web registra automáticamente la dirección IP de cada petición en logs de acceso estándar. Estos logs se conservan durante un máximo de 30 días y se utilizan exclusivamente para diagnosticar errores.</p>
+
+  <h2>Cookies y publicidad</h2>
+  <p>Este sitio utiliza <strong>Google AdSense</strong> para mostrar publicidad. Google puede utilizar cookies para mostrar anuncios personalizados basados en tus visitas anteriores a este y otros sitios web.</p>
+  <p>Puedes desactivar la publicidad personalizada de Google en: <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener">google.com/settings/ads</a></p>
+  <p>Para más información sobre cómo Google utiliza los datos: <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">policies.google.com/technologies/partner-sites</a></p>
+
+  <h2>Fuentes de datos de tráfico</h2>
+  <p>Los datos de tráfico mostrados proceden de fuentes públicas:</p>
+  <ul>
+    <li>DGT (Dirección General de Tráfico) — feeds DATEX2 de acceso público</li>
+    <li>TomTom Routing API — estimación de velocidad por sentido</li>
+  </ul>
+  <p>No se recogen, almacenan ni comparten datos de identificación de vehículos ni conductores.</p>
+
+  <h2>Tus derechos</h2>
+  <p>Dado que no procesamos datos personales identificables, no aplican los derechos de acceso, rectificación o eliminación de datos personales del RGPD. Si tienes dudas, contáctanos en <a href="mailto:kldra@icloud.com">kldra@icloud.com</a>.</p>
+
+  <footer>
+    <a href="/">← Volver al monitor de tráfico</a>
+  </footer>
+</body>
+</html>"""
+
+
 def _build_public_page(admin_html: str) -> str:
     nav_marker = "    <!-- Tab navigation -->"
     vista_marker = "    <!-- ===== TAB VISTA — nuevo diseño ===== -->"
@@ -3504,6 +3554,77 @@ def _build_public_page(admin_html: str) -> str:
 """
     script_anchor = "  <script>\n    const stateLabels"
     trimmed = trimmed.replace(script_anchor, proxy_and_boot + script_anchor, 1)
+
+    # Inyectar AdSense en <head> si está configurado
+    if ADSENSE_CLIENT_ID:
+        adsense_script = (
+            f'  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'
+            f'?client={ADSENSE_CLIENT_ID}" crossorigin="anonymous"></script>\n'
+        )
+        trimmed = trimmed.replace("</head>", adsense_script + "</head>", 1)
+
+    # Sección descriptiva + anuncio superior (antes del header)
+    about_block = """  <!-- Sección informativa para motores de búsqueda y visitantes -->
+  <section style="max-width:860px;margin:0 auto 0;padding:0 var(--space-md) var(--space-md);font-family:'Space Grotesk',system-ui,sans-serif;">
+    <h1 style="font-size:1.1rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;">Monitor de tráfico · Puente del Centenario (SE-30, Sevilla)</h1>
+    <p style="font-size:0.85rem;color:var(--text-secondary);line-height:1.6;margin-bottom:10px;">
+      Seguimiento en tiempo real del estado del tráfico en el <strong>Puente del Centenario</strong> (SE-30, km 10–12, Sevilla).
+      Datos actualizados cada 5 minutos a partir de fuentes oficiales de la DGT y TomTom.
+      Se muestran velocidades por sentido (Huelva / Cádiz), nivel de congestión y estado estimado del carril reversible.
+    </p>
+  </section>\n"""
+
+    # Anuncio leaderboard debajo del header
+    ad_top = ""
+    ad_bottom = ""
+    if ADSENSE_CLIENT_ID:
+        ad_top = """  <!-- Anuncio superior -->
+  <div style="text-align:center;margin:var(--space-md) auto;max-width:860px;padding:0 var(--space-md);">
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="{client}"
+         data-ad-slot="AUTO"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({{}});</script>
+  </div>\n""".format(client=ADSENSE_CLIENT_ID)
+        ad_bottom = """  <!-- Anuncio inferior -->
+  <div style="text-align:center;margin:var(--space-lg) auto var(--space-md);max-width:860px;padding:0 var(--space-md);">
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="{client}"
+         data-ad-slot="AUTO"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({{}});</script>
+  </div>\n""".format(client=ADSENSE_CLIENT_ID)
+
+    # Insertar about + anuncio superior justo antes del header principal
+    trimmed = trimmed.replace(
+        "    <!-- Header -->\n    <header class=\"nd-header\">",
+        about_block + ad_top + "    <!-- Header -->\n    <header class=\"nd-header\">",
+        1,
+    )
+
+    # Enlace privacidad + anuncio inferior en el footer
+    old_footer = (
+        "    <!-- Footer -->\n"
+        "    <footer class=\"nd-footer\">\n"
+        "      <span class=\"nd-eyebrow\">Actualización automática cada 60 s</span>\n"
+        "      <span class=\"nd-eyebrow\">SE-30 km 10–12 · Ambos sentidos · Sevilla</span>\n"
+        "    </footer>"
+    )
+    new_footer = (
+        ad_bottom +
+        "    <!-- Footer -->\n"
+        "    <footer class=\"nd-footer\">\n"
+        "      <span class=\"nd-eyebrow\">Actualización automática cada 60 s</span>\n"
+        "      <span class=\"nd-eyebrow\">SE-30 km 10–12 · Ambos sentidos · Sevilla"
+        " · <a href=\"/privacidad\" style=\"color:inherit;opacity:0.7;\">Privacidad</a></span>\n"
+        "    </footer>"
+    )
+    trimmed = trimmed.replace(old_footer, new_footer, 1)
+
     return trimmed
 
 
@@ -3540,6 +3661,9 @@ class DashboardServer:
                 parsed = urlparse(self.path)
                 if parsed.path == "/":
                     self._send_html(PUBLIC_PAGE)
+                    return
+                if parsed.path in ("/privacidad", "/privacidad/"):
+                    self._send_html(_PRIVACIDAD_PAGE)
                     return
                 if parsed.path in ("/admin", "/admin/"):
                     self._send_html(HTML_PAGE)
