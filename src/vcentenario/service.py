@@ -269,7 +269,7 @@ class VCentenarioService:
             "incidents": self.storage.latest_incidents(limit=24),
             "cameras": self.storage.latest_cameras(),
             "detectors": self.storage.latest_detector_readings(limit=24),
-            "tomtom_speed_history": self.storage.tomtom_speed_history(hours=6),
+            "tomtom_speed_history": self.storage.tomtom_speed_history(hours=24),
             "traffic_profiles": list(self.storage.traffic_profiles().values()),
             "reversible_reports": self.storage.recent_reversible_reports(limit=10),
         }

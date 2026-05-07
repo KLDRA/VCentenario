@@ -1066,6 +1066,8 @@ HTML_PAGE = """<!doctype html>
     #tab-nuevo .nv-scene-bar b { color: var(--nv-text); font-weight: 600; }
     /* Chart */
     #tab-nuevo .nv-chart-container { position: relative; height: 220px; width: 100%; }
+    #tab-nuevo .nv-speed-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 720px) { #tab-nuevo .nv-speed-grid { grid-template-columns: 1fr; } }
     #tab-nuevo #nv-chartSvg { width: 100%; height: 100%; display: block; overflow: visible; }
     #tab-nuevo .nv-chart-legend { display: flex; gap: 18px; font-size: 11px; color: var(--nv-text-3); margin-top: 12px; flex-wrap: wrap; }
     #tab-nuevo .nv-chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -1586,30 +1588,34 @@ HTML_PAGE = """<!doctype html>
         </div>
       </section>
 
-      <!-- Score chart -->
+      <!-- Histórico de velocidad por sentido -->
       <section class="nv-section">
         <div class="nv-section-head">
-          <div class="nv-section-title">Histórico de congestión</div>
+          <div class="nv-section-title">Histórico de velocidad por sentido</div>
           <div class="nv-tabs" id="nv-rangeTabs">
             <button class="nv-tab-btn" data-nv-range="1">1h</button>
             <button class="nv-tab-btn" data-nv-range="6">6h</button>
             <button class="nv-tab-btn active" data-nv-range="24">24h</button>
           </div>
         </div>
-        <div class="nv-card" style="padding:22px;">
-          <div class="nv-chart-container" id="nv-chartContainer">
-            <svg id="nv-chartSvg" preserveAspectRatio="none"></svg>
-            <div class="nv-tooltip" id="nv-tooltip">
-              <div style="font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,0.5);font-size:10px;" id="nv-ttTime">&mdash;</div>
-              <div style="font-weight:600;font-family:'JetBrains Mono',monospace;" id="nv-ttVal">&mdash;</div>
+        <div class="nv-speed-grid">
+          <div class="nv-card" style="padding:22px;">
+            <div style="font-size:12px;font-weight:600;color:var(--nv-text-3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">&larr; Sentido Huelva</div>
+            <div class="nv-chart-container" id="nv-chartHuelvaContainer">
+              <svg id="nv-chartHuelvaSvg" preserveAspectRatio="none"></svg>
             </div>
           </div>
-          <div class="nv-chart-legend">
-            <span><i style="background:var(--nv-ok)"></i>fluido</span>
-            <span><i style="background:var(--nv-warn)"></i>denso</span>
-            <span><i style="background:var(--nv-alert)"></i>retenciones</span>
-            <span><i style="background:var(--nv-danger)"></i>congestión</span>
+          <div class="nv-card" style="padding:22px;">
+            <div style="font-size:12px;font-weight:600;color:var(--nv-text-3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Sentido C&aacute;diz &rarr;</div>
+            <div class="nv-chart-container" id="nv-chartCadizContainer">
+              <svg id="nv-chartCadizSvg" preserveAspectRatio="none"></svg>
+            </div>
           </div>
+        </div>
+        <div class="nv-chart-legend" style="margin-top:14px;">
+          <span><i style="background:#4A9E5C"></i>&ge; 55 km/h fluido</span>
+          <span><i style="background:#D4A843"></i>30&ndash;55 km/h denso</span>
+          <span><i style="background:#D71921"></i>&lt; 30 km/h retenciones</span>
         </div>
       </section>
 
@@ -3065,12 +3071,15 @@ HTML_PAGE = """<!doctype html>
       if (s < 70) return 'congestion_fuerte';
       return 'colapso';
     }
-    const nv_state = { trendStates: [], chartRange: 24, sceneSpeedH: null, sceneSpeedC: null, sceneRev: 'indeterminado' };
+    const nv_state = { trendStates: [], speedHistH: [], speedHistC: [], chartRange: 24, sceneSpeedH: null, sceneSpeedC: null, sceneRev: 'indeterminado' };
 
     function renderNuevo(data) {
       if (!data || !data.state) return;
       const state = data.state;
       nv_state.trendStates = data.trend_states || data.recent_states || [];
+      const speedHist = data.tomtom_speed_history || [];
+      nv_state.speedHistH = speedHist.filter(r => r.detector_id === 'tomtom_route_huelva' && r.average_speed != null);
+      nv_state.speedHistC = speedHist.filter(r => r.detector_id === 'tomtom_route_cadiz'  && r.average_speed != null);
       nv_state.sceneSpeedH = null;
       nv_state.sceneSpeedC = null;
       const detectors = data.detectors || [];
@@ -3150,68 +3159,75 @@ HTML_PAGE = """<!doctype html>
       apply('nv-speedCadiz',  'nv-barCadiz',  'nv-freeCadiz',  'nv-delayCadiz',  c);
     }
 
-    function nv_renderChart() {
-      const svg = byId('nv-chartSvg');
-      const container = byId('nv-chartContainer');
+    function nv_speedColor(v) {
+      if (v == null) return '#666666';
+      if (v >= 55) return '#4A9E5C';
+      if (v >= 30) return '#D4A843';
+      return '#D71921';
+    }
+
+    function nv_drawSpeedChart(svgId, containerId, history) {
+      const svg = byId(svgId);
+      const container = byId(containerId);
       if (!svg || !container) return;
-      const W = container.clientWidth || 600;
+      const W = container.clientWidth || 400;
       const H = container.clientHeight || 220;
       const pad = { l: 36, r: 12, t: 8, b: 22 };
       svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
       svg.innerHTML = '';
-      const hrs = nv_state.chartRange || 24;
-      const pts = Math.round(hrs * 12);
-      const allData = nv_state.trendStates || [];
-      const data = allData.slice(-pts).map(s => ({ score: parseFloat(s.traffic_score) || 0, t: new Date(s.generated_at) }));
-      if (!data.length) return;
-      const maxY = Math.max(40, ...data.map(d => d.score)) * 1.1;
-      const xp = (i) => pad.l + (i / Math.max(data.length - 1, 1)) * (W - pad.l - pad.r);
-      const yp = (v) => pad.t + (1 - v / maxY) * (H - pad.t - pad.b);
       const NS = 'http://www.w3.org/2000/svg';
       const mk = (tag, attrs) => { const el = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v)); return el; };
-      [{ v: 12, c: 'var(--nv-ok)' }, { v: 24, c: 'var(--nv-warn)' }, { v: 36, c: 'var(--nv-alert)' }].forEach(th => {
-        if (th.v >= maxY) return;
-        svg.appendChild(mk('line', { x1: pad.l, x2: W - pad.r, y1: yp(th.v), y2: yp(th.v), stroke: th.c, 'stroke-width': '1', 'stroke-dasharray': '3 3', opacity: '0.4' }));
+
+      const hrs = nv_state.chartRange || 24;
+      const cutoff = Date.now() - hrs * 3600 * 1000;
+      const data = (history || [])
+        .map(r => ({ v: parseFloat(r.average_speed), t: new Date(r.collected_at) }))
+        .filter(p => !isNaN(p.v) && p.t.getTime() >= cutoff)
+        .sort((a, b) => a.t - b.t);
+
+      if (!data.length) {
+        const t = mk('text', { x: W/2, y: H/2, 'text-anchor': 'middle', fill: 'var(--nv-text-3)', 'font-size': '11', 'font-family': 'JetBrains Mono, monospace' });
+        t.textContent = 'sin datos en el rango'; svg.appendChild(t);
+        return;
+      }
+
+      const maxY = 90;
+      const xp = (i) => pad.l + (i / Math.max(data.length - 1, 1)) * (W - pad.l - pad.r);
+      const yp = (v) => pad.t + (1 - v / maxY) * (H - pad.t - pad.b);
+
+      // Líneas de referencia: 30 km/h y 55 km/h
+      [{ v: 30, c: '#D71921' }, { v: 55, c: '#4A9E5C' }].forEach(th => {
+        svg.appendChild(mk('line', { x1: pad.l, x2: W - pad.r, y1: yp(th.v), y2: yp(th.v), stroke: th.c, 'stroke-width': '1', 'stroke-dasharray': '3 3', opacity: '0.35' }));
       });
-      [0, 12, 24, 36].forEach(v => {
-        if (v > maxY) return;
+      // Etiquetas eje Y
+      [0, 30, 55, 90].forEach(v => {
         const t = mk('text', { x: pad.l - 8, y: yp(v) + 3, 'text-anchor': 'end', fill: 'var(--nv-text-3)', 'font-size': '10', 'font-family': 'JetBrains Mono, monospace' });
         t.textContent = v; svg.appendChild(t);
       });
-      const step = Math.max(1, Math.floor(data.length / 6));
+      // Etiquetas eje X (4-6 marcas)
+      const step = Math.max(1, Math.floor(data.length / 5));
       for (let i = 0; i < data.length; i += step) {
         const t = mk('text', { x: xp(i), y: H - 6, 'text-anchor': 'middle', fill: 'var(--nv-text-3)', 'font-size': '10', 'font-family': 'JetBrains Mono, monospace' });
         t.textContent = data[i].t.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); svg.appendChild(t);
       }
-      const lastKey = nv_scoreToLevel(data[data.length - 1].score);
-      const c = NV_LEVELS[lastKey].color;
+
+      // Color del trazo según velocidad actual
+      const c = nv_speedColor(data[data.length - 1].v);
+      const gradId = svgId + 'Grad';
       const defs = document.createElementNS(NS, 'defs');
-      const lg = mk('linearGradient', { id: 'nvAreaGrad', x1: '0', y1: '0', x2: '0', y2: '1' });
+      const lg = mk('linearGradient', { id: gradId, x1: '0', y1: '0', x2: '0', y2: '1' });
       lg.innerHTML = `<stop offset="0%" stop-color="${c}" stop-opacity="0.32"/><stop offset="100%" stop-color="${c}" stop-opacity="0"/>`;
       defs.appendChild(lg); svg.appendChild(defs);
-      const pathD = data.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xp(i)} ${yp(p.score)}`).join(' ');
-      svg.appendChild(mk('path', { d: `${pathD} L ${xp(data.length - 1)} ${yp(0)} L ${xp(0)} ${yp(0)} Z`, fill: 'url(#nvAreaGrad)' }));
+      const pathD = data.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xp(i)} ${yp(p.v)}`).join(' ');
+      svg.appendChild(mk('path', { d: `${pathD} L ${xp(data.length - 1)} ${yp(0)} L ${xp(0)} ${yp(0)} Z`, fill: `url(#${gradId})` }));
       svg.appendChild(mk('path', { d: pathD, fill: 'none', stroke: c, 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
       const li = data.length - 1;
-      svg.appendChild(mk('circle', { cx: xp(li), cy: yp(data[li].score), r: '4', fill: c, stroke: 'var(--nv-surface)', 'stroke-width': '2' }));
-      const hvr = mk('circle', { r: '4', fill: c, stroke: 'var(--nv-surface)', 'stroke-width': '2', opacity: '0' }); svg.appendChild(hvr);
-      const vl = mk('line', { y1: pad.t, y2: H - pad.b, stroke: 'var(--nv-border-strong)', 'stroke-width': '1', opacity: '0' }); svg.appendChild(vl);
-      const overlay = mk('rect', { x: pad.l, y: pad.t, width: W - pad.l - pad.r, height: H - pad.t - pad.b, fill: 'transparent' }); svg.appendChild(overlay);
-      const tooltip = byId('nv-tooltip');
-      overlay.addEventListener('mousemove', (e) => {
-        const rect = overlay.getBoundingClientRect();
-        const idx = Math.round(((e.clientX - rect.left) / rect.width) * (data.length - 1));
-        if (idx < 0 || idx >= data.length) return;
-        const px = xp(idx), py = yp(data[idx].score);
-        hvr.setAttribute('cx', px); hvr.setAttribute('cy', py); hvr.setAttribute('opacity', '1');
-        vl.setAttribute('x1', px); vl.setAttribute('x2', px); vl.setAttribute('opacity', '0.5');
-        if (tooltip) {
-          tooltip.style.opacity = '1'; tooltip.style.left = px + 'px'; tooltip.style.top = py + 'px';
-          const ttTime = byId('nv-ttTime'); if (ttTime) ttTime.textContent = data[idx].t.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-          const ttVal = byId('nv-ttVal'); if (ttVal) { const lk = nv_scoreToLevel(data[idx].score); ttVal.textContent = data[idx].score.toFixed(1) + ' · ' + NV_LEVELS[lk].label.toLowerCase(); }
-        }
-      });
-      overlay.addEventListener('mouseleave', () => { hvr.setAttribute('opacity', '0'); vl.setAttribute('opacity', '0'); if (tooltip) tooltip.style.opacity = '0'; });
+      svg.appendChild(mk('circle', { cx: xp(li), cy: yp(data[li].v), r: '4', fill: c, stroke: 'var(--nv-surface)', 'stroke-width': '2' }));
+    }
+
+    function nv_renderChart() {
+      nv_drawSpeedChart('nv-chartHuelvaSvg', 'nv-chartHuelvaContainer', nv_state.speedHistH);
+      nv_drawSpeedChart('nv-chartCadizSvg',  'nv-chartCadizContainer',  nv_state.speedHistC);
     }
 
     document.querySelectorAll('#nv-rangeTabs .nv-tab-btn').forEach(btn => {
