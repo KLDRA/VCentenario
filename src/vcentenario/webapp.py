@@ -3576,39 +3576,15 @@ def _build_public_page(admin_html: str) -> str:
     </p>
   </section>\n"""
 
-    # Anuncio leaderboard debajo del header
-    ad_top = ""
-    ad_bottom = ""
-    if ADSENSE_CLIENT_ID:
-        ad_top = """  <!-- Anuncio superior -->
-  <div style="text-align:center;margin:var(--space-md) auto;max-width:860px;padding:0 var(--space-md);">
-    <ins class="adsbygoogle"
-         style="display:block"
-         data-ad-client="{client}"
-         data-ad-slot="AUTO"
-         data-ad-format="auto"
-         data-full-width-responsive="true"></ins>
-    <script>(adsbygoogle = window.adsbygoogle || []).push({{}});</script>
-  </div>\n""".format(client=ADSENSE_CLIENT_ID)
-        ad_bottom = """  <!-- Anuncio inferior -->
-  <div style="text-align:center;margin:var(--space-lg) auto var(--space-md);max-width:860px;padding:0 var(--space-md);">
-    <ins class="adsbygoogle"
-         style="display:block"
-         data-ad-client="{client}"
-         data-ad-slot="AUTO"
-         data-ad-format="auto"
-         data-full-width-responsive="true"></ins>
-    <script>(adsbygoogle = window.adsbygoogle || []).push({{}});</script>
-  </div>\n""".format(client=ADSENSE_CLIENT_ID)
-
-    # Insertar about + anuncio superior justo antes del header principal
+    # Insertar sección descriptiva justo antes del header principal.
+    # No insertamos unidades manuales: AdSense decide colocaciones via Auto Ads.
     trimmed = trimmed.replace(
         "    <!-- Header -->\n    <header class=\"nd-header\">",
-        about_block + ad_top + "    <!-- Header -->\n    <header class=\"nd-header\">",
+        about_block + "    <!-- Header -->\n    <header class=\"nd-header\">",
         1,
     )
 
-    # Enlace privacidad + anuncio inferior en el footer
+    # Enlace privacidad en el footer
     old_footer = (
         "    <!-- Footer -->\n"
         "    <footer class=\"nd-footer\">\n"
@@ -3617,7 +3593,6 @@ def _build_public_page(admin_html: str) -> str:
         "    </footer>"
     )
     new_footer = (
-        ad_bottom +
         "    <!-- Footer -->\n"
         "    <footer class=\"nd-footer\">\n"
         "      <span class=\"nd-eyebrow\">Actualización automática cada 60 s</span>\n"
