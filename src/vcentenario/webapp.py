@@ -3404,8 +3404,8 @@ HTML_PAGE = """<!doctype html>
       const avgSpd = (spdH + spdC) / 2;
       const density = avgSpd > 50 ? 0.7 : avgSpd > 35 ? 1.4 : avgSpd > 20 ? 2.2 : 3.0;
       const canSpawn = (cars, sign) => { const ex = sign > 0 ? -40 : 840; for (const o of cars) { const d = (o.x - ex) * sign; if (d >= 0 && d < 30) return false; } return true; };
-      if (Math.random() < density * 0.9 * dt && canSpawn(nv_scene.huelva, 1)) nv_scene.huelva.push(nv_spawnCar('huelva', spdH));
-      if (Math.random() < density * 0.85 * dt && canSpawn(nv_scene.cadiz, -1)) nv_scene.cadiz.push(nv_spawnCar('cadiz', spdC));
+      if (Math.random() < density * 0.9 * dt && canSpawn(nv_scene.huelva, -1)) nv_scene.huelva.push(nv_spawnCar('huelva', spdH));
+      if (Math.random() < density * 0.85 * dt && canSpawn(nv_scene.cadiz, 1)) nv_scene.cadiz.push(nv_spawnCar('cadiz', spdC));
       const updateCars = (cars, dirSign) => {
         cars.sort((a, b) => dirSign > 0 ? b.x - a.x : a.x - b.x);
         for (let i = 0; i < cars.length; i++) {
@@ -3419,8 +3419,8 @@ HTML_PAGE = """<!doctype html>
           if ((dirSign > 0 && c.x > 840) || (dirSign < 0 && c.x < -40)) { cars.splice(i, 1); i--; }
         }
       };
-      updateCars(nv_scene.huelva, 1);
-      updateCars(nv_scene.cadiz, -1);
+      updateCars(nv_scene.huelva, -1);
+      updateCars(nv_scene.cadiz, 1);
       const cap = avgSpd < 20 ? 55 : 38;
       if (nv_scene.huelva.length > cap) nv_scene.huelva.splice(0, nv_scene.huelva.length - cap);
       if (nv_scene.cadiz.length  > cap) nv_scene.cadiz.splice(0, nv_scene.cadiz.length - cap);
