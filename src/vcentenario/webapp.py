@@ -3242,6 +3242,35 @@ HTML_PAGE = """<!doctype html>
       });
     });
 
+    const NV_PICTO_LABELS = {
+      trafficCongestion: 'RETENCIONES',
+      slowTraffic: 'TRÁFICO LENTO',
+      keepASafeDistance: 'DISTANCIA SEGURIDAD',
+      roadworks: 'OBRAS',
+      accident: 'ACCIDENTE',
+      roadClosed: 'VÍA CORTADA',
+      laneClosed: 'CARRIL CORTADO',
+      reducedVisibility: 'VISIBILIDAD REDUCIDA',
+      icyRoads: 'CARRETERA HELADA',
+      slipperyRoads: 'CALZADA DESLIZANTE',
+      strongWind: 'VIENTO FUERTE',
+      animalsOnTheRoad: 'ANIMALES',
+      objectOnRoad: 'OBJETOS VÍA',
+      pedestrian: 'PEATONES',
+      reduceSpeed: 'REDUZCA VELOCIDAD',
+      noOvertaking: 'PROHIBIDO ADELANTAR',
+      heavyVehicleProhibited: 'CAMIONES PROHIBIDO',
+      diversion: 'DESVÍO',
+      detour: 'DESVÍO',
+      checkBrakes: 'COMPROBAR FRENOS',
+    };
+
+    function nv_picto2text(picts) {
+      return (picts || [])
+        .map(p => NV_PICTO_LABELS[p] || (p ? p.replace(/([a-z])([A-Z])/g, '$1 $2').toUpperCase() : ''))
+        .filter(Boolean);
+    }
+
     function nv_renderVms(panels) {
       const grid = byId('nv-vmsGrid'); if (!grid) return;
       // Agrupar todos los mensajes (páginas) de cada panel
@@ -3259,14 +3288,14 @@ HTML_PAGE = """<!doctype html>
       }
       grid.innerHTML = list.map(group => {
         const p = group.meta;
-        // Cada panel puede mostrar varias páginas que rotan. Construimos cada
-        // página por separado y las unimos con una línea separadora.
+        // Cada página combina el motivo (pictograma) + ubicación (legends).
         const pages = group.msgs.map(m => {
-          const lines = (m.legends || [])
+          const reason = nv_picto2text(m.pictograms);
+          const location = (m.legends || [])
             .flatMap(l => String(l).split('/'))
             .map(s => s.trim())
             .filter(Boolean);
-          return lines.join('\\n');
+          return [...reason, ...location].join('\\n');
         }).filter(Boolean);
         // Eliminar páginas duplicadas
         const uniquePages = [...new Set(pages)];
