@@ -3288,18 +3288,19 @@ HTML_PAGE = """<!doctype html>
       }
       grid.innerHTML = list.map(group => {
         const p = group.meta;
-        // Cada página combina el motivo (pictograma) + ubicación (legends).
+        // Cada página combina el motivo (pictograma) + ubicación (legends),
+        // todo en una sola línea separado por ' · '.
         const pages = group.msgs.map(m => {
           const reason = nv_picto2text(m.pictograms);
           const location = (m.legends || [])
             .flatMap(l => String(l).split('/'))
             .map(s => s.trim())
             .filter(Boolean);
-          return [...reason, ...location].join('\\n');
+          return [...reason, ...location].join(' · ');
         }).filter(Boolean);
-        // Eliminar páginas duplicadas
+        // Eliminar páginas duplicadas; varias páginas se separan con un guion largo.
         const uniquePages = [...new Set(pages)];
-        const text = uniquePages.join('\\n──────\\n');
+        const text = uniquePages.join('  —  ');
         const dirText = p.direction === 'positive' ? 'SENTIDO HUELVA' : p.direction === 'negative' ? 'SENTIDO CÁDIZ' : 'SE-30';
         const kmText = p.km != null ? 'KM ' + parseFloat(p.km).toFixed(1) : '—';
         const idShort = String(p.location_id).replace(/^GUID_PMV_/, '');
