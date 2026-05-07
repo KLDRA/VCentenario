@@ -29,7 +29,8 @@ def get_simple_dashboard():
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>VCentenario · Traffic Monitor</title>
+    <title>5Centenario · Traffic Monitor</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -124,7 +125,7 @@ def get_simple_dashboard():
         <header class="nd-header">
             <div>
                 <div class="nd-eyebrow">Monitor Operativo · Puente del Centenario</div>
-                <div class="nd-title">VCentenario</div>
+                <div class="nd-title">5Centenario</div>
             </div>
             <div class="nd-status">
                 <div class="nd-eyebrow"><span class="nd-status-dot"></span>Activo</div>
@@ -279,7 +280,8 @@ HTML_PAGE = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>VCentenario Monitor</title>
+  <title>5Centenario Monitor</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Doto:ROND@0&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -1108,7 +1110,7 @@ HTML_PAGE = """<!doctype html>
     <header class="nd-header">
       <div>
         <div class="nd-eyebrow">Monitor Operativo · SE-30 km 10–12 · Ambos sentidos</div>
-        <div class="nd-header-title">VCentenario</div>
+        <div class="nd-header-title">5Centenario</div>
       </div>
       <div class="nd-header-right">
         <div class="nd-status-indicator">
@@ -3452,12 +3454,19 @@ HTML_PAGE = """<!doctype html>
 """
 
 
+_FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="10" fill="#000000"/>
+  <text x="32" y="48" font-family="'Inter','Arial',sans-serif" font-size="46" font-weight="800" fill="#D71921" text-anchor="middle">5</text>
+</svg>"""
+
+
 _PRIVACIDAD_PAGE = """<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="google-adsense-account" content="ca-pub-1589098356793173">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>Política de Privacidad · 5centenario.es</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.7; }
@@ -3514,8 +3523,8 @@ def _build_public_page(admin_html: str) -> str:
         1,
     )
     trimmed = trimmed.replace(
-        "<title>VCentenario Monitor</title>",
-        "<title>VCentenario · Puente del Centenario</title>",
+        "<title>5Centenario Monitor</title>",
+        "<title>5Centenario · Puente del Centenario</title>",
         1,
     )
     # El bundle JS está diseñado para el dashboard completo y referencia elementos
@@ -3654,6 +3663,15 @@ class DashboardServer:
                     return
                 if parsed.path in ("/privacidad", "/privacidad/"):
                     self._send_html(_PRIVACIDAD_PAGE)
+                    return
+                if parsed.path in ("/favicon.svg", "/favicon.ico"):
+                    body = _FAVICON_SVG.encode("utf-8")
+                    self.send_response(HTTPStatus.OK)
+                    self.send_header("Content-Type", "image/svg+xml")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.send_header("Cache-Control", "public, max-age=86400")
+                    self.end_headers()
+                    self.wfile.write(body)
                     return
                 if parsed.path == "/ads.txt":
                     if ADSENSE_CLIENT_ID:
