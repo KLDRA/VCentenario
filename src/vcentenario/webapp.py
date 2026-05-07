@@ -3254,10 +3254,18 @@ HTML_PAGE = """<!doctype html>
         return;
       }
       grid.innerHTML = list.map(p => {
-        const text = (p.legends || []).join('\\n').trim();
+        // Las leyendas de DGT vienen como una sola cadena con '/' separando líneas
+        // (p.ej. "EN SE-30/KM 10 -> 15/STDO. HUELVA"). Las dividimos para mostrar
+        // cada línea por separado y eliminamos las barras del texto final.
+        const lines = (p.legends || [])
+          .flatMap(l => String(l).split('/'))
+          .map(s => s.trim())
+          .filter(Boolean);
+        const text = lines.join('\\n');
         const dirText = p.direction === 'positive' ? 'SENTIDO HUELVA' : p.direction === 'negative' ? 'SENTIDO CÁDIZ' : 'SE-30';
         const kmText = p.km != null ? 'KM ' + parseFloat(p.km).toFixed(1) : '—';
-        return `<div class="nv-vms"><div class="nv-vms-meta"><span>PANEL ${escapeHtml(String(p.location_id))}</span><span>${escapeHtml(kmText)}</span></div><div class="nv-vms-screen${text ? '' : ' empty'}">${text ? escapeHtml(text) : '— SIN MENSAJE —'}</div><div class="nv-vms-footer"><span>${escapeHtml(dirText)}</span><span>SE-30</span></div></div>`;
+        const idShort = String(p.location_id).replace(/^GUID_PMV_/, '');
+        return `<div class="nv-vms"><div class="nv-vms-meta"><span>PANEL ${escapeHtml(idShort)}</span><span>${escapeHtml(kmText)}</span></div><div class="nv-vms-screen${text ? '' : ' empty'}">${text ? escapeHtml(text) : '— SIN MENSAJE —'}</div><div class="nv-vms-footer"><span>${escapeHtml(dirText)}</span><span>SE-30</span></div></div>`;
       }).join('');
     }
 
