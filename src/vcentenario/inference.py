@@ -99,6 +99,7 @@ def infer_bridge_state(
     recent_states: Optional[Sequence[Dict[str, object]]] = None,
     recent_detector_history: Optional[Sequence[Dict[str, object]]] = None,
     latest_report: Optional[Dict[str, object]] = None,
+    recent_reports: Optional[Sequence[Dict[str, object]]] = None,
     observed_direction_profile: Optional[Dict[Tuple[int, int], Dict[str, object]]] = None,
 ) -> BridgeState:
     panels = list(panels)
@@ -205,6 +206,7 @@ def infer_bridge_state(
         persistence_window=REVERSIBLE_PERSISTENCE_WINDOW,
         schedule=REVERSIBLE_SCHEDULE,
         latest_report=latest_report,
+        recent_reports=recent_reports,
         observed_direction_profile=observed_direction_profile,
     )
     evidence.extend(direction_evidence)
@@ -275,6 +277,7 @@ def infer_reversible(
     persistence_window: int = 8,
     schedule: str = "",
     latest_report: Optional[Dict[str, object]] = None,
+    recent_reports: Optional[Sequence[Dict[str, object]]] = None,
     observed_direction_profile: Optional[Dict[Tuple[int, int], Dict[str, object]]] = None,
 ) -> tuple[str, float, List[str]]:
     recent_states = list(recent_states or [])
@@ -282,28 +285,53 @@ def infer_reversible(
     evidence: List[str] = []
 
     # — Señal de observación directa del usuario —
-    # Peso decreciente con la antigüedad: 14 pts si < 15 min, 8 pts hasta 30 min,
-    # 4 pts hasta 60 min. Más antiguo se ignora.
-    # "none" no añade presión pero sí cancela la presión acumulada del algoritmo.
-    if latest_report:
-        report_dir = str(latest_report.get("direction", ""))
-        age = _report_age_seconds(str(latest_report.get("reported_at", "")))
-        if age is not None and age <= 3600:
-            age_min = int(age // 60)
-            if report_dir in ("positive", "negative"):
-                if age <= 900:
-                    report_weight = 14.0
-                elif age <= 1800:
-                    report_weight = 8.0
-                else:
-                    report_weight = 4.0
-                direction_pressure[report_dir] += report_weight
-                evidence.append(f"reversible:user-report:{report_dir}:{age_min}min:{report_weight:.0f}")
-            elif report_dir == "none":
-                # Sin reversible activo: limpiar presión acumulada para evitar falsos positivos
-                for k in list(direction_pressure.keys()):
-                    direction_pressure[k] *= 0.2
-                evidence.append(f"reversible:user-report:none:{age_min}min")
+    # Si hay varios reportes recientes, agrupamos por dirección y sumamos pesos
+    # con decaimiento por edad (14 si <15 min, 8 si <30 min, 4 si <60 min).
+    # Para evitar abuso, capamos a 3 votos por dirección y a 50 puntos totales.
+    # Si solo hay uno (o no se pasó la lista), comportamiento legacy con
+    # latest_report.
+    aggregated_reports = list(recent_reports or [])
+    if not aggregated_reports and latest_report is not None:
+        aggregated_reports = [latest_report]
+    if aggregated_reports:
+        votes: Dict[str, float] = defaultdict(float)
+        counts: Dict[str, int] = defaultdict(int)
+        most_recent_age: Dict[str, int] = {}
+        for r in aggregated_reports:
+            r_dir = str(r.get("direction", ""))
+            age = _report_age_seconds(str(r.get("reported_at", "")))
+            if age is None or age > 3600:
+                continue
+            if r_dir not in ("positive", "negative", "none"):
+                continue
+            # Cap por dirección: máximo 3 votos cuentan
+            if counts[r_dir] >= 3:
+                continue
+            counts[r_dir] += 1
+            if age <= 900:
+                w = 14.0
+            elif age <= 1800:
+                w = 8.0
+            else:
+                w = 4.0
+            votes[r_dir] += w
+            if r_dir not in most_recent_age:
+                most_recent_age[r_dir] = int(age // 60)
+        # Capar totales (50 pts máx por dirección)
+        for k in list(votes.keys()):
+            votes[k] = min(votes[k], 50.0)
+        # Aplicar el resultado del voto agregado
+        winners = [d for d in ("positive", "negative") if votes[d] > 0]
+        none_weight = votes.get("none", 0.0)
+        # Si "none" gana (mayor peso que cualquier dirección), cancela presión
+        if none_weight and (not winners or none_weight >= max(votes[d] for d in winners)):
+            for k in list(direction_pressure.keys()):
+                direction_pressure[k] *= 0.2
+            evidence.append(f"reversible:user-reports:none:{counts['none']}votos:{none_weight:.0f}")
+        else:
+            for d in winners:
+                direction_pressure[d] += votes[d]
+                evidence.append(f"reversible:user-reports:{d}:{counts[d]}votos:{votes[d]:.0f}:{most_recent_age[d]}min")
 
     schedule_direction, schedule_weight = get_schedule_bias(schedule)
     if schedule_direction:

@@ -157,7 +157,10 @@ class VCentenarioService:
 
         recent_states = self.storage.recent_states(limit=48)
         recent_detector_history = self.storage.tomtom_speed_history(hours=2)
-        recent_reports = self.storage.recent_reversible_reports(limit=1)
+        # Coge todos los reportes de la última hora para que la inferencia
+        # pueda agregar votos de varios usuarios en lugar de quedarse solo con
+        # el último.
+        recent_reports = self.storage.recent_reversible_reports(limit=200)
         latest_report = recent_reports[0] if recent_reports else None
         try:
             observed_direction_profile = self.storage.observed_direction_profile(
@@ -174,6 +177,7 @@ class VCentenarioService:
             recent_states=recent_states,
             recent_detector_history=recent_detector_history,
             latest_report=latest_report,
+            recent_reports=recent_reports,
             observed_direction_profile=observed_direction_profile,
         )
         state.learning_context = self.storage.update_traffic_profile(state)
