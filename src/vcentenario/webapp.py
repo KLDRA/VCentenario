@@ -1141,7 +1141,7 @@ HTML_PAGE = """<!doctype html>
     <section class="nd-directions">
       <div class="nd-direction-card">
         <div class="nd-direction-heading">
-          <span class="nd-direction-arrow">→</span>
+          <span class="nd-direction-arrow">←</span>
           <span>Sentido Huelva</span>
         </div>
         <div class="nd-direction-speed" id="dir-pos-speed">--</div>
@@ -1152,7 +1152,7 @@ HTML_PAGE = """<!doctype html>
       </div>
       <div class="nd-direction-card">
         <div class="nd-direction-heading">
-          <span class="nd-direction-arrow">←</span>
+          <span class="nd-direction-arrow">→</span>
           <span>Sentido Cádiz</span>
         </div>
         <div class="nd-direction-speed" id="dir-neg-speed">--</div>
@@ -1208,8 +1208,8 @@ HTML_PAGE = """<!doctype html>
       </div>
       <div class="nd-section-body" style="padding:var(--space-md) var(--space-lg);">
         <div style="display:flex;gap:var(--space-md);flex-wrap:wrap;align-items:center;">
-          <button id="btn-report-huelva" class="nd-report-btn" style="background:#4A9E5C22;border:1px solid #4A9E5C;color:#4A9E5C;" onclick="reportReversible('positive')">&#8594; HUELVA</button>
-          <button id="btn-report-cadiz"  class="nd-report-btn" style="background:#D4A84322;border:1px solid #D4A843;color:#D4A843;" onclick="reportReversible('negative')">&#8592; C&#193;DIZ</button>
+          <button id="btn-report-huelva" class="nd-report-btn" style="background:#4A9E5C22;border:1px solid #4A9E5C;color:#4A9E5C;" onclick="reportReversible('positive')">&#8592; HUELVA</button>
+          <button id="btn-report-cadiz"  class="nd-report-btn" style="background:#D4A84322;border:1px solid #D4A843;color:#D4A843;" onclick="reportReversible('negative')">&#8594; C&#193;DIZ</button>
           <button id="btn-report-none"   class="nd-report-btn" style="background:#55555522;border:1px solid #555555;color:#888888;" onclick="reportReversible('none')">SIN REVERSIBLE</button>
         </div>
         <input id="reportNote" type="text" maxlength="280" placeholder="Nota opcional (duda, transici&#243;n, contexto...)" style="margin-top:var(--space-sm);width:100%;padding:6px 8px;font-family:'Space Mono',monospace;font-size:11px;background:transparent;border:1px solid #222;color:var(--text-display);box-sizing:border-box;" />
@@ -1225,11 +1225,11 @@ HTML_PAGE = """<!doctype html>
         <span class="nd-meta">&#218;ltimas 6 h · por sentido</span>
       </div>
       <div class="nd-section-body" style="padding:0;">
-        <div style="padding:var(--space-sm) var(--space-lg) 2px;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;color:#4A9E5C;">&#8594; HUELVA</div>
+        <div style="padding:var(--space-sm) var(--space-lg) 2px;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;color:#4A9E5C;">&#8592; HUELVA</div>
         <div class="nd-bars-wrap">
           <canvas id="pulso-huelva" style="display:block;width:100%;background:var(--canvas-bg);"></canvas>
         </div>
-        <div style="padding:var(--space-sm) var(--space-lg) 2px;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;color:#D4A843;margin-top:var(--space-sm);">&#8592; C&#193;DIZ</div>
+        <div style="padding:var(--space-sm) var(--space-lg) 2px;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;color:#D4A843;margin-top:var(--space-sm);">&#8594; C&#193;DIZ</div>
         <div class="nd-bars-wrap">
           <canvas id="pulso-cadiz" style="display:block;width:100%;background:var(--canvas-bg);"></canvas>
         </div>
@@ -1467,12 +1467,12 @@ HTML_PAGE = """<!doctype html>
             <thead>
               <tr style="border-bottom:2px solid var(--border-visible);">
                 <th style="padding:10px 16px;text-align:left;color:var(--text-secondary);font-weight:400;letter-spacing:0.06em;white-space:nowrap;">FECHA</th>
-                <th style="padding:10px 16px;text-align:right;color:#4A9E5C;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8594; HUELVA M&#205;N</th>
-                <th style="padding:10px 16px;text-align:right;color:#4A9E5C;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8594; HUELVA M&#193;X</th>
-                <th style="padding:10px 16px;text-align:right;color:#4A9E5C;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8594; HUELVA MEDIA</th>
-                <th style="padding:10px 16px;text-align:right;color:#D4A843;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8592; C&#193;DIZ M&#205;N</th>
-                <th style="padding:10px 16px;text-align:right;color:#D4A843;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8592; C&#193;DIZ M&#193;X</th>
-                <th style="padding:10px 16px;text-align:right;color:#D4A843;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8592; C&#193;DIZ MEDIA</th>
+                <th style="padding:10px 16px;text-align:right;color:#4A9E5C;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8592; HUELVA M&#205;N</th>
+                <th style="padding:10px 16px;text-align:right;color:#4A9E5C;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8592; HUELVA M&#193;X</th>
+                <th style="padding:10px 16px;text-align:right;color:#4A9E5C;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8592; HUELVA MEDIA</th>
+                <th style="padding:10px 16px;text-align:right;color:#D4A843;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8594; C&#193;DIZ M&#205;N</th>
+                <th style="padding:10px 16px;text-align:right;color:#D4A843;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8594; C&#193;DIZ M&#193;X</th>
+                <th style="padding:10px 16px;text-align:right;color:#D4A843;font-weight:400;letter-spacing:0.06em;white-space:nowrap;">&#8594; C&#193;DIZ MEDIA</th>
                 <th style="padding:10px 16px;text-align:right;color:var(--text-secondary);font-weight:400;letter-spacing:0.06em;white-space:nowrap;">MUESTRAS</th>
               </tr>
             </thead>
@@ -2187,7 +2187,7 @@ HTML_PAGE = """<!doctype html>
       }
     }
 
-    const reportLabels = { positive: '→ Huelva', negative: '← Cádiz', none: 'Sin reversible' };
+    const reportLabels = { positive: '← Huelva', negative: '→ Cádiz', none: 'Sin reversible' };
     const reportColors = { positive: '#4A9E5C', negative: '#D4A843', none: '#666666' };
 
     function renderObservedVsInferred(state, reports) {
@@ -3272,7 +3272,7 @@ HTML_PAGE = """<!doctype html>
       try {
         const res = await fetch('/api/report-reversible', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ direction, note: note || undefined }) });
         if (!res.ok) throw new Error('Error ' + res.status);
-        const labels = { positive: '→ Huelva', negative: '← Cádiz', none: 'Sin reversible' };
+        const labels = { positive: '← Huelva', negative: '→ Cádiz', none: 'Sin reversible' };
         if (statusEl) { statusEl.style.color = 'var(--nv-ok)'; statusEl.textContent = 'Registrado: ' + (labels[direction] || direction) + ' · ' + new Date().toLocaleTimeString('es-ES'); }
         if (noteEl) noteEl.value = '';
         ['nv-btn-report-huelva', 'nv-btn-report-cadiz', 'nv-btn-report-none'].forEach(id => { const b = byId(id); if (b) b.classList.remove('success'); });
@@ -3330,7 +3330,7 @@ HTML_PAGE = """<!doctype html>
       <line x1="0" y1="161" x2="800" y2="161" stroke="${deckLine}" stroke-width="0.5"/>
       <rect id="nv-revGlow" x="0" y="154" width="800" height="4" fill="#4a80ff" opacity="0"/>
       <g font-family="JetBrains Mono, monospace" font-size="8" fill="${isDark ? '#4a5470' : '#7a8398'}">
-        <text x="8" y="178">KM 10</text><text x="772" y="178" text-anchor="end">KM 12</text>
+        <text x="8" y="178">KM 12</text><text x="772" y="178" text-anchor="end">KM 10</text>
       </g>
       <g id="nv-carsHuelva"></g>
       <g id="nv-carsCadiz"></g>
@@ -3355,11 +3355,12 @@ HTML_PAGE = """<!doctype html>
     }
 
     function nv_spawnCar(dir, speedKmh) {
-      const x = dir === 'huelva' ? -40 : 840;
+      // Cádiz spawns en izquierda y va →; Huelva spawns en derecha y va ←
+      const x = dir === 'cadiz' ? -40 : 840;
       const laneY = dir === 'huelva' ? 152 : 160;
       const kmh = Math.max(5, speedKmh + (Math.random() - 0.5) * 6);
       const speed = (kmh / 60) * 120;
-      return { x, y: laneY, vx: (dir === 'huelva' ? 1 : -1) * speed, w: 14 + Math.random() * 3, h: 5, color: nv_pickCarColor(), brake: Math.random() < 0.08, brakeTimer: 1 + Math.random() * 2 };
+      return { x, y: laneY, vx: (dir === 'cadiz' ? 1 : -1) * speed, w: 14 + Math.random() * 3, h: 5, color: nv_pickCarColor(), brake: Math.random() < 0.08, brakeTimer: 1 + Math.random() * 2 };
     }
 
     function nv_pickCarColor() {
@@ -3380,11 +3381,12 @@ HTML_PAGE = """<!doctype html>
           body.setAttribute('rx', '1.2'); body.setAttribute('fill', c.color); g.appendChild(body);
           const front = document.createElementNS(NS, 'rect');
           front.setAttribute('width', '1.4'); front.setAttribute('height', '2'); front.setAttribute('y', '-1');
-          front.setAttribute('x', isHuelva ? c.w/2 - 1.4 : -c.w/2); front.setAttribute('fill', '#fff6c8'); front.setAttribute('opacity', '0.9'); g.appendChild(front);
+          // Huelva mira ←, Cádiz mira →. Luz frontal en el morro, freno en la cola.
+          front.setAttribute('x', isHuelva ? -c.w/2 : c.w/2 - 1.4); front.setAttribute('fill', '#fff6c8'); front.setAttribute('opacity', '0.9'); g.appendChild(front);
           if (c.brake || Math.abs(c.vx) < 15) {
             const bl = document.createElementNS(NS, 'rect');
             bl.setAttribute('width', '1.4'); bl.setAttribute('height', '2'); bl.setAttribute('y', '-1');
-            bl.setAttribute('x', isHuelva ? -c.w/2 : c.w/2 - 1.4); bl.setAttribute('fill', '#ff3b2f'); bl.setAttribute('filter', 'url(#nv-glow)'); g.appendChild(bl);
+            bl.setAttribute('x', isHuelva ? c.w/2 - 1.4 : -c.w/2); bl.setAttribute('fill', '#ff3b2f'); bl.setAttribute('filter', 'url(#nv-glow)'); g.appendChild(bl);
           }
           layer.appendChild(g);
         });
