@@ -1285,13 +1285,13 @@ HTML_PAGE = """<!doctype html>
       <!-- Dos sentidos: velocidad actual + retardo -->
       <section class="nd-metrics" style="margin-top:0;">
         <article class="nd-metric-card">
-          <div class="nd-label">&#8594; Sentido Huelva · km 10&#8211;12</div>
+          <div class="nd-label">&#8592; Sentido Huelva · km 10&#8211;12</div>
           <div id="spd-huelva" class="nd-metric-value">-</div>
           <div id="spd-huelva-delay" class="nd-metric-note">km/h</div>
           <div id="spd-huelva-free" class="nd-metric-note" style="margin-top:2px;"></div>
         </article>
         <article class="nd-metric-card">
-          <div class="nd-label">&#8592; Sentido C&#225;diz · km 12&#8211;10</div>
+          <div class="nd-label">&#8594; Sentido C&#225;diz · km 12&#8211;10</div>
           <div id="spd-cadiz" class="nd-metric-value">-</div>
           <div id="spd-cadiz-delay" class="nd-metric-note">km/h</div>
           <div id="spd-cadiz-free" class="nd-metric-note" style="margin-top:2px;"></div>
@@ -1344,12 +1344,12 @@ HTML_PAGE = """<!doctype html>
       <!-- Tabla resumen bajo el mapa -->
       <section class="nd-metrics" style="margin-bottom:0;">
         <article class="nd-metric-card">
-          <div class="nd-label">&rarr; Sentido Huelva · km 10&ndash;12</div>
+          <div class="nd-label">&larr; Sentido Huelva · km 10&ndash;12</div>
           <div class="nd-metric-value" id="map-spd-huelva">-</div>
           <div class="nd-metric-note" id="map-delay-huelva">TomTom Routing</div>
         </article>
         <article class="nd-metric-card">
-          <div class="nd-label">&larr; Sentido C&aacute;diz · km 12&ndash;10</div>
+          <div class="nd-label">&rarr; Sentido C&aacute;diz · km 12&ndash;10</div>
           <div class="nd-metric-value" id="map-spd-cadiz">-</div>
           <div class="nd-metric-note" id="map-delay-cadiz">TomTom Routing</div>
         </article>
@@ -1537,9 +1537,9 @@ HTML_PAGE = """<!doctype html>
             <svg id="nv-sceneSvg" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid slice"></svg>
           </div>
           <div class="nv-scene-bar">
-            <span>&rarr; <b id="nv-sceneHuelvaCount">0</b> veh. sentido Huelva</span>
+            <span>&larr; <b id="nv-sceneHuelvaCount">0</b> veh. sentido Huelva</span>
             <span>SE-30 &middot; km 10 &mdash;&mdash; km 12</span>
-            <span><b id="nv-sceneCadizCount">0</b> veh. sentido C&aacute;diz &larr;</span>
+            <span><b id="nv-sceneCadizCount">0</b> veh. sentido C&aacute;diz &rarr;</span>
           </div>
         </div>
       </section>
