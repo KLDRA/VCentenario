@@ -1628,6 +1628,29 @@ HTML_PAGE = """<!doctype html>
         <div class="nv-vms-grid" id="nv-vmsGrid"></div>
       </section>
 
+      <!-- DGT Camera -->
+      <section class="nv-section">
+        <div class="nv-section-head">
+          <div class="nv-section-title">Cámara DGT · km 13,5</div>
+          <div class="nv-section-aside">Sentido Cádiz · próxima al puente</div>
+        </div>
+        <div class="nv-card" style="padding:14px;">
+          <div style="position:relative;width:100%;border-radius:10px;overflow:hidden;background:#000;">
+            <img id="nv-dgtCam" alt="Cámara DGT SE-30 km 13,5"
+                 src="https://infocar.dgt.es/etraffic/data/camaras/1337.jpg"
+                 style="width:100%;height:auto;display:block;"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+            <div style="display:none;align-items:center;justify-content:center;min-height:200px;color:var(--nv-text-3);font-family:'JetBrains Mono',monospace;font-size:12px;">
+              cámara temporalmente no disponible
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--nv-text-3);text-transform:uppercase;letter-spacing:0.08em;margin-top:10px;">
+            <span>SE-30 · PK 13+5</span>
+            <span id="nv-dgtCamTime">&mdash;</span>
+          </div>
+        </div>
+      </section>
+
       <!-- Incidents -->
       <section class="nv-section">
         <div class="nv-section-head">
@@ -3516,6 +3539,21 @@ HTML_PAGE = """<!doctype html>
     window.setInterval(() => {
       loadDashboard().catch(() => {});
     }, 60000);
+
+    // Refresco de la imagen de la cámara DGT cada 30 s. Añadimos un parámetro
+    // único de cache-busting para forzar la recarga aunque el navegador cachee.
+    function nv_refreshDgtCam() {
+      const img = document.getElementById('nv-dgtCam');
+      const stamp = document.getElementById('nv-dgtCamTime');
+      if (!img) return;
+      const url = 'https://infocar.dgt.es/etraffic/data/camaras/1337.jpg?t=' + Date.now();
+      img.src = url;
+      img.style.display = 'block';
+      if (img.nextElementSibling) img.nextElementSibling.style.display = 'none';
+      if (stamp) stamp.textContent = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    nv_refreshDgtCam();
+    window.setInterval(nv_refreshDgtCam, 30000);
   </script>
 </body>
 </html>
