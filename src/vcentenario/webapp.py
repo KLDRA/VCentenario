@@ -1081,6 +1081,8 @@ HTML_PAGE = """<!doctype html>
     #tab-nuevo .nv-vms-screen { background: #000; border-radius: 6px; padding: 14px 16px; min-height: 90px; font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 15px; letter-spacing: 0.12em; color: var(--nv-led); text-shadow: 0 0 6px #ffb30099, 0 0 14px #ffb30055; line-height: 1.5; white-space: pre-line; display: flex; align-items: center; }
     #tab-nuevo .nv-vms-screen.empty { color: #333; text-shadow: none; font-weight: 400; font-size: 12px; letter-spacing: 0.05em; }
     #tab-nuevo .nv-vms-footer { margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #666; display: flex; justify-content: space-between; }
+    #tab-nuevo .nv-vms-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    #tab-nuevo .nv-vms-tag { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: #ffb300; border: 1px solid #ffb30055; border-radius: 4px; padding: 3px 7px; background: #1a1305; }
     /* Incidents */
     #tab-nuevo .nv-incident-list { display: flex; flex-direction: column; gap: 10px; }
     #tab-nuevo .nv-incident { display: flex; gap: 14px; padding: 14px 16px; background: var(--nv-surface); border: 1px solid var(--nv-border); border-radius: 12px; align-items: flex-start; }
@@ -1864,8 +1866,9 @@ HTML_PAGE = """<!doctype html>
         const title = escapeHtml(panel.location_name || panel.location_id);
         const km = escapeHtml(formatKm(panel.km));
         const dir = dirMap[panel.direction] || "AMBOS SENTIDOS";
-        const msg = (panel.legends || []).map(l => escapeHtml(l)).join("<br>");
-        const pictos = (panel.pictograms || []).map((p) => `<span class="nd-tag warn">${escapeHtml(p)}</span>`).join("");
+        const phrases = nv_legendsToText(panel.legends);
+        const msg = phrases.map(escapeHtml).join("<br>");
+        const pictos = nv_picto2text(panel.pictograms).map(p => `<span class="nd-tag warn">${escapeHtml(p)}</span>`).join("");
         return `
           <div class="nd-vms-item">
             <div class="nd-vms-header">
@@ -2696,8 +2699,9 @@ HTML_PAGE = """<!doctype html>
       const sorted = [...panels].sort((a, b) => (a.km ?? 999) - (b.km ?? 999));
       const dirMap = { positive: '\u2192 Huelva', negative: '\u2190 Sevilla' };
       root.innerHTML = '<div class="nd-vms-list">' + sorted.map(p => {
-        const msg = (p.legends || []).map(l => escapeHtml(l)).join('<br>') || 'SIN MENSAJE';
-        const pictos = (p.pictograms || []).map(x => '<span class="nd-tag warn">' + escapeHtml(x) + '</span>').join('');
+        const phrases = nv_legendsToText(p.legends);
+        const msg = phrases.map(escapeHtml).join('<br>') || 'SIN MENSAJE';
+        const pictos = nv_picto2text(p.pictograms).map(x => '<span class="nd-tag warn">' + escapeHtml(x) + '</span>').join('');
         const dir = dirMap[p.direction] || escapeHtml(p.direction || 'Ambos sentidos');
         const km = p.km != null ? 'km ' + Number(p.km).toFixed(1) : 'km -';
         const name = escapeHtml(p.location_id || '-');
@@ -3286,11 +3290,47 @@ HTML_PAGE = """<!doctype html>
       diversion: 'DESVÍO',
       detour: 'DESVÍO',
       checkBrakes: 'COMPROBAR FRENOS',
+      maximumSpeedLimit: 'VELOCIDAD MÁXIMA',
+      speedControl: 'CONTROL DE VELOCIDAD',
+      radar: 'RADAR',
+      rain: 'LLUVIA',
+      fog: 'NIEBLA',
+      snow: 'NIEVE',
+      wetRoad: 'CALZADA MOJADA',
+      laneOpen: 'CARRIL ABIERTO',
+      laneReversal: 'CARRIL REVERSIBLE',
     };
 
+    // Pictogramas que son placeholders vacíos en paneles multi-slot (DATEX2):
+    // representan posiciones sin información y no deben mostrarse al usuario.
+    const NV_PICTO_HIDDEN = new Set(['blankVoid', 'none', 'void', 'noPictogram', 'empty']);
+
     function nv_picto2text(picts) {
+      const seen = new Set();
       return (picts || [])
-        .map(p => NV_PICTO_LABELS[p] || (p ? p.replace(/([a-z])([A-Z])/g, '$1 $2').toUpperCase() : ''))
+        .filter(p => p && !NV_PICTO_HIDDEN.has(p))
+        .map(p => NV_PICTO_LABELS[p] || p.replace(/([a-z])([A-Z])/g, '$1 $2').toUpperCase())
+        .filter(label => {
+          if (!label || seen.has(label)) return false;
+          seen.add(label);
+          return true;
+        });
+    }
+
+    // Convierte una legend DATEX2 ("VELOCIDAD/CONTROLADA/POR RADAR") en una
+    // frase legible reemplazando las barras (separadores de líneas físicas
+    // del panel) por espacios.
+    function nv_legendToPhrase(legend) {
+      return String(legend || '')
+        .split('/')
+        .map(s => s.trim())
+        .filter(Boolean)
+        .join(' ');
+    }
+
+    function nv_legendsToText(legends) {
+      return (legends || [])
+        .map(nv_legendToPhrase)
         .filter(Boolean);
     }
 
@@ -3308,15 +3348,22 @@ HTML_PAGE = """<!doctype html>
         return;
       }
       grid.innerHTML = list.map(p => {
-        const reason = nv_picto2text(p.pictograms);
-        const location = (p.legends || [])
-          .flatMap(l => String(l).split('/'))
-          .map(s => s.trim())
-          .filter(Boolean);
-        const text = [...reason, ...location].join(' · ');
+        const reasonAll = nv_picto2text(p.pictograms);
+        const phrases = nv_legendsToText(p.legends);
+        const legendUpper = phrases.join(' ').toUpperCase();
+        // Si el pictograma ya está expresado en la legenda (p.ej. pictograma
+        // "VELOCIDAD MÁXIMA" + legenda "VELOCIDAD CONTROLADA POR RADAR"),
+        // evitamos duplicarlo en el texto.
+        const reason = reasonAll.filter(label => {
+          const tokens = label.split(/\s+/).filter(t => t.length > 3);
+          if (!tokens.length) return true;
+          return !tokens.every(t => legendUpper.includes(t));
+        });
+        const message = phrases.join(' · ');
+        const text = message || reason.join(' · ');
         // El mensaje del panel puede referirse al sentido contrario al lado en
         // el que está físicamente. Priorizamos lo que dice el propio mensaje.
-        const upperText = text.toUpperCase();
+        const upperText = (message + ' ' + reason.join(' ')).toUpperCase();
         let dirText;
         if (upperText.includes('STDO. HUELVA') || upperText.includes('SENTIDO HUELVA') || upperText.includes('STDO HUELVA')) {
           dirText = 'SENTIDO HUELVA';
@@ -3327,7 +3374,10 @@ HTML_PAGE = """<!doctype html>
         }
         const kmText = p.km != null ? 'KM ' + parseFloat(p.km).toFixed(1) : '—';
         const idShort = String(p.location_id).replace(/^GUID_PMV_/, '');
-        return `<div class="nv-vms"><div class="nv-vms-meta"><span>PANEL ${escapeHtml(idShort)}</span><span>${escapeHtml(kmText)}</span></div><div class="nv-vms-screen${text ? '' : ' empty'}">${text ? escapeHtml(text) : '— SIN MENSAJE —'}</div><div class="nv-vms-footer"><span>${escapeHtml(dirText)}</span><span>SE-30</span></div></div>`;
+        const tags = (message && reason.length)
+          ? `<div class="nv-vms-tags">${reason.map(r => `<span class="nv-vms-tag">${escapeHtml(r)}</span>`).join('')}</div>`
+          : '';
+        return `<div class="nv-vms"><div class="nv-vms-meta"><span>PANEL ${escapeHtml(idShort)}</span><span>${escapeHtml(kmText)}</span></div><div class="nv-vms-screen${text ? '' : ' empty'}">${text ? escapeHtml(text) : '— SIN MENSAJE —'}</div>${tags}<div class="nv-vms-footer"><span>${escapeHtml(dirText)}</span><span>SE-30</span></div></div>`;
       }).join('');
     }
 
