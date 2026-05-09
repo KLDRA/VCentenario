@@ -3266,32 +3266,70 @@ HTML_PAGE = """<!doctype html>
     });
 
     const NV_PICTO_LABELS = {
-      trafficCongestion: 'RETENCIONES',
-      slowTraffic: 'TRÁFICO LENTO',
-      keepASafeDistance: 'DISTANCIA SEGURIDAD',
-      roadworks: 'OBRAS',
-      accident: 'ACCIDENTE',
-      roadClosed: 'VÍA CORTADA',
-      laneClosed: 'CARRIL CORTADO',
-      reducedVisibility: 'VISIBILIDAD REDUCIDA',
-      icyRoads: 'CARRETERA HELADA',
-      slipperyRoads: 'CALZADA DESLIZANTE',
-      strongWind: 'VIENTO FUERTE',
-      animalsOnTheRoad: 'ANIMALES',
-      objectOnRoad: 'OBJETOS VÍA',
-      pedestrian: 'PEATONES',
-      reduceSpeed: 'REDUZCA VELOCIDAD',
-      noOvertaking: 'PROHIBIDO ADELANTAR',
-      heavyVehicleProhibited: 'CAMIONES PROHIBIDO',
-      diversion: 'DESVÍO',
-      detour: 'DESVÍO',
-      checkBrakes: 'COMPROBAR FRENOS',
+      trafficCongestion: 'Retenciones',
+      slowTraffic: 'Tráfico lento',
+      stationaryTraffic: 'Tráfico detenido',
+      queuingTraffic: 'Colas',
+      keepASafeDistance: 'Mantenga distancia',
+      roadworks: 'Obras',
+      accident: 'Accidente',
+      roadClosed: 'Vía cortada',
+      laneClosed: 'Carril cortado',
+      reducedVisibility: 'Visibilidad reducida',
+      fog: 'Niebla',
+      icyRoads: 'Carretera helada',
+      slipperyRoads: 'Calzada deslizante',
+      strongWind: 'Viento fuerte',
+      heavyRain: 'Lluvia intensa',
+      snow: 'Nieve',
+      animalsOnTheRoad: 'Animales en la vía',
+      objectOnRoad: 'Objetos en la vía',
+      pedestrian: 'Peatones',
+      reduceSpeed: 'Reduzca velocidad',
+      noOvertaking: 'Prohibido adelantar',
+      heavyVehicleProhibited: 'Camiones prohibidos',
+      diversion: 'Desvío',
+      detour: 'Desvío',
+      checkBrakes: 'Comprobar frenos',
+      otherDanger: 'Peligro',
+      generalWarning: 'Atención',
+      dangerousSituation: 'Situación peligrosa',
+      // Pictogramas vacíos / sin imagen — se filtran fuera
+      blankVoid: '',
+      noPictogram: '',
+      empty: '',
     };
 
     function nv_picto2text(picts) {
       return (picts || [])
-        .map(p => NV_PICTO_LABELS[p] || (p ? p.replace(/([a-z])([A-Z])/g, '$1 $2').toUpperCase() : ''))
+        .map(p => {
+          if (p in NV_PICTO_LABELS) return NV_PICTO_LABELS[p];
+          // Heurística para nombres CamelCase desconocidos: separar palabras
+          return p ? p.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, c => c.toUpperCase()) : '';
+        })
         .filter(Boolean);
+    }
+
+    // Transforma abreviaturas DGT en lenguaje natural.
+    function nv_humanizeDgtText(s) {
+      if (!s) return '';
+      let t = s;
+      // Mapeo de abreviaturas frecuentes
+      const map = [
+        [/\bSTDO\.?\s+/gi, 'sentido '],
+        [/\bSENTIDO\s+/gi, 'sentido '],
+        [/\bEN\s+SE-?30\b/gi, 'en SE-30'],
+        [/\bA\s+(\d+)\s*KM\b/gi, 'a $1 km'],
+        [/\bEN\s+(\d+)\s*KM\b/gi, 'en $1 km'],
+        [/\bKM\s*(\d+)\s*->\s*(\d+)\b/gi, 'del km $1 al $2'],
+      ];
+      map.forEach(([re, rep]) => { t = t.replace(re, rep); });
+      // Mantener la primera letra en mayúscula del fragmento
+      t = t.trim();
+      if (t) t = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+      // Pero respetar siglas conocidas que deben ir en mayúscula
+      t = t.replace(/\bse-30\b/gi, 'SE-30').replace(/\bkm\b/gi, 'km');
+      return t;
     }
 
     function nv_renderVms(panels) {
@@ -3308,23 +3346,34 @@ HTML_PAGE = """<!doctype html>
         return;
       }
       grid.innerHTML = list.map(p => {
-        const reason = nv_picto2text(p.pictograms);
-        const location = (p.legends || [])
+        const reasons = nv_picto2text(p.pictograms);
+        const locationParts = (p.legends || [])
           .flatMap(l => String(l).split('/'))
-          .map(s => s.trim())
+          .map(s => nv_humanizeDgtText(s))
           .filter(Boolean);
-        const text = [...reason, ...location].join(' · ');
-        // El mensaje del panel puede referirse al sentido contrario al lado en
-        // el que está físicamente. Priorizamos lo que dice el propio mensaje.
-        const upperText = text.toUpperCase();
+        // Detectar el sentido a partir del propio texto (puede ser opuesto al
+        // lado físico del panel).
+        const rawText = (p.legends || []).join(' ').toUpperCase();
         let dirText;
-        if (upperText.includes('STDO. HUELVA') || upperText.includes('SENTIDO HUELVA') || upperText.includes('STDO HUELVA')) {
+        let dirInferredFromText = false;
+        if (rawText.includes('STDO. HUELVA') || rawText.includes('SENTIDO HUELVA') || rawText.includes('STDO HUELVA')) {
           dirText = 'SENTIDO HUELVA';
-        } else if (upperText.includes('STDO. CÁDIZ') || upperText.includes('SENTIDO CÁDIZ') || upperText.includes('STDO. CADIZ') || upperText.includes('STDO CADIZ')) {
+          dirInferredFromText = true;
+        } else if (rawText.includes('STDO. CÁDIZ') || rawText.includes('SENTIDO CÁDIZ') || rawText.includes('STDO. CADIZ') || rawText.includes('STDO CADIZ')) {
           dirText = 'SENTIDO CÁDIZ';
+          dirInferredFromText = true;
         } else {
           dirText = p.direction === 'positive' ? 'SENTIDO HUELVA' : p.direction === 'negative' ? 'SENTIDO CÁDIZ' : 'SE-30';
         }
+        // Si el sentido ya aparece en el footer, lo quitamos del cuerpo del
+        // mensaje para no repetirlo.
+        const cleanLocation = locationParts.filter(s => !/^sentido /i.test(s));
+        // Componer frase natural:
+        //   "Retenciones · Mantenga distancia. En SE-30, en 1 km."
+        const reasonPart = reasons.join(' · ');
+        const locationPart = cleanLocation.join(', ');
+        const sentence = [reasonPart, locationPart].filter(Boolean).join('. ');
+        const text = sentence ? sentence + '.' : '';
         const kmText = p.km != null ? 'KM ' + parseFloat(p.km).toFixed(1) : '—';
         const idShort = String(p.location_id).replace(/^GUID_PMV_/, '');
         return `<div class="nv-vms"><div class="nv-vms-meta"><span>PANEL ${escapeHtml(idShort)}</span><span>${escapeHtml(kmText)}</span></div><div class="nv-vms-screen${text ? '' : ' empty'}">${text ? escapeHtml(text) : '— SIN MENSAJE —'}</div><div class="nv-vms-footer"><span>${escapeHtml(dirText)}</span><span>SE-30</span></div></div>`;
