@@ -3240,7 +3240,7 @@ HTML_PAGE = """<!doctype html>
       const hrs = nv_state.chartRange || 24;
       const cutoff = Date.now() - hrs * 3600 * 1000;
       const data = (history || [])
-        .map(r => ({ v: parseFloat(r.average_speed), t: new Date((r.collected_at || '').replace(' ', 'T') + 'Z') }))
+        .map(r => ({ v: parseFloat(r.average_speed), t: new Date(r.collected_at) }))
         .filter(p => !isNaN(p.v) && p.t.getTime() >= cutoff)
         .sort((a, b) => a.t - b.t);
 
