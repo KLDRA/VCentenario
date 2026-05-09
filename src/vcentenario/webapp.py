@@ -1720,9 +1720,45 @@ HTML_PAGE = """<!doctype html>
       poorRoadConditions:                  "Mal estado de la vía",
       maintenanceWorks:                    "Trabajos de mantenimiento",
       roadMaintenance:                     "Mantenimiento vial",
+      slowTraffic:                         "Tráfico lento",
+      heavyTraffic:                        "Tráfico intenso",
+      queuingTraffic:                      "Cola de tráfico",
+      stationaryTraffic:                   "Tráfico parado",
+      trafficCongestion:                   "Congestión",
+      trafficCongestionHeavy:              "Congestión fuerte",
+      abnormalTraffic:                     "Tráfico anormal",
+      unprotectedAccidentArea:             "Zona de accidente",
+      vehicleOnFire:                       "Vehículo en llamas",
+      obstructionOnRoad:                   "Obstáculo en calzada",
+      objectOnRoad:                        "Objeto en calzada",
+      animalOnRoad:                        "Animal en calzada",
+      brokenDownVehicle:                   "Vehículo averiado",
+      vehicleAbandonedOnRoad:              "Vehículo abandonado",
+      largeLorry:                          "Vehículo especial (camión)",
+      overtakingBanned:                    "Prohibido adelantar",
+      speedLimit:                          "Limitación de velocidad",
+      fog:                                 "Niebla",
+      ice:                                 "Hielo en calzada",
+      rain:                                "Lluvia intensa",
+      strongWinds:                         "Viento fuerte",
+      blizzard:                            "Nevada",
+      generalNetworkManagement:            "Gestión de red viaria",
+      doNotEnter:                          "Prohibido el acceso",
     };
     function incidentLabel(type) {
-      return incidentLabels[type] || type || "Incidencia";
+      if (!type) return "Incidencia";
+      return incidentLabels[type] || type.replace(/([A-Z])/g, ' $1').trim();
+    }
+    const severityLabels = {
+      highest: "Muy alta", HIGHEST: "Muy alta",
+      high:    "Alta",     HIGH:    "Alta",
+      medium:  "Media",    MEDIUM:  "Media",
+      low:     "Baja",     LOW:     "Baja",
+      lowest:  "Mínima",   LOWEST:  "Mínima",
+      unknown: "Desconocida", UNKNOWN: "Desconocida",
+    };
+    function severityLabel(sev) {
+      return severityLabels[sev] || sev || "—";
     }
 
     const byId = (id) => document.getElementById(id);
@@ -1896,7 +1932,7 @@ HTML_PAGE = """<!doctype html>
             · ${escapeHtml(incident.municipality || incident.province || "sin municipio")}
           </div>
           <div class="nd-chips">
-            <span class="${chipClass(incident.severity)}">${escapeHtml(incident.severity || "sin severidad")}</span>
+            <span class="${chipClass(incident.severity)}">${escapeHtml(severityLabel(incident.severity) || "sin severidad")}</span>
             <span class="nd-chip">${escapeHtml(incident.validity_status || "sin estado")}</span>
           </div>
         </div>`).join("") + '</div>';
@@ -3385,7 +3421,7 @@ HTML_PAGE = """<!doctype html>
       roadClosed: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
       roadworks: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m14.7 6.3-1 1a2 2 0 0 0 0 2.8l1.3 1.3a2 2 0 0 0 2.8 0l1-1"/><path d="m2 22 3-3"/><path d="M17 22 7 12l3-3 10 10"/></svg>',
     };
-    const NV_INC_COLORS = { high: 'var(--nv-danger)', highest: 'var(--nv-danger)', medium: 'var(--nv-alert)', low: 'var(--nv-warn)', lowest: 'var(--nv-text-2)' };
+    const NV_INC_COLORS = { high: 'var(--nv-danger)', HIGH: 'var(--nv-danger)', highest: 'var(--nv-danger)', HIGHEST: 'var(--nv-danger)', medium: 'var(--nv-alert)', MEDIUM: 'var(--nv-alert)', low: 'var(--nv-warn)', LOW: 'var(--nv-warn)', lowest: 'var(--nv-text-2)', LOWEST: 'var(--nv-text-2)' };
 
     function nv_renderIncidents(incidents) {
       const list = byId('nv-incidentList'); if (!list) return;
@@ -3398,7 +3434,7 @@ HTML_PAGE = """<!doctype html>
         const dirText = inc.direction === 'positive' ? 'Sentido Huelva' : inc.direction === 'negative' ? 'Sentido Cádiz' : 'Ambos';
         const icon = NV_INC_ICONS[inc.incident_type] || NV_INC_ICONS.accident;
         const km = inc.from_km != null ? `<span class="nv-mono">km ${parseFloat(inc.from_km).toFixed(1)}</span>` : '';
-        return `<div class="nv-incident" style="--nv-inc-color:${color}"><div class="nv-inc-ic">${icon}</div><div class="nv-inc-main"><div class="nv-inc-title">${escapeHtml(incidentLabel(inc.incident_type))}</div><div class="nv-inc-meta"><span class="nv-inc-severity">${escapeHtml(inc.severity || '—')}</span><span>${escapeHtml(dirText)}</span>${km}<span>${escapeHtml(inc.source || 'DGT')}</span></div></div></div>`;
+        return `<div class="nv-incident" style="--nv-inc-color:${color}"><div class="nv-inc-ic">${icon}</div><div class="nv-inc-main"><div class="nv-inc-title">${escapeHtml(incidentLabel(inc.incident_type))}</div><div class="nv-inc-meta"><span class="nv-inc-severity">${escapeHtml(severityLabel(inc.severity))}</span><span>${escapeHtml(dirText)}</span>${km}<span>${escapeHtml(inc.source || 'DGT')}</span></div></div></div>`;
       }).join('');
     }
 
