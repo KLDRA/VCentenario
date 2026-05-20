@@ -94,14 +94,15 @@ YOLO_TILE_OVERLAP = _env_float("VCENTENARIO_YOLO_TILE_OVERLAP", 0.2)
 DETECTOR_MAX_AGE = timedelta(minutes=max(1, DETECTOR_MAX_AGE_MINUTES))
 TOMTOM_API_KEY = os.getenv("VCENTENARIO_TOMTOM_API_KEY", "").strip()
 ADSENSE_CLIENT_ID = os.getenv("VCENTENARIO_ADSENSE_CLIENT_ID", "").strip()
+UMAMI_WEBSITE_ID = os.getenv("VCENTENARIO_UMAMI_WEBSITE_ID", "").strip()
 TOMTOM_FLOW_URL = "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json"
 TOMTOM_INCIDENTS_URL = "https://api.tomtom.com/traffic/services/4/incidentDetails/s3/{bbox}/10/-1/json"
 TOMTOM_SPEED_CAMERAS_URL = "https://api.tomtom.com/traffic/services/4/speedLimitInfo/s3/{bbox}/10/-1/json"
 TOMTOM_CALIBRATED_FREE_FLOW = 60.0
-# Offset estructural direccional: Huelva(+) es ~4 km/h más rápido que Cádiz(−)
-# en TomTom Routing incluso con tráfico muerto. Se resta a Huelva antes de
-# calcular asimetría direccional en la inferencia del reversible.
-TOMTOM_DIRECTION_BASELINE_OFFSET = _env_float("VCENTENARIO_TOMTOM_DIRECTION_BASELINE_OFFSET", 4.0)
+# Offset estructural direccional: Huelva(+) es sistemáticamente más rápida que Cádiz(−)
+# en TomTom Routing con tráfico muerto. Calculado sobre 200 muestras (may 2026): ~1.1 km/h.
+# Se resta a Huelva antes de calcular asimetría en la inferencia del reversible.
+TOMTOM_DIRECTION_BASELINE_OFFSET = _env_float("VCENTENARIO_TOMTOM_DIRECTION_BASELINE_OFFSET", 1.0)
 
 # Alert settings
 ALERT_EMAIL_ENABLED = _env_bool("VCENTENARIO_ALERT_EMAIL_ENABLED", False)
@@ -123,12 +124,18 @@ BRIDGE_AREA = BridgeArea(
     km_max=12.0,
     bbox=(37.338, 37.362, -6.010, -5.980),
     panel_location_ids=(
-        # km 10.0
+        # km 9.0 CENTENARIO (sentido positive, hermano del 60516)
+        "60512", "GUID_PMV_60512",
+        # km 9.6 CENTENARIO (sentido positive, hermano del 60516)
+        "60513", "GUID_PMV_60513",
+        # km 10.0 (sentido negative)
         "60514", "GUID_PMV_60514",
-        # km 10.3
+        # km 10.3 RAZA (sentido negative)
         "60833", "GUID_PMV_60833",
-        # km 12.4 (límite del tramo)
+        # km 12.4 CENTENARIO (sentido negative)
         "60516", "GUID_PMV_60516",
+        # km 13.1 CENTENARIO (sentido negative, justo pasado el puente)
+        "60517", "GUID_PMV_60517",
     ),
     preferred_camera_ids=(),  # Sin cámaras conocidas en km 10-12 sentido Huelva
     preferred_detector_ids=(

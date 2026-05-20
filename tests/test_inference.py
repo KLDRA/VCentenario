@@ -22,6 +22,11 @@ class InferenceTests(unittest.TestCase):
         self.assertEqual(classify_traffic_level(70), "congestion_fuerte")
 
     def test_infer_bridge_state_prefers_directional_pressure(self) -> None:
+        # Semántica corregida (may 2026): retenciones / lane closures en
+        # sentido X significan que X está LENTO, por tanto el reversible
+        # NO está abierto a X — se infiere la dirección OPUESTA. Esta
+        # semántica está validada contra reportes manuales del usuario y
+        # contra la asimetría TomTom de velocidades.
         panels = [
             PanelMessage(
                 situation_id="1",
@@ -71,7 +76,9 @@ class InferenceTests(unittest.TestCase):
 
         state = infer_bridge_state(panels, incidents, snapshots, recent_states=[])
         self.assertGreater(state.traffic_score, 0)
-        self.assertEqual(state.reversible_probable, "negative")
+        # Retenciones e incidente en sentido negativo → reversible inferido en
+        # sentido OPUESTO (positive), porque el lado lento no es el reversible.
+        self.assertEqual(state.reversible_probable, "positive")
         self.assertGreaterEqual(state.confidence, 0.4)
 
     def test_infer_bridge_state_uses_detectors_and_persistence(self) -> None:

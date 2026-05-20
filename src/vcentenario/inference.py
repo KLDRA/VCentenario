@@ -56,7 +56,26 @@ PICTOGRAM_WEIGHT = {
 # condiciones de tráfico en tiempo real. Se ignoran completamente en la inferencia.
 PANEL_IGNORED_LEGEND_FRAGMENTS = {
     "VEHICULO 20T/HUELVA-MERID/POR A4 CADIZ",
+    "HUELVA Y/ MERIDA POR/ A-4 CADIZ",
 }
+
+# Mapeo de menciones de sentido en leyendas VMS a la dirección semántica del puente.
+# Los paneles físicamente situados en un sentido suelen informar sobre el opuesto:
+# por ejemplo, "EN SE-30 EN 2 KM STDO. HUELVA" en un panel dir=negative describe
+# tráfico en sentido Huelva (positive). Esta función extrae esa dirección semántica.
+def panel_legend_direction(legends: Iterable[str]) -> Optional[str]:
+    text = " ".join(legends).upper()
+    if "STDO. HUELVA" in text or "STDO.HUELVA" in text or "SENTIDO HUELVA" in text:
+        return "positive"
+    if (
+        "STDO. CADIZ" in text
+        or "STDO.CADIZ" in text
+        or "SENTIDO CADIZ" in text
+        or "STDO. CORDOBA" in text
+        or "STDO.CORDOBA" in text
+    ):
+        return "negative"
+    return None
 
 # Tipos de incidencia estructurales/permanentes que no reflejan el estado real del tráfico.
 # Se ignoran completamente (peso = 0), no solo reducidos al baseline.
@@ -76,18 +95,19 @@ CALIBRATION_EXCLUDED_SOURCES = {"camera_availability", "camera_change", "vehicle
 
 # TomTom reversible inference thresholds
 # Asimetría: diferencia de velocidad entre sentidos para inferir el reversible.
-# Con radar de tramo en 60 km/h, el rango útil es estrecho (30–58 km/h).
-# 8 km/h es conservador — se calibrará con datos reales de la semana.
-TOMTOM_ASYMMETRY_THRESHOLD = 8.0    # km/h mínima diferencia para considerar asimetría real
-TOMTOM_ASYMMETRY_MAX_WEIGHT = 8.0   # peso máximo por asimetría
+# Semántica corregida (may 2026): cuando el reversible se abre hacia X, X tiene un
+# carril adicional y por tanto MAYOR capacidad → MAYOR velocidad media. La dirección
+# MÁS RÁPIDA es la que recibe presión, no la más lenta.
+# Validado contra 17 reportes manuales del usuario: con esta semántica acierta
+# 7/7 con diff ≥ 5 km/h; la semántica anterior acertaba 0/7.
+TOMTOM_ASYMMETRY_THRESHOLD = 5.0    # km/h mínima diferencia para considerar asimetría real
+TOMTOM_ASYMMETRY_MAX_WEIGHT = 14.0  # peso máximo por asimetría (señal directa de capacidad)
 # Salto de velocidad: subida repentina en un sentido indica apertura del reversible.
-TOMTOM_JUMP_THRESHOLD = 7.0         # km/h de subida respecto a media reciente
-TOMTOM_JUMP_MAX_WEIGHT = 5.0        # peso máximo por salto de velocidad
+TOMTOM_JUMP_THRESHOLD = 5.0         # km/h de subida respecto a media reciente (más sensible)
+TOMTOM_JUMP_MAX_WEIGHT = 6.0        # peso máximo por salto de velocidad
 TOMTOM_HISTORY_WINDOW = 4           # número de lecturas recientes para calcular media (~20 min)
-# Offset estructural TomTom: la ruta Huelva es sistemáticamente ~4 km/h más rápida
-# que la Cádiz durante tráfico muerto (00–05h). No es el reversible, es el cálculo
-# de TomTom (trazado, semáforos de acceso). Se resta a Huelva antes de medir asimetría.
-# Calculado sobre 5 días de datos (abr 2026); ajustable vía env var.
+# Offset estructural TomTom: calibrado sobre 200 muestras (may 2026) → ~1.1 km/h.
+# Ajustable vía env var VCENTENARIO_TOMTOM_DIRECTION_BASELINE_OFFSET.
 TOMTOM_DIRECTION_BASELINE_OFFSET = _CONFIG_BASELINE_OFFSET  # km/h
 
 
@@ -133,8 +153,16 @@ def infer_bridge_state(
             panel_score *= PERSISTENT_BASELINE_SCALE
             evidence.append(f"baseline:{panel.location_id}:panel")
         breakdown["panels"] += panel_score
-        if panel.direction:
-            direction_pressure[panel.direction] += panel_score
+        # Inversión semántica: una leyenda VMS que anuncia retenciones en
+        # sentido X (p.ej. "STDO. HUELVA" + trafficCongestion) indica que X
+        # está lento — por la calibración TomTom validada (faster = reversible),
+        # el sentido lento NO tiene el reversible abierto. La presión direccional
+        # se atribuye, por tanto, al sentido OPUESTO al anunciado.
+        # Peso reducido (0.35x) para que la señal TomTom domine cuando exista.
+        semantic_direction = panel_legend_direction(panel.legends) or panel.direction
+        if semantic_direction:
+            opposite = "negative" if semantic_direction == "positive" else "positive"
+            direction_pressure[opposite] += panel_score * 0.35
         if panel_evidence:
             evidence.append(panel_evidence)
 
@@ -148,9 +176,24 @@ def infer_bridge_state(
         if is_persistent_operational_incident(incident, incident_evidence, recent_states):
             incident_score *= PERSISTENT_BASELINE_SCALE
             evidence.append(f"baseline:{incident_label}:incident")
+        else:
+            # Escalar por antigüedad: incidentes viejos pesan menos que los recientes.
+            # Obras permanentes y cierres prolongados no reflejan tráfico actual.
+            age_min = _incident_age_minutes(incident.start_time or "") if incident.start_time else None
+            if age_min is not None:
+                if age_min > 180:
+                    incident_score *= 0.25
+                elif age_min > 90:
+                    incident_score *= 0.55
         breakdown["incidents"] += incident_score
-        if incident.direction:
-            direction_pressure[incident.direction] += incident_score
+        # Inversión semántica (igual que para paneles): un incidente de
+        # slowTraffic / laneClosures en sentido X significa que X está lento o
+        # con menos capacidad — por tanto el reversible NO está abierto a X.
+        # Sólo se aplica a tipos de incidencia direccionales y con dirección
+        # explícita (positive/negative). Si direction='both' no aporta presión.
+        if incident.direction in {"positive", "negative"}:
+            opposite = "negative" if incident.direction == "positive" else "positive"
+            direction_pressure[opposite] += incident_score * 0.35
         evidence.append(incident_evidence)
 
     active_cameras = 0
@@ -260,6 +303,19 @@ def classify_traffic_level(score: float) -> str:
     return "colapso"              # <10 km/h aprox — circulación muy lenta, colapso
 
 
+def _incident_age_minutes(start_time: str) -> Optional[float]:
+    """Minutos transcurridos desde el inicio de la incidencia (UTC). None si no parseable."""
+    for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d %H:%M:%S"):
+        try:
+            dt = datetime.strptime(start_time, fmt)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return (datetime.now(timezone.utc) - dt).total_seconds() / 60.0
+        except ValueError:
+            continue
+    return None
+
+
 def _report_age_seconds(reported_at: str) -> Optional[float]:
     """Devuelve los segundos transcurridos desde el reporte (UTC). None si no parseable."""
     try:
@@ -350,6 +406,11 @@ def infer_reversible(
     )
     evidence.extend(persistence_evidence)
     if persisted_direction:
+        # El schedule conocido es más fiable que la inercia del estado anterior.
+        # Reducir el peso de persistencia cuando hay horario activo evita que
+        # un estado "indeterminado" previo bloquee la transición planificada.
+        if schedule_direction:
+            persisted_weight *= 0.35
         direction_pressure[persisted_direction] += persisted_weight
 
     if not direction_pressure:
@@ -370,7 +431,7 @@ def infer_reversible(
         confidence += 0.07
         evidence.append(f"reversible:incident-hits:{incident_hits}")
     confidence = round(clamp(confidence, 0.2, 0.85), 2)
-    if difference < 8.0:
+    if difference < 5.0:
         return "indeterminado", round(max(0.2, confidence - 0.08), 2), evidence + ["reversible:low-asymmetry"]
     return lead_direction, confidence, evidence
 
@@ -382,13 +443,15 @@ def score_tomtom_reversible_signals(
     """
     Two complementary signals from TomTom Routing speed data:
 
-    1. Asymmetry — if one direction is significantly faster than the other,
-       the SLOWER direction gets extra pressure (demand signal: congestion
-       suggests the reversible is needed or open for that direction).
+    1. Asymmetry — la dirección MÁS RÁPIDA es la que tiene el reversible
+       abierto: un carril extra le da mayor capacidad efectiva y por tanto
+       velocidad media superior frente al sentido opuesto que sólo dispone
+       de 3 carriles. Validado contra 17 reportes manuales (may 2026):
+       acierta 7/7 cuando la diferencia es ≥ 5 km/h.
 
-    2. Speed jump — a sudden speed increase in one direction vs. its recent
-       average suggests the reversible just opened for it (supply signal:
-       more lane capacity → speed recovered).
+    2. Speed jump — un repunte súbito de velocidad en un sentido respecto
+       a su media reciente confirma la apertura del reversible para él
+       (la capacidad acaba de subir).
     """
     dir_pressure: Dict[str, float] = defaultdict(float)
     evidence: List[str] = []
@@ -411,21 +474,23 @@ def score_tomtom_reversible_signals(
     speed_neg = current_speeds["negative"]
 
     # — Asymmetry signal —
-    # Corregimos el offset estructural de ~4 km/h a favor de Huelva observado
+    # Corregimos el offset estructural de ~1 km/h a favor de Huelva observado
     # en tráfico muerto. Sin esta corrección (positive - negative) tiene un sesgo
-    # fijo +4 que enmascara la asimetría real del reversible.
+    # fijo positivo que enmascara la asimetría real del reversible.
     diff = (speed_pos - TOMTOM_DIRECTION_BASELINE_OFFSET) - speed_neg
     abs_diff = abs(diff)
     if abs_diff >= TOMTOM_ASYMMETRY_THRESHOLD:
-        slower_dir = "negative" if diff > 0 else "positive"
+        # El reversible está abierto hacia la dirección MÁS RÁPIDA: ese sentido
+        # dispone de un carril extra (4 vs 3) y por tanto mayor velocidad media.
+        faster_dir = "positive" if diff > 0 else "negative"
         # Escala lineal más allá del umbral, cap en el máximo configurado
         weight = min(
             TOMTOM_ASYMMETRY_MAX_WEIGHT * abs_diff / max(TOMTOM_ASYMMETRY_THRESHOLD * 2, 1.0),
             TOMTOM_ASYMMETRY_MAX_WEIGHT,
         )
-        dir_pressure[slower_dir] += round(weight, 2)
+        dir_pressure[faster_dir] += round(weight, 2)
         evidence.append(
-            f"tomtom:asymmetry:{slower_dir}:{abs_diff:.1f}kmh(corr):{weight:.1f}"
+            f"tomtom:asymmetry:{faster_dir}:+{abs_diff:.1f}kmh(corr):{weight:.1f}"
         )
 
     # — Speed jump signal —
@@ -664,8 +729,10 @@ def get_observed_hour_prior(
     samples = int(entry.get("sample_count", 0) or 0)
     if samples < 3 or abs_diff < 1.0:
         return None, 0.0, []
-    # Escalado: 1 km/h → 1 pt, 4 km/h → 3 pt, cap 3.0. Peso intencionalmente bajo.
-    weight = round(min(abs_diff * 0.75, 3.0), 2)
+    # Escalado: cap 1.5 (peso bajo); el perfil histórico arrastra datos
+    # generados con la antigua semántica de asimetría invertida y tardará
+    # varios días en recalibrarse hacia el comportamiento correcto.
+    weight = round(min(abs_diff * 0.4, 1.5), 2)
     return direction, weight, [
         f"reversible:hour-prior:{direction}:{abs_diff:.1f}kmh(n={samples}):{weight:.1f}"
     ]
@@ -693,7 +760,10 @@ def get_schedule_bias(schedule: str) -> Tuple[Optional[str], float]:
         if start_minutes <= current_minutes <= end_minutes:
             direction = direction.strip()
             if direction in {"positive", "negative"}:
-                return direction, 4.0
+                # Peso reducido: el schedule documentado contradice frecuentemente
+                # la asimetría TomTom real (validada con 17 reportes). Se mantiene
+                # como prior débil para arranques sin datos, pero no debe dominar.
+                return direction, 2.0
     return None, 0.0
 
 
