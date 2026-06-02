@@ -4372,6 +4372,27 @@ def _build_public_page(admin_html: str) -> str:
         1,
     )
 
+    # Tarjeta destacada hacia el resumen semanal. La vista pública es la pestaña
+    # VISTA (clases nv-*); la insertamos tras el histórico de velocidad, justo
+    # antes de los paneles VMS. No aparece en /admin (esa sección se recorta).
+    week_cta = (
+        "      <!-- CTA: resumen semanal -->\n"
+        "      <section class=\"nv-section\">\n"
+        "        <a href=\"/estado-semana\" class=\"nv-card\" style=\"display:flex;align-items:center;justify-content:space-between;gap:16px;text-decoration:none;color:inherit;border-left:3px solid var(--nv-accent);\">\n"
+        "          <div>\n"
+        "            <div style=\"font-size:14px;font-weight:600;color:var(--nv-accent);\">El tr&#225;fico esta semana</div>\n"
+        "            <div style=\"font-size:13px;color:var(--nv-text-2);line-height:1.5;margin-top:6px;\">Velocidad media por sentido d&#237;a a d&#237;a y porcentaje de tiempo fluido, denso o con retenciones en los &#250;ltimos 7 d&#237;as.</div>\n"
+        "          </div>\n"
+        "          <div style=\"font-size:22px;color:var(--nv-accent);flex-shrink:0;\">&#8594;</div>\n"
+        "        </a>\n"
+        "      </section>\n\n"
+    )
+    trimmed = trimmed.replace(
+        "      <!-- VMS panels -->",
+        week_cta + "      <!-- VMS panels -->",
+        1,
+    )
+
     # Enlace privacidad en el footer
     old_footer = (
         "    <!-- Footer -->\n"
