@@ -4358,7 +4358,8 @@ def _build_public_page(admin_html: str) -> str:
         Datos actualizados cada 5 minutos a partir de fuentes públicas de la DGT y TomTom.
         Se muestran velocidades por sentido (Huelva / Cádiz), nivel de congestión y estado estimado del
         <a href="/carril-reversible">carril reversible</a>.
-        Consulta <a href="/metodologia">cómo medimos el tráfico</a>, la ficha del <a href="/puente">puente</a>
+        Consulta el resumen de <a href="/estado-semana">cómo ha estado el tráfico esta semana</a>,
+        <a href="/metodologia">cómo medimos el tráfico</a>, la ficha del <a href="/puente">puente</a>
         o las <a href="/faq">preguntas frecuentes</a>.
       </p>
     </section>\n"""
@@ -4385,6 +4386,7 @@ def _build_public_page(admin_html: str) -> str:
         "      <span class=\"nd-eyebrow\">Actualización automática cada 60 s</span>\n"
         "      <span class=\"nd-eyebrow\">SE-30 km 10–12 · Ambos sentidos · Sevilla</span>\n"
         "      <nav class=\"nd-eyebrow\" style=\"display:flex;flex-wrap:wrap;gap:6px 14px;\">\n"
+        "        <a href=\"/estado-semana\" style=\"color:inherit;opacity:0.7;\">El tráfico esta semana</a>\n"
         "        <a href=\"/puente\" style=\"color:inherit;opacity:0.7;\">El puente</a>\n"
         "        <a href=\"/carril-reversible\" style=\"color:inherit;opacity:0.7;\">Carril reversible</a>\n"
         "        <a href=\"/metodologia\" style=\"color:inherit;opacity:0.7;\">Cómo medimos</a>\n"
