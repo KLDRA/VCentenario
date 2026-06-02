@@ -14,6 +14,7 @@ from .config import (
     KEEP_STATES,
     LOCAL_TIMEZONE,
     PROFILE_EMA_ALPHA,
+    TOMTOM_DIRECTION_BASELINE_OFFSET,
 )
 from .learning import build_forecast, ema, local_slot_from_iso
 from .models import (
@@ -710,7 +711,7 @@ class Storage:
     def observed_direction_profile(
         self,
         days: int = 7,
-        baseline_offset: float = 4.0,
+        baseline_offset: float = TOMTOM_DIRECTION_BASELINE_OFFSET,
     ) -> Dict[tuple[int, int], Dict[str, Any]]:
         """Perfil observado de dirección probable del reversible por (weekday, hora local).
 

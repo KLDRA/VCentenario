@@ -16,10 +16,13 @@ class InferenceTests(unittest.TestCase):
         self.assertFalse(collector._is_stale_measurement(fresh))
 
     def test_classify_traffic_level_ranges(self) -> None:
+        # Umbrales recalibrados con datos reales del tramo (percentiles, may 2026):
+        # fluido <8, denso <20, retenciones <42, congestion_fuerte <70, colapso ≥70.
         self.assertEqual(classify_traffic_level(0), "fluido")
-        self.assertEqual(classify_traffic_level(20), "denso")
-        self.assertEqual(classify_traffic_level(40), "retenciones")
-        self.assertEqual(classify_traffic_level(70), "congestion_fuerte")
+        self.assertEqual(classify_traffic_level(15), "denso")
+        self.assertEqual(classify_traffic_level(30), "retenciones")
+        self.assertEqual(classify_traffic_level(55), "congestion_fuerte")
+        self.assertEqual(classify_traffic_level(80), "colapso")
 
     def test_infer_bridge_state_prefers_directional_pressure(self) -> None:
         # Semántica corregida (may 2026): retenciones / lane closures en
@@ -157,10 +160,15 @@ class InferenceTests(unittest.TestCase):
         ]
 
         state = infer_bridge_state(panels, incidents, [], recent_states=recent_states)
-        self.assertLess(state.breakdown["panels"], 3.0)
-        self.assertLess(state.breakdown["incidents"], 3.5)
+        # Una fuente totalmente deweighted a baseline puede no añadir su clave al
+        # breakdown; ausencia equivale a aporte 0, que también satisface el límite.
+        self.assertLess(state.breakdown.get("panels", 0.0), 3.0)
+        self.assertLess(state.breakdown.get("incidents", 0.0), 3.5)
         self.assertIn("baseline:GUID_PMV_166911:panel", state.evidence)
-        self.assertIn("baseline:weightRestrictionInOperation:incident", state.evidence)
+        # weightRestrictionInOperation (restricción permanente de 20T) ahora se
+        # ignora por completo (peso 0), no solo se reduce a baseline: no debe
+        # aportar ninguna evidencia de incidente.
+        self.assertNotIn("incident:SE-30:weightRestrictionInOperation", state.evidence)
 
     def test_light_camera_traffic_does_not_escalate_to_retentions(self) -> None:
         snapshots = [

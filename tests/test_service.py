@@ -82,7 +82,10 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(result["source_status"]["panel_messages"]["status"], "skipped")
         self.assertEqual(result["source_status"]["incidents"]["status"], "ok")
         self.assertEqual(result["source_status"]["detector_readings"]["status"], "skipped")
-        self.assertEqual(result["state"]["reversible_probable"], "negative")
+        # Semántica corregida (may 2026): una incidencia en sentido negativo
+        # indica que ese lado está lento, por lo que el reversible NO está abierto
+        # hacia él. No debe inferirse "negative" a partir de esa única señal.
+        self.assertNotEqual(result["state"]["reversible_probable"], "negative")
         self.assertTrue(result["warnings"])
         self.assertIsNotNone(latest_run)
         self.assertEqual(latest_run["source_status"]["panel_inventory"]["status"], "error")

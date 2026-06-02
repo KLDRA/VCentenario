@@ -4219,10 +4219,13 @@ _DATA_PAGES = {
         "Resumen automático de velocidades por sentido y nivel de congestión del Puente del Centenario (SE-30, Sevilla) en los últimos días.",
         _render_estado_semana_body,
     ),
-    # TODO(/patrones): en reserva. observed_direction_profile sale ~93% "hacia
-    # Cádiz" (el baseline_offset infracorrige la asimetría estructural del
-    # puente), así que la tabla pública parecería rota. Reactivar añadiendo la
-    # entrada de abajo cuando se recalibre el offset direccional:
+    # TODO(/patrones): en reserva. Tras corregir el offset (ahora usa el del
+    # config, 1.0, no el 4.0 hardcodeado) el perfil ya no sale 93% Cádiz sino
+    # ~25% Cádiz / 75% Huelva. Pero la señal de asimetría es intrínsecamente
+    # débil (validada contra 32 reportes: ~69% acierto vs 62% base rate; 77%
+    # solo cuando |diff|≥5 km/h), así que un reparto 75/25 sigue siendo poco
+    # representativo de un reversible que alterna. Decisión de publicar pendiente
+    # del usuario; si se reactiva, añadir la entrada de abajo:
     #   "/patrones": (
     #       "Patrones por hora del carril reversible del Puente del Centenario",
     #       "Franjas horarias en las que cada sentido del Puente del Centenario "

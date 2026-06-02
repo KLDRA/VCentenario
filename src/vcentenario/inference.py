@@ -3,8 +3,10 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from zoneinfo import ZoneInfo
 
 from .config import (
+    LOCAL_TIMEZONE,
     REVERSIBLE_PERSISTENCE_WINDOW,
     REVERSIBLE_SCHEDULE,
     TOMTOM_CALIBRATED_FREE_FLOW,
@@ -715,9 +717,10 @@ def get_observed_hour_prior(
 ) -> Tuple[Optional[str], float, List[str]]:
     """Prior observado por slot (weekday, hour) a partir de la asimetría corregida
     histórica. Peso bajo (hasta 3.0) porque es una señal estadística de fondo,
-    no una observación en tiempo real. Usa hora LOCAL, asumiendo Europe/Madrid
-    (UTC+2 en horario de verano)."""
-    now = datetime.now()
+    no una observación en tiempo real. Usa hora LOCAL (LOCAL_TIMEZONE): el perfil
+    se indexa por (weekday, hora) local, así que el lookup debe hacerse también en
+    hora local, no en la del servidor (que en producción es UTC)."""
+    now = datetime.now(ZoneInfo(LOCAL_TIMEZONE))
     slot = (now.weekday(), now.hour)
     entry = profile.get(slot)
     if not entry:
@@ -741,7 +744,9 @@ def get_observed_hour_prior(
 def get_schedule_bias(schedule: str) -> Tuple[Optional[str], float]:
     if not schedule.strip():
         return None, 0.0
-    now = datetime.now()
+    # El schedule está definido en hora local (Europe/Madrid). En producción el
+    # servidor va en UTC, así que datetime.now() naive desfasaría las franjas 1-2 h.
+    now = datetime.now(ZoneInfo(LOCAL_TIMEZONE))
     weekday = now.weekday()
     current_minutes = now.hour * 60 + now.minute
     for raw_rule in schedule.split(";"):
