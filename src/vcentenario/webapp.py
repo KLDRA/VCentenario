@@ -4067,6 +4067,8 @@ def _render_estado_semana_body(storage) -> str:
             level_counts[lvl] = level_counts.get(lvl, 0) + 1
     total_states = sum(level_counts.values())
 
+    today_local = datetime.now(ZoneInfo(LOCAL_TIMEZONE)).date().isoformat()
+
     def _date_label(date_str: str) -> str:
         try:
             dt = datetime.fromisoformat(date_str)
@@ -4074,14 +4076,29 @@ def _render_estado_semana_body(storage) -> str:
         except ValueError:
             return date_str
 
+    def _date_long(date_str: str) -> str:
+        try:
+            dt = datetime.fromisoformat(date_str)
+            return f"{dt.day} de {_MONTH_NAMES_ES[dt.month - 1]}"
+        except ValueError:
+            return date_str
+
+    # Rango cubierto (dates está ordenado de más reciente a más antiguo).
+    window_text = f"del {_date_long(dates[-1])} al {_date_long(dates[0])} de {dates[0][:4]}"
+
     # Tabla por día.
     rows_html = []
     for d in dates:
         pos = by_date[d].get("positive", {})
         neg = by_date[d].get("negative", {})
+        marker = (
+            ' <span style="color:#B8141C;font-size:0.85em;white-space:nowrap;">· hoy, parcial</span>'
+            if d == today_local
+            else ""
+        )
         rows_html.append(
             "    <tr>"
-            f"<td>{_date_label(d)}</td>"
+            f"<td>{_date_label(d)}{marker}</td>"
             f"<td>{_fmt_num(pos.get('avg_speed'))} <span style=\"color:#999\">({_fmt_num(pos.get('min_speed'),0)}–{_fmt_num(pos.get('max_speed'),0)})</span></td>"
             f"<td>{_fmt_num(neg.get('avg_speed'))} <span style=\"color:#999\">({_fmt_num(neg.get('min_speed'),0)}–{_fmt_num(neg.get('max_speed'),0)})</span></td>"
             "</tr>"
@@ -4114,6 +4131,7 @@ def _render_estado_semana_body(storage) -> str:
     return f"""  <h1>El tráfico del Puente del Centenario esta semana</h1>
   <p class="updated">Resumen automático · generado el {_now_local_text()}</p>
   <p class="lead">Velocidades medias por sentido en el tramo de la SE-30 (km 10–12) durante los últimos días, calculadas a partir de los datos que registra este monitor. Esta página se genera de forma automática y se actualiza sola.</p>
+  <p><strong>Datos {window_text}.</strong> Los días cerrados son definitivos; el día de hoy es parcial y se recalcula cada pocos minutos hasta que termina la jornada.</p>
 
   <h2>Velocidad media de los últimos {len(dates)} días</h2>
   <ul>
