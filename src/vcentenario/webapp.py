@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -9,12 +10,14 @@ import threading
 import time
 from typing import Optional
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 from .config import (
     ADSENSE_CLIENT_ID,
     DEFAULT_DB_PATH,
     DEFAULT_SNAPSHOTS_DIR,
     ENABLE_REFRESH_ENDPOINT,
+    LOCAL_TIMEZONE,
     REFRESH_MIN_INTERVAL_SECONDS,
     REFRESH_TOKEN,
     UMAMI_WEBSITE_ID,
@@ -3709,6 +3712,7 @@ _FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
 
 _CONTENT_NAV_LINKS = (
     ("/", "Monitor"),
+    ("/estado-semana", "Esta semana"),
     ("/puente", "El puente"),
     ("/carril-reversible", "Carril reversible"),
     ("/metodologia", "Cómo medimos"),
@@ -3802,7 +3806,7 @@ _PUENTE_BODY = """  <h1>El Puente del Centenario de Sevilla</h1>
   <p>En abril de 2021 se adjudicó el proyecto de <strong>sustitución de los 88 tirantes</strong> y ampliación de la plataforma. La idea de fondo es que, una vez instalada la nueva familia de tirantes que sostiene el tablero, se puedan retirar los antiguos y reaprovechar el espacio para llegar a una configuración final de <strong>tres carriles por sentido en toda la longitud del puente</strong>, eliminando así el cuello de botella del carril reversible.</p>
   <div class="note">Mientras esas obras avanzan, el carril reversible sigue en uso y su sentido puede cambiar a lo largo del día. Este sitio existe precisamente para estimar, a partir de datos públicos, en qué estado se encuentra el tráfico del tramo en cada momento.</div>
 
-  <p>¿Quieres saber cómo funciona ese carril? Consulta la <a href="/carril-reversible">guía del carril reversible</a>. ¿Te interesa de dónde salen los datos? Mira <a href="/metodologia">cómo medimos el tráfico</a>.</p>"""
+  <p>¿Quieres saber cómo funciona ese carril? Consulta la <a href="/carril-reversible">guía del carril reversible</a>. ¿Te interesa de dónde salen los datos? Mira <a href="/metodologia">cómo medimos el tráfico</a>. Y si quieres cifras concretas, el resumen de <a href="/estado-semana">cómo ha estado el tráfico esta semana</a> recoge las velocidades medias por sentido de los últimos días.</p>"""
 
 
 _CARRIL_BODY = """  <h1>Cómo funciona el carril reversible del Puente del Centenario</h1>
@@ -3839,6 +3843,7 @@ _METODOLOGIA_BODY = """  <h1>Cómo medimos el tráfico del puente</h1>
     <tr><th>Velocidad (TomTom)</th><td>Se calculan dos rutas, una por sentido (hacia Huelva y hacia Cádiz), para estimar la velocidad media real frente a la velocidad en condiciones libres.</td></tr>
   </table>
   <div class="note">Los datos se refrescan aproximadamente cada 5 minutos. En un tramo tan corto (2 km), la velocidad media es sensible a eventos puntuales, por eso interpretamos las cifras como tendencia, no como medida exacta.</div>
+  <p>Con esas lecturas elaboramos también un resumen de <a href="/estado-semana">cómo ha estado el tráfico esta semana</a>: velocidad media por sentido día a día y reparto de los niveles de congestión.</p>
 
   <h2>Cómo se calcula el estado</h2>
   <p>A partir de esas señales construimos una <strong>puntuación de tráfico</strong> (<em>traffic score</em>) que pondera cada fuente: palabras clave y pictogramas de los paneles, gravedad de las incidencias y la caída de velocidad respecto al flujo libre. La puntuación se normaliza para que no dependa de cuántos sensores estén activos en ese momento.</p>
@@ -3878,6 +3883,9 @@ _FAQ_BODY = """  <h1>Preguntas frecuentes</h1>
 
   <h2>¿Cada cuánto se actualiza?</h2>
   <p>Aproximadamente cada 5 minutos. La interfaz refresca la vista de forma automática mientras la tienes abierta.</p>
+
+  <h2>¿Cómo ha estado el tráfico estos días?</h2>
+  <p>Publicamos un resumen automático de <a href="/estado-semana">cómo ha estado el tráfico esta semana</a>, con la velocidad media de cada sentido día a día y el porcentaje de tiempo que el tramo ha estado fluido, denso o con retenciones. Se genera solo a partir de los datos registrados.</p>
 
   <h2>¿Por qué a veces el panel y la velocidad no coinciden?</h2>
   <p>Porque miden cosas distintas y pueden llevar retardos diferentes. Un panel puede seguir mostrando un aviso de obras antiguo mientras el tráfico ya circula con fluidez, o la velocidad puede caer por un incidente que aún no aparece en ningún feed. Por eso combinamos varias señales y mostramos un nivel de confianza.</p>
@@ -3978,6 +3986,256 @@ CONTENT_PAGES = {
 }
 
 
+# --- Páginas dinámicas generadas a partir de nuestros propios datos ----------
+# Contenido único y siempre fresco (se actualiza solo con la base de datos),
+# a diferencia del set estático CONTENT_PAGES.
+
+_WEEKDAY_NAMES_ES = (
+    "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo",
+)
+_MONTH_NAMES_ES = (
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+)
+# positive = ruta km10→km12 (hacia Huelva); negative = hacia Cádiz.
+_DIRECTION_LABEL = {"positive": "hacia Huelva", "negative": "hacia Cádiz"}
+_TRAFFIC_LEVEL_LABEL = {
+    "fluido": "Fluido",
+    "denso": "Denso",
+    "retenciones": "Retenciones",
+    "congestion_fuerte": "Congestión fuerte",
+    "colapso": "Colapso",
+}
+
+
+def _fmt_num(value: Optional[float], decimals: int = 1) -> str:
+    """Formatea un número con coma decimal (estilo español)."""
+    if value is None:
+        return "—"
+    return f"{value:.{decimals}f}".replace(".", ",")
+
+
+def _now_local_text() -> str:
+    now = datetime.now(ZoneInfo(LOCAL_TIMEZONE))
+    return f"{now.day} de {_MONTH_NAMES_ES[now.month - 1]} de {now.year}, {now:%H:%M}"
+
+
+def _render_estado_semana_body(storage) -> str:
+    stats = storage.get_daily_speed_stats()
+    states = storage.get_recent_states(7)
+
+    by_date: dict[str, dict[str, dict]] = {}
+    for row in stats:
+        by_date.setdefault(row["date"], {})[row["direction"]] = row
+    dates = sorted(by_date.keys(), reverse=True)[:7]
+
+    if not dates:
+        return (
+            "  <h1>El tráfico del Puente del Centenario esta semana</h1>\n"
+            '  <p class="lead">Todavía no hay suficientes datos registrados para '
+            "generar el resumen semanal. Vuelve en unas horas.</p>\n"
+            '  <p>Mientras tanto puedes consultar el <a href="/">monitor en tiempo '
+            "real</a>.</p>"
+        )
+
+    # Medias ponderadas por nº de muestras, sobre la ventana mostrada.
+    agg = {"positive": [0.0, 0], "negative": [0.0, 0]}
+    week_min: dict[str, Optional[float]] = {"positive": None, "negative": None}
+    week_max: dict[str, Optional[float]] = {"positive": None, "negative": None}
+    for d in dates:
+        for direction, r in by_date[d].items():
+            if direction not in agg:
+                continue
+            if r["avg_speed"] is not None and r["sample_count"]:
+                agg[direction][0] += r["avg_speed"] * r["sample_count"]
+                agg[direction][1] += r["sample_count"]
+            if r["min_speed"] is not None:
+                cur = week_min[direction]
+                week_min[direction] = r["min_speed"] if cur is None else min(cur, r["min_speed"])
+            if r["max_speed"] is not None:
+                cur = week_max[direction]
+                week_max[direction] = r["max_speed"] if cur is None else max(cur, r["max_speed"])
+    week_avg = {
+        k: (v[0] / v[1] if v[1] else None) for k, v in agg.items()
+    }
+
+    # Reparto de niveles de tráfico en los últimos 7 días.
+    level_counts: dict[str, int] = {}
+    for st in states:
+        lvl = st.get("traffic_level")
+        if lvl:
+            level_counts[lvl] = level_counts.get(lvl, 0) + 1
+    total_states = sum(level_counts.values())
+
+    def _date_label(date_str: str) -> str:
+        try:
+            dt = datetime.fromisoformat(date_str)
+            return f"{_WEEKDAY_NAMES_ES[dt.weekday()]} {dt.day}/{dt.month:02d}"
+        except ValueError:
+            return date_str
+
+    # Tabla por día.
+    rows_html = []
+    for d in dates:
+        pos = by_date[d].get("positive", {})
+        neg = by_date[d].get("negative", {})
+        rows_html.append(
+            "    <tr>"
+            f"<td>{_date_label(d)}</td>"
+            f"<td>{_fmt_num(pos.get('avg_speed'))} <span style=\"color:#999\">({_fmt_num(pos.get('min_speed'),0)}–{_fmt_num(pos.get('max_speed'),0)})</span></td>"
+            f"<td>{_fmt_num(neg.get('avg_speed'))} <span style=\"color:#999\">({_fmt_num(neg.get('min_speed'),0)}–{_fmt_num(neg.get('max_speed'),0)})</span></td>"
+            "</tr>"
+        )
+    table_html = (
+        "  <table>\n"
+        "    <tr><th>Día</th><th>Hacia Huelva (km/h)</th><th>Hacia Cádiz (km/h)</th></tr>\n"
+        + "\n".join(rows_html)
+        + "\n  </table>"
+    )
+
+    # Reparto de niveles.
+    level_html = ""
+    if total_states:
+        items = []
+        for key in ("fluido", "denso", "retenciones", "congestion_fuerte", "colapso"):
+            if key in level_counts:
+                pct = 100.0 * level_counts[key] / total_states
+                items.append(
+                    f"    <li><strong>{_TRAFFIC_LEVEL_LABEL[key]}:</strong> "
+                    f"{_fmt_num(pct, 0)} % del tiempo</li>"
+                )
+        level_html = (
+            "\n  <h2>Cómo de fluido ha estado el tráfico</h2>\n"
+            f"  <p>Reparto del estado del tramo durante los últimos 7 días "
+            f"({total_states} mediciones registradas):</p>\n"
+            "  <ul>\n" + "\n".join(items) + "\n  </ul>"
+        )
+
+    return f"""  <h1>El tráfico del Puente del Centenario esta semana</h1>
+  <p class="updated">Resumen automático · generado el {_now_local_text()}</p>
+  <p class="lead">Velocidades medias por sentido en el tramo de la SE-30 (km 10–12) durante los últimos días, calculadas a partir de los datos que registra este monitor. Esta página se genera de forma automática y se actualiza sola.</p>
+
+  <h2>Velocidad media de los últimos {len(dates)} días</h2>
+  <ul>
+    <li><strong>Sentido Huelva:</strong> {_fmt_num(week_avg['positive'])} km/h de media (entre {_fmt_num(week_min['positive'], 0)} y {_fmt_num(week_max['positive'], 0)} km/h).</li>
+    <li><strong>Sentido Cádiz:</strong> {_fmt_num(week_avg['negative'])} km/h de media (entre {_fmt_num(week_min['negative'], 0)} y {_fmt_num(week_max['negative'], 0)} km/h).</li>
+  </ul>
+  <div class="note">El límite real del tramo es de 60 km/h. Una velocidad media bastante por debajo indica densidad o retenciones; recuerda que en 2 km de tramo un solo incidente puede mover la media varios km/h.</div>
+
+  <h2>Detalle por día</h2>
+  <p>Velocidad media de cada día y, entre paréntesis, el rango mínimo–máximo observado:</p>
+{table_html}
+{level_html}
+
+  <p>¿De dónde salen estos números? Lo explicamos en <a href="/metodologia">cómo medimos el tráfico</a>. Para ver el estado ahora mismo, entra al <a href="/">monitor en tiempo real</a>, y para entender el carril central consulta la <a href="/carril-reversible">guía del carril reversible</a>.</p>"""
+
+
+def _render_patrones_body(storage) -> str:
+    profile = storage.observed_direction_profile(days=14)
+
+    # Agrupar por día de la semana y comprimir horas consecutivas del mismo sentido.
+    by_weekday: dict[int, list[tuple[int, str]]] = {}
+    total_samples = 0
+    for (weekday, hour), info in profile.items():
+        by_weekday.setdefault(weekday, []).append((hour, info["direction"]))
+        total_samples += int(info.get("sample_count", 0))
+
+    if not by_weekday:
+        return (
+            "  <h1>Patrones por hora del carril reversible</h1>\n"
+            '  <p class="lead">Todavía no hay suficientes observaciones para detectar '
+            "un patrón horario fiable. Esta página se rellena automáticamente a medida "
+            "que el monitor acumula datos.</p>\n"
+            '  <p>Consulta mientras tanto la <a href="/carril-reversible">guía del carril '
+            "reversible</a> y el <a href=\"/\">monitor en tiempo real</a>.</p>"
+        )
+
+    def _compress(hours_dir: list[tuple[int, str]]) -> list[tuple[int, int, str]]:
+        # Fusiona horas del mismo sentido aunque falte algún slot intermedio:
+        # se abre rango nuevo solo al cambiar de sentido.
+        ranges: list[tuple[int, int, str]] = []
+        for hour, direction in sorted(hours_dir):
+            if ranges and ranges[-1][2] == direction:
+                start, _, d = ranges[-1]
+                ranges[-1] = (start, hour + 1, d)
+            else:
+                ranges.append((hour, hour + 1, direction))
+        return ranges
+
+    rows_html = []
+    for weekday in range(7):
+        if weekday not in by_weekday:
+            continue
+        ranges = _compress(by_weekday[weekday])
+        franjas = ", ".join(
+            f"{start:02d}:00–{end:02d}:00 {_DIRECTION_LABEL.get(d, d)}"
+            for start, end, d in ranges
+        )
+        rows_html.append(
+            f"    <tr><td><strong>{_WEEKDAY_NAMES_ES[weekday]}</strong></td><td>{franjas}</td></tr>"
+        )
+    table_html = (
+        "  <table>\n"
+        "    <tr><th>Día</th><th>Franjas con sentido predominante más rápido</th></tr>\n"
+        + "\n".join(rows_html)
+        + "\n  </table>"
+    )
+
+    return f"""  <h1>Patrones por hora del carril reversible</h1>
+  <p class="updated">Análisis automático · generado el {_now_local_text()}</p>
+  <p class="lead">A partir de las observaciones de los últimos 14 días, estimamos en qué franjas horarias circula más rápido cada sentido del puente. Como el sentido más fluido suele coincidir con el que tiene <strong>abierto el carril reversible</strong>, esto da una idea del horario habitual de apertura.</p>
+
+  <h2>Franjas típicas por día de la semana</h2>
+  <p>Para cada día, las franjas en las que un sentido ha circulado de forma sostenida más rápido que el otro (basado en {total_samples} comparaciones de velocidad):</p>
+{table_html}
+
+  <div class="note"><strong>Esto es una estimación, no un horario oficial.</strong> Se calcula a partir de diferencias de velocidad y puede verse afectada por obras, incidentes o días atípicos. Para circular, haz siempre caso a las aspas rojas y flechas verdes señalizadas sobre el propio puente.</div>
+
+  <p>¿Cómo interpretamos que un sentido vaya más rápido? Lo contamos en la <a href="/carril-reversible">guía del carril reversible</a> y en <a href="/metodologia">cómo medimos el tráfico</a>. El estado ahora mismo está en el <a href="/">monitor en tiempo real</a>, y el resumen de velocidades en <a href="/estado-semana">el tráfico esta semana</a>.</p>"""
+
+
+# Ruta dinámica → (título, meta description, función que construye el cuerpo).
+_DATA_PAGES = {
+    "/estado-semana": (
+        "El tráfico del Puente del Centenario esta semana",
+        "Resumen automático de velocidades por sentido y nivel de congestión del Puente del Centenario (SE-30, Sevilla) en los últimos días.",
+        _render_estado_semana_body,
+    ),
+    # TODO(/patrones): en reserva. observed_direction_profile sale ~93% "hacia
+    # Cádiz" (el baseline_offset infracorrige la asimetría estructural del
+    # puente), así que la tabla pública parecería rota. Reactivar añadiendo la
+    # entrada de abajo cuando se recalibre el offset direccional:
+    #   "/patrones": (
+    #       "Patrones por hora del carril reversible del Puente del Centenario",
+    #       "Franjas horarias en las que cada sentido del Puente del Centenario "
+    #       "circula más rápido, estimadas a partir de 14 días de datos.",
+    #       _render_patrones_body,
+    #   ),
+}
+
+# Caché en memoria de las páginas dinámicas (evita golpear la BD en cada crawl).
+_DYNAMIC_PAGE_TTL = 600.0
+_dynamic_page_cache: dict[str, tuple[float, str]] = {}
+_dynamic_page_lock = threading.Lock()
+
+
+def _build_dynamic_page(path: str, storage) -> str:
+    title, description, render = _DATA_PAGES[path]
+    return _content_page(path, title, description, render(storage))
+
+
+def _get_dynamic_page(path: str, storage) -> str:
+    now = time.monotonic()
+    with _dynamic_page_lock:
+        cached = _dynamic_page_cache.get(path)
+        if cached and cached[0] > now:
+            return cached[1]
+    html = _build_dynamic_page(path, storage)
+    with _dynamic_page_lock:
+        _dynamic_page_cache[path] = (now + _DYNAMIC_PAGE_TTL, html)
+    return html
+
+
 # URLs antiguas (set editorial retirado) → páginas vigentes. 301 para no
 # romper enlaces que Google ya pudiera haber indexado.
 _LEGACY_REDIRECTS = {
@@ -3999,7 +4257,7 @@ Sitemap: {_SITE_BASE_URL}/sitemap.xml
 
 
 def _build_sitemap() -> str:
-    urls = ["/"] + list(CONTENT_PAGES.keys())
+    urls = ["/"] + list(CONTENT_PAGES.keys()) + list(_DATA_PAGES.keys())
     entries = "\n".join(
         f"  <url><loc>{_SITE_BASE_URL}{path if path != '/' else '/'}</loc></url>"
         for path in urls
@@ -4178,6 +4436,9 @@ class DashboardServer:
                 content_path = parsed.path.rstrip("/") or "/"
                 if content_path in CONTENT_PAGES:
                     self._send_html(CONTENT_PAGES[content_path])
+                    return
+                if content_path in _DATA_PAGES:
+                    self._send_html(_get_dynamic_page(content_path, service.storage))
                     return
                 if content_path in _LEGACY_REDIRECTS:
                     self._send_redirect(_LEGACY_REDIRECTS[content_path])
