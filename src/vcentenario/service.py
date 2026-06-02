@@ -180,7 +180,10 @@ class VCentenarioService:
             recent_reports=recent_reports,
             observed_direction_profile=observed_direction_profile,
         )
-        state.learning_context = self.storage.update_traffic_profile(state)
+        # Un puente cortado no es tráfico representativo: excluirlo del perfil EMA
+        # para no contaminar la línea base histórica con scores de cierre.
+        if state.traffic_level != "cortado":
+            state.learning_context = self.storage.update_traffic_profile(state)
         state.forecast = self.storage.predict_traffic(
             reference_time=state.generated_at,
             current_state=state,

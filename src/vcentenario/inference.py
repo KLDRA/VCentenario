@@ -42,10 +42,23 @@ PANEL_KEYWORDS = {
     "RETENCIONES": 16.0,
     "CONGESTION": 16.0,
     "OBRAS": 10.0,
-    "CORTADO": 18.0,
     "DESVIO": 8.0,
     "LENTO": 10.0,
 }
+# "CORTADO" NO está en PANEL_KEYWORDS a propósito: se gestiona aparte para no
+# confundir el cierre del Puente del Centenario con el de OTRO puente (p.ej.
+# "CORTADO PUENTE DE LAS DELICIAS"), que solo desvía tráfico de forma indirecta.
+CENTENARIO_CLOSURE_WEIGHT = 22.0
+
+
+def is_centenario_closure(panel: PanelMessage) -> bool:
+    """True si el panel anuncia el corte del Puente del Centenario en concreto.
+
+    Exige mención explícita de corte (CORTAD…) Y del Centenario, para excluir
+    cierres de otros puentes cercanos (Delicias) que comparten panel de aviso.
+    """
+    text = " ".join(panel.legends).upper()
+    return "CORTAD" in text and "CENTENARIO" in text
 
 PICTOGRAM_WEIGHT = {
     "accident": 18.0,
@@ -133,13 +146,23 @@ def infer_bridge_state(
     direction_pressure: Dict[str, float] = defaultdict(float)
     evidence: List[str] = []
 
+    bridge_closed = False
+    closure_legend: Optional[str] = None
     for panel in panels:
         # Ignorar mensajes estáticos de obras u otras causas permanentes
         panel_text = " ".join(panel.legends).upper()
         if any(frag.upper() in panel_text for frag in PANEL_IGNORED_LEGEND_FRAGMENTS):
             continue
+        # Cierre del Puente del Centenario: señal de estado propia. Un cierre
+        # activo es un evento en tiempo real (no señalización permanente), así
+        # que no se somete al deweight de "operacional permanente".
+        closure = is_centenario_closure(panel)
         panel_score = 0.0
         panel_evidence = f"panel:{panel.location_id}:{'/'.join(panel.legends[:2])}" if panel.legends else None
+        if closure:
+            bridge_closed = True
+            closure_legend = closure_legend or "/".join(panel.legends)
+            panel_score += CENTENARIO_CLOSURE_WEIGHT
         for legend in panel.legends:
             upper = legend.upper()
             for keyword, weight in PANEL_KEYWORDS.items():
@@ -151,7 +174,7 @@ def infer_bridge_state(
             panel_score = 4.0
         if panel_score == 0:
             continue
-        if panel_evidence and is_persistent_operational_panel(panel, panel_evidence, recent_states):
+        if not closure and panel_evidence and is_persistent_operational_panel(panel, panel_evidence, recent_states):
             panel_score *= PERSISTENT_BASELINE_SCALE
             evidence.append(f"baseline:{panel.location_id}:panel")
         breakdown["panels"] += panel_score
@@ -242,7 +265,13 @@ def infer_bridge_state(
 
     apply_historical_calibration(breakdown, recent_states, evidence)
     traffic_score = round(sum(breakdown.values()), 2)
-    traffic_level = classify_traffic_level(traffic_score)
+    # Un cierre del puente es un estado propio, no "colapso" por tráfico: no
+    # tiene sentido esperar a que se descongestione, hay que buscar alternativa.
+    if bridge_closed:
+        traffic_level = "cortado"
+        evidence.append(f"closure:centenario:{closure_legend or 'cortado'}")
+    else:
+        traffic_level = classify_traffic_level(traffic_score)
     reversible_probable, confidence, direction_evidence = infer_reversible(
         direction_pressure,
         panels,

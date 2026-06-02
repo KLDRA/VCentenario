@@ -3128,6 +3128,7 @@ HTML_PAGE = """<!doctype html>
       retenciones:       { color: 'var(--nv-warn)',   label: 'DENSO',       verdict: 'Tráfico denso',           sub: 'Velocidad reducida. Espera más tiempo del habitual para cruzar.' },
       congestion_fuerte: { color: 'var(--nv-alert)',  label: 'RETENCIONES', verdict: 'Retenciones',             sub: 'Velocidades muy bajas y paradas frecuentes. Considera una ruta alternativa.' },
       colapso:           { color: 'var(--nv-danger)', label: 'COLAPSO',     verdict: 'Circulación muy lenta',   sub: 'El puente está colapsado. Evítalo y busca alternativa urgente.' },
+      cortado:           { color: 'var(--nv-danger)', label: 'CORTADO',     verdict: 'Puente cortado',          sub: 'El Puente del Centenario está cortado (obras), según los paneles de la DGT. No es un atasco: coge una ruta alternativa.' },
     };
     function nv_scoreToLevel(s) {
       if (s < 8)  return 'fluido';
@@ -3165,8 +3166,10 @@ HTML_PAGE = """<!doctype html>
 
     function nv_renderHero(state) {
       const score = parseFloat(state.traffic_score) || 0;
-      const key = nv_scoreToLevel(score);
-      const lv = NV_LEVELS[key];
+      // El cierre del puente lo marca el servidor (traffic_level='cortado'); es
+      // un estado propio que no se deduce del score, así que tiene prioridad.
+      const key = (state.traffic_level === 'cortado') ? 'cortado' : nv_scoreToLevel(score);
+      const lv = NV_LEVELS[key] || NV_LEVELS.colapso;
       const v = byId('nv-verdict'); if (v) v.textContent = lv.verdict;
       const sub = byId('nv-verdictSub'); if (sub) sub.textContent = lv.sub;
       const sn = byId('nv-scoreNum'); if (sn) sn.textContent = score.toFixed(1);
@@ -4005,6 +4008,7 @@ _TRAFFIC_LEVEL_LABEL = {
     "retenciones": "Retenciones",
     "congestion_fuerte": "Congestión fuerte",
     "colapso": "Colapso",
+    "cortado": "Puente cortado (obras)",
 }
 
 
@@ -4114,7 +4118,7 @@ def _render_estado_semana_body(storage) -> str:
     level_html = ""
     if total_states:
         items = []
-        for key in ("fluido", "denso", "retenciones", "congestion_fuerte", "colapso"):
+        for key in ("fluido", "denso", "retenciones", "congestion_fuerte", "colapso", "cortado"):
             if key in level_counts:
                 pct = 100.0 * level_counts[key] / total_states
                 items.append(

@@ -7,6 +7,29 @@ from vcentenario.models import CameraSnapshot, DetectorReading, Incident, PanelM
 
 
 class InferenceTests(unittest.TestCase):
+    @staticmethod
+    def _panel(legends, pictograms, location_id="GUID_PMV_60833"):
+        return PanelMessage(
+            situation_id="s", record_id="r", location_id=location_id, road="SE-30",
+            km=10.3, direction="negative", pictograms=pictograms, legends=legends,
+            status="active", created_at="2026-06-02T08:00:00+02:00",
+        )
+
+    def test_centenario_closure_sets_cortado_level(self) -> None:
+        panels = [self._panel(["CORTADO", "PUENTE DEL", "CENTENARIO"], ["roadworks", "blankVoid"])]
+        state = infer_bridge_state(panels, [], [], recent_states=[])
+        self.assertEqual(state.traffic_level, "cortado")
+        self.assertTrue(any(e.startswith("closure:centenario") for e in state.evidence))
+
+    def test_other_bridge_closure_is_not_centenario_cortado(self) -> None:
+        # "CORTADO PUENTE DE LAS DELICIAS" es otro puente: no debe marcar el
+        # tramo como cortado ni inflar el score con el peso de cierre.
+        panels = [self._panel(["CORTADO", "PUENTE DE", "LAS DELICIAS"], ["otherDanger", "blankVoid"],
+                              location_id="GUID_PMV_60514")]
+        state = infer_bridge_state(panels, [], [], recent_states=[])
+        self.assertNotEqual(state.traffic_level, "cortado")
+        self.assertLess(state.traffic_score, 10.0)
+
     def test_detector_collector_discards_stale_measurements(self) -> None:
         collector = DetectorCollector(http=None)
         stale = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
