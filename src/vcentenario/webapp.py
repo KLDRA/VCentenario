@@ -17,6 +17,7 @@ from .config import (
     ENABLE_REFRESH_ENDPOINT,
     REFRESH_MIN_INTERVAL_SECONDS,
     REFRESH_TOKEN,
+    UMAMI_WEBSITE_ID,
 )
 from .service import VCentenarioService
 from .utils import dumps_json
@@ -34,6 +35,7 @@ def get_simple_dashboard():
   <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="/static/three.min.js" defer></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -285,6 +287,7 @@ HTML_PAGE = """<!doctype html>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Doto:ROND@0&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="/static/three.min.js" defer></script>
   <style>
     :root {
       --black: #000000;
@@ -1536,7 +1539,7 @@ HTML_PAGE = """<!doctype html>
         </div>
         <div class="nv-card" style="padding:0;overflow:hidden;">
           <div class="nv-scene-wrap">
-            <svg id="nv-sceneSvg" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid slice"></svg>
+            <canvas id="nv-sceneSvg" width="800" height="240"></canvas>
           </div>
           <div class="nv-scene-bar">
             <span>&larr; <b id="nv-sceneHuelvaCount">0</b> veh. sentido Huelva</span>
@@ -3177,13 +3180,13 @@ HTML_PAGE = """<!doctype html>
       const badgeH = byId('nv-badgeHuelva');
       const badgeC = byId('nv-badgeCadiz');
       if (rev === 'positive') {
-        if (arrow) { arrow.textContent = '→'; arrow.style.transform = 'none'; }
+        if (arrow) { arrow.textContent = '→'; arrow.style.transform = 'scaleX(-1)'; }
         if (dir) dir.textContent = 'Sentido Huelva';
         if (rsub) rsub.textContent = 'Carril reversible — sentido Huelva';
         if (badgeH) badgeH.style.display = 'inline-flex';
         if (badgeC) badgeC.style.display = 'none';
       } else if (rev === 'negative') {
-        if (arrow) { arrow.textContent = '→'; arrow.style.transform = 'scaleX(-1)'; }
+        if (arrow) { arrow.textContent = '→'; arrow.style.transform = 'none'; }
         if (dir) dir.textContent = 'Sentido Cádiz';
         if (rsub) rsub.textContent = 'Carril reversible — sentido Cádiz';
         if (badgeH) badgeH.style.display = 'none';
@@ -3458,164 +3461,211 @@ HTML_PAGE = """<!doctype html>
       }
     }
 
-    /* ---- Bridge scene animation ---- */
-    const nv_scene = { huelva: [], cadiz: [], lastTs: 0, raf: null };
+    /* ---- Bridge scene animation (Three.js WebGL) ---- */
+    // Bridge Z axis: z=100=km10(near/right), z=-100=km12(far/left)
+    // Bridge X axis: x=+5.2=Huelva(near camera), x=0=reversible, x=-5.2=Cádiz(far)
+    // Traffic: Huelva km10→km12 = z decreases (fwd=true); Cádiz km12→km10 = z increases (fwd=false)
+    const NV_VT_SCALE = 1 / 400; // km/h → t/s  (traversal time ≈ 400/kmh s)
+    const nv_scene = { huelva: [], reversible: [], cadiz: [], lastTs: 0, raf: null };
+    let nv3 = null;
 
-    function nv_initSceneSvg() {
-      const svg = byId('nv-sceneSvg'); if (!svg) return;
-      const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-      const sky1 = isDark ? '#0a0d15' : '#eef1f6', sky2 = isDark ? '#151b2a' : '#f7f9fc';
-      const water1 = isDark ? '#0d1628' : '#d8e2ee', water2 = isDark ? '#070b14' : '#c4d2e2';
-      const deck = isDark ? '#1a2030' : '#2a2f3a', deckLine = isDark ? '#242b3d' : '#3a404c';
-      const cable = isDark ? '#3a4560' : '#7a8398', pylon = isDark ? '#2a3246' : '#1f2430';
-      const ripple = isDark ? '#1b2438' : '#b8c6d8';
-      svg.innerHTML = `<defs>
-        <linearGradient id="nv-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${sky1}"/><stop offset="100%" stop-color="${sky2}"/></linearGradient>
-        <linearGradient id="nv-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${water1}"/><stop offset="100%" stop-color="${water2}"/></linearGradient>
-        <filter id="nv-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5"/></filter>
-      </defs>
-      <rect x="0" y="0" width="800" height="155" fill="url(#nv-sky)"/>
-      <rect x="0" y="155" width="800" height="85" fill="url(#nv-water)"/>
-      <g stroke="${ripple}" stroke-width="0.5" opacity="0.6">
-        <line x1="60" y1="195" x2="120" y2="195"/><line x1="220" y1="210" x2="290" y2="210"/>
-        <line x1="420" y1="200" x2="490" y2="200"/><line x1="600" y1="220" x2="680" y2="220"/>
-      </g>
-      <line x1="200" y1="152" x2="170" y2="38" stroke="${pylon}" stroke-width="5" stroke-linecap="round"/>
-      <line x1="600" y1="152" x2="630" y2="38" stroke="${pylon}" stroke-width="5" stroke-linecap="round"/>
-      <g stroke="${cable}" stroke-width="0.8" opacity="0.75">
-        <line x1="170" y1="38" x2="50" y2="148"/><line x1="170" y1="38" x2="100" y2="148"/>
-        <line x1="170" y1="38" x2="150" y2="148"/><line x1="170" y1="38" x2="200" y2="148"/>
-        <line x1="170" y1="38" x2="270" y2="148"/><line x1="170" y1="38" x2="340" y2="148"/>
-        <line x1="170" y1="38" x2="400" y2="148"/>
-      </g>
-      <g stroke="${cable}" stroke-width="0.8" opacity="0.75">
-        <line x1="630" y1="38" x2="750" y2="148"/><line x1="630" y1="38" x2="700" y2="148"/>
-        <line x1="630" y1="38" x2="650" y2="148"/><line x1="630" y1="38" x2="600" y2="148"/>
-        <line x1="630" y1="38" x2="530" y2="148"/><line x1="630" y1="38" x2="460" y2="148"/>
-        <line x1="630" y1="38" x2="400" y2="148"/>
-      </g>
-      <circle cx="170" cy="38" r="3" fill="${pylon}"/>
-      <circle cx="630" cy="38" r="3" fill="${pylon}"/>
-      <rect x="0" y="148" width="800" height="16" fill="${deck}"/>
-      <line x1="0" y1="148" x2="800" y2="148" stroke="${deckLine}" stroke-width="1"/>
-      <line x1="0" y1="164" x2="800" y2="164" stroke="${deckLine}" stroke-width="1"/>
-      <line x1="0" y1="151" x2="800" y2="151" stroke="${deckLine}" stroke-width="0.5"/>
-      <line x1="0" y1="156" x2="800" y2="156" stroke="${deckLine}" stroke-width="0.5" stroke-dasharray="6 4"/>
-      <line x1="0" y1="161" x2="800" y2="161" stroke="${deckLine}" stroke-width="0.5"/>
-      <rect id="nv-revGlow" x="0" y="154" width="800" height="4" fill="#4a80ff" opacity="0"/>
-      <g font-family="JetBrains Mono, monospace" font-size="8" fill="${isDark ? '#4a5470' : '#7a8398'}">
-        <text x="8" y="178">KM 12</text><text x="772" y="178" text-anchor="end">KM 10</text>
-      </g>
-      <g id="nv-carsHuelva"></g>
-      <g id="nv-carsCadiz"></g>
-      <g id="nv-revArrowScene" opacity="0">
-        <circle cx="400" cy="124" r="12" fill="#4a80ff" opacity="0.2"/>
-        <circle cx="400" cy="124" r="8" fill="#4a80ff"/>
-        <text id="nv-revArrowText" x="400" y="128" text-anchor="middle" font-size="10" font-weight="700" fill="white">→</text>
-      </g>`;
+    function nv_t_to_z(t)  { return 100 - 200 * t; }   // t=0→z=100(km10), t=1→z=-100(km12)
+    function nv_lt_to_x(lt){ return 5.2 - 10.4 * lt; } // lt=0→x=+5.2(Huelva), lt=1→x=-5.2(Cádiz)
+
+    function nv_updateRevVisual() { /* Three.js render loop handles it */ }
+
+    function nv_spawnCar(dir, lt, speedKmh) {
+      const rnd = Math.random();
+      const type = rnd < 0.11 ? 'truck' : rnd < 0.18 ? 'moto' : 'car';
+      const mult = type === 'truck' ? 0.72 : type === 'moto' ? 1.08 : 1.0;
+      const kmh = Math.max(5, speedKmh * mult + (Math.random() - 0.5) * 8);
+      const t = dir === 'huelva' ? 0.02 : 0.98;
+      return { t, lt, vt: (dir === 'huelva' ? 1 : -1) * kmh * NV_VT_SCALE, type, color: nv_pickCarColor3d(type), brake: Math.random() < 0.06, brakeTimer: 1 + Math.random() * 2 };
     }
 
-    function nv_updateRevVisual() {
-      const glow = byId('nv-revGlow'), arrow = byId('nv-revArrowScene'), arrowText = byId('nv-revArrowText');
-      if (!glow || !arrow) return;
-      const rev = nv_state.sceneRev;
-      if (rev === 'positive') {
-        glow.setAttribute('y', '150'); glow.setAttribute('opacity', '0.25'); arrow.setAttribute('opacity', '1'); if (arrowText) arrowText.textContent = '→';
-      } else if (rev === 'negative') {
-        glow.setAttribute('y', '158'); glow.setAttribute('opacity', '0.25'); arrow.setAttribute('opacity', '1'); if (arrowText) arrowText.textContent = '←';
-      } else {
-        glow.setAttribute('opacity', '0'); arrow.setAttribute('opacity', '0');
+    function nv_pickCarColor3d(type) {
+      const dk = document.documentElement.getAttribute('data-theme') !== 'light';
+      if (type === 'truck') {
+        const p = dk ? ['#3a4a5a','#4a3a3a','#3a4a3a','#5a4a2a'] : ['#6a7888','#886868','#688868','#887060'];
+        return p[Math.floor(Math.random() * p.length)];
       }
-    }
-
-    function nv_spawnCar(dir, speedKmh) {
-      // Cádiz spawns en izquierda y va →; Huelva spawns en derecha y va ←
-      const x = dir === 'cadiz' ? -40 : 840;
-      const laneY = dir === 'huelva' ? 152 : 160;
-      const kmh = Math.max(5, speedKmh + (Math.random() - 0.5) * 6);
-      const speed = (kmh / 60) * 120;
-      return { x, y: laneY, vx: (dir === 'cadiz' ? 1 : -1) * speed, w: 14 + Math.random() * 3, h: 5, color: nv_pickCarColor(), brake: Math.random() < 0.08, brakeTimer: 1 + Math.random() * 2 };
-    }
-
-    function nv_pickCarColor() {
-      const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-      const p = isDark ? ['#d9dde7','#b0b7c9','#8891a8','#e8c9a8','#a4c8e4','#e4a8a8'] : ['#ffffff','#e2e6ee','#c8ccd5','#f2d4b4','#b4cfeb','#eab4b4'];
+      if (type === 'moto') return dk ? '#c0c0c0' : '#505050';
+      const p = dk ? ['#d0d4de','#a8b0c2','#8088a0','#e0c4a0','#98c0dc','#dc9c9c','#b8dc98','#dcdca0']
+                   : ['#d8dce8','#b0b8cc','#c8d8e8','#e8cca8','#a8c8e8','#e8b0b0','#b0e8b8','#e8e8a8'];
       return p[Math.floor(Math.random() * p.length)];
     }
 
-    function nv_renderCars() {
-      const NS = 'http://www.w3.org/2000/svg';
-      const renderLayer = (id, cars, isHuelva) => {
-        const layer = byId(id); if (!layer) return; layer.innerHTML = '';
-        cars.forEach(c => {
-          const g = document.createElementNS(NS, 'g'); g.setAttribute('transform', `translate(${c.x},${c.y})`);
-          const body = document.createElementNS(NS, 'rect');
-          body.setAttribute('x', -c.w/2); body.setAttribute('y', -c.h/2);
-          body.setAttribute('width', c.w); body.setAttribute('height', c.h);
-          body.setAttribute('rx', '1.2'); body.setAttribute('fill', c.color); g.appendChild(body);
-          const front = document.createElementNS(NS, 'rect');
-          front.setAttribute('width', '1.4'); front.setAttribute('height', '2'); front.setAttribute('y', '-1');
-          // Huelva mira ←, Cádiz mira →. Luz frontal en el morro, freno en la cola.
-          front.setAttribute('x', isHuelva ? -c.w/2 : c.w/2 - 1.4); front.setAttribute('fill', '#fff6c8'); front.setAttribute('opacity', '0.9'); g.appendChild(front);
-          if (c.brake || Math.abs(c.vx) < 15) {
-            const bl = document.createElementNS(NS, 'rect');
-            bl.setAttribute('width', '1.4'); bl.setAttribute('height', '2'); bl.setAttribute('y', '-1');
-            bl.setAttribute('x', isHuelva ? c.w/2 - 1.4 : -c.w/2); bl.setAttribute('fill', '#ff3b2f'); bl.setAttribute('filter', 'url(#nv-glow)'); g.appendChild(bl);
-          }
-          layer.appendChild(g);
+    function nv3_ensure(isDark) {
+      if (!window.THREE) return false;
+      const T = window.THREE;
+      const canvas = byId('nv-sceneSvg');
+      if (!canvas) return false;
+      if (!nv3) {
+        const renderer = new T.WebGLRenderer({ canvas, antialias: true });
+        renderer.setSize(800, 240, false);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        const scene = new T.Scene();
+        const cam = new T.PerspectiveCamera(40, 800 / 240, 0.5, 1500);
+        cam.position.set(-105, 28, 0);
+        cam.lookAt(0, 21, 0);
+        const carGroup = new T.Group();
+        scene.add(carGroup);
+        // Object pool: 100 slots, each with body + cab + headlights + brake lights
+        const unitGeo = new T.BoxGeometry(1, 1, 1);
+        const litGeo  = new T.BoxGeometry(1, 1, 0.12);
+        const pool = [];
+        for (let i = 0; i < 100; i++) {
+          const body = new T.Mesh(unitGeo, new T.MeshLambertMaterial({ color: 0xffffff }));
+          const cab  = new T.Mesh(unitGeo, new T.MeshLambertMaterial({ color: 0xffffff }));
+          const head = new T.Mesh(litGeo,  new T.MeshBasicMaterial({ color: 0xfff9c0 }));
+          const rl   = new T.Mesh(litGeo,  new T.MeshBasicMaterial({ color: 0xff2a10 }));
+          body.visible = cab.visible = head.visible = rl.visible = false;
+          carGroup.add(body, cab, head, rl);
+          pool.push({ body, cab, head, rl });
+        }
+        nv3 = { renderer, scene, cam, carGroup, pool, revLane: null, lastDark: null };
+      }
+      if (nv3.lastDark !== isDark) { nv3.lastDark = isDark; nv3_buildStatic(isDark); }
+      return true;
+    }
+
+    function nv3_buildStatic(isDark) {
+      const T = window.THREE;
+      for (let i = nv3.scene.children.length - 1; i >= 0; i--) {
+        const c = nv3.scene.children[i]; if (c !== nv3.carGroup) nv3.scene.remove(c);
+      }
+      nv3.scene.background = new T.Color(isDark ? 0x06090e : 0xc0d6ee);
+      nv3.scene.fog = new T.Fog(isDark ? 0x060a12 : 0xb8d2ec, 220, 520);
+      nv3.scene.add(new T.AmbientLight(0xffffff, isDark ? 0.68 : 0.90));
+      const sun = new T.DirectionalLight(isDark ? 0xd8e4ff : 0xfff8e0, isDark ? 0.48 : 0.62);
+      sun.position.set(-60, 100, 80); nv3.scene.add(sun);
+      // Water
+      const water = new T.Mesh(new T.PlaneGeometry(600, 500), new T.MeshBasicMaterial({ color: isDark ? 0x07101c : 0x7aa4c4 }));
+      water.rotation.x = -Math.PI / 2; water.position.y = -1.65; nv3.scene.add(water);
+      // Bridge deck
+      nv3.scene.add(Object.assign(new T.Mesh(new T.BoxGeometry(15.6, 0.56, 500), new T.MeshLambertMaterial({ color: isDark ? 0x16202e : 0x2a3244 }))));
+      // Lane dividers (4 lines = 3 lanes)
+      const divMat = new T.MeshBasicMaterial({ color: isDark ? 0x263348 : 0x3c4c66 });
+      [-7.8, -2.6, 2.6, 7.8].forEach(x => { const d = new T.Mesh(new T.BoxGeometry(0.18, 0.62, 500), divMat); d.position.set(x, 0.03, 0); nv3.scene.add(d); });
+      // Reversible lane glow (blue overlay on center lane)
+      nv3.revLane = new T.Mesh(new T.BoxGeometry(5.2, 0.02, 500), new T.MeshBasicMaterial({ color: 0x4a80ff, transparent: true, opacity: 0, depthWrite: false }));
+      nv3.revLane.position.set(0, 0.3, 0); nv3.scene.add(nv3.revLane);
+      // Pylons + cables (two pylons: near at z=56, far at z=-56)
+      const pMat = new T.MeshLambertMaterial({ color: isDark ? 0x20304a : 0x202c3e });
+      const lMat = new T.LineBasicMaterial({ color: isDark ? 0x3a4e7a : 0x6070a0, transparent: true, opacity: 0.6 });
+      [{ z: 56, h: 44 }, { z: -56, h: 44 }].forEach(({ z, h }) => {
+        const pylon = new T.Mesh(new T.BoxGeometry(1.5, h, 1.5), pMat.clone());
+        pylon.position.set(0, h / 2 + 0.28, z); nv3.scene.add(pylon);
+        const ty = h + 0.28, pts = [];
+        [-88, -60, -36, -12, 12, 36, 60, 88].forEach(dz => {
+          const cz = Math.max(-250, Math.min(250, z + dz));
+          pts.push(0, ty, z,  7.8, 0.28, cz); // Huelva-side cable
+          pts.push(0, ty, z, -7.8, 0.28, cz); // Cádiz-side cable
         });
-      };
-      renderLayer('nv-carsHuelva', nv_scene.huelva, true);
-      renderLayer('nv-carsCadiz', nv_scene.cadiz, false);
+        const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.BufferAttribute(new Float32Array(pts), 3));
+        nv3.scene.add(new T.LineSegments(geo, lMat.clone()));
+      });
+    }
+
+    function nv3_renderCars(rev) {
+      const T = window.THREE;
+      // Hide all pool slots
+      nv3.pool.forEach(p => { p.body.visible=false; p.cab.visible=false; p.head.visible=false; p.rl.visible=false; });
+      // Collect all cars, Cádiz first (behind), then reversible, then Huelva (in front)
+      const allCars = [
+        ...nv_scene.cadiz.map(c => ({ ...c, fwd: false })),
+        ...nv_scene.reversible.map(c => ({ ...c, fwd: rev === 'positive' })),
+        ...nv_scene.huelva.map(c => ({ ...c, fwd: true })),
+      ];
+      let pi = 0;
+      allCars.forEach(car => {
+        if (pi >= nv3.pool.length) return;
+        const p = nv3.pool[pi++];
+        const cz = nv_t_to_z(car.t), cx = nv_lt_to_x(car.lt);
+        const cL = car.type === 'truck' ? 8.5  : car.type === 'moto' ? 2.5  : 4.5;
+        const cW = car.type === 'truck' ? 2.15 : car.type === 'moto' ? 0.78 : 1.75;
+        const cH = car.type === 'truck' ? 2.2  : car.type === 'moto' ? 0.82 : 1.3;
+        const cy = cH / 2 + 0.28;
+        p.body.scale.set(cW, cH, cL); p.body.position.set(cx, cy, cz);
+        p.body.material.color.set(car.color); p.body.visible = true;
+        // Headlights (front in direction of travel; Huelva fwd=true → z decreases → front at lower z)
+        const hlZ = cz + (car.fwd ? -cL/2 - 0.08 : cL/2 + 0.08);
+        p.head.scale.set(cW * 0.55, cH * 0.28, 1); p.head.position.set(cx, cy + cH * 0.06, hlZ); p.head.visible = true;
+        // Brake lights
+        if (car.brake || Math.abs(car.vt) < 0.014) {
+          const rlZ = cz + (car.fwd ? cL/2 + 0.08 : -cL/2 - 0.08);
+          p.rl.scale.set(cW * 0.55, cH * 0.28, 1); p.rl.position.set(cx, cy + cH * 0.06, rlZ); p.rl.visible = true;
+        }
+        // Truck cab (brighter box at front)
+        if (car.type === 'truck') {
+          const cabZ = cz + (car.fwd ? -cL/2 + 1.5 : cL/2 - 1.5);
+          p.cab.scale.set(cW, cH, 3.0); p.cab.position.set(cx, cy, cabZ);
+          const cc = new T.Color(car.color); cc.multiplyScalar(1.22);
+          p.cab.material.color.copy(cc); p.cab.visible = true;
+        }
+      });
+      // Reversible lane glow
+      if (nv3.revLane) nv3.revLane.material.opacity = (rev === 'positive' || rev === 'negative') ? 0.24 : 0;
     }
 
     function nv_stepScene(ts) {
       if (!nv_scene.lastTs) nv_scene.lastTs = ts;
       const dt = Math.min(0.08, (ts - nv_scene.lastTs) / 1000);
       nv_scene.lastTs = ts;
-      const spdH = nv_state.sceneSpeedH != null ? nv_state.sceneSpeedH : 55;
-      const spdC = nv_state.sceneSpeedC != null ? nv_state.sceneSpeedC : 52;
-      const avgSpd = (spdH + spdC) / 2;
-      const density = avgSpd > 50 ? 0.7 : avgSpd > 35 ? 1.4 : avgSpd > 20 ? 2.2 : 3.0;
-      const canSpawn = (cars, sign) => { const ex = sign > 0 ? -40 : 840; for (const o of cars) { const d = (o.x - ex) * sign; if (d >= 0 && d < 30) return false; } return true; };
-      if (Math.random() < density * 0.9 * dt && canSpawn(nv_scene.huelva, -1)) nv_scene.huelva.push(nv_spawnCar('huelva', spdH));
-      if (Math.random() < density * 0.85 * dt && canSpawn(nv_scene.cadiz, 1)) nv_scene.cadiz.push(nv_spawnCar('cadiz', spdC));
-      const updateCars = (cars, dirSign) => {
-        cars.sort((a, b) => dirSign > 0 ? b.x - a.x : a.x - b.x);
+      const spdH = nv_state.sceneSpeedH != null ? nv_state.sceneSpeedH : 52;
+      const spdC = nv_state.sceneSpeedC != null ? nv_state.sceneSpeedC : 50;
+      const rev = nv_state.sceneRev;
+      const densH = Math.max(0.25, Math.min(3.5, 18 / Math.max(spdH, 5)));
+      const densC = Math.max(0.25, Math.min(3.5, 18 / Math.max(spdC, 5)));
+      const canSpawnH   = () => !nv_scene.huelva.some(c => c.t < 0.07);
+      const canSpawnC   = () => !nv_scene.cadiz.some(c => c.t > 0.93);
+      const canSpawnRH  = () => !nv_scene.reversible.some(c => c.t < 0.07);
+      const canSpawnRC  = () => !nv_scene.reversible.some(c => c.t > 0.93);
+      if (Math.random() < densH * dt && canSpawnH()) nv_scene.huelva.push(nv_spawnCar('huelva', 0.0, spdH));
+      if (Math.random() < densC * dt && canSpawnC()) nv_scene.cadiz.push(nv_spawnCar('cadiz', 1.0, spdC));
+      if (rev === 'positive' && Math.random() < densH * 0.8 * dt && canSpawnRH()) nv_scene.reversible.push(nv_spawnCar('huelva', 0.5, spdH));
+      else if (rev === 'negative' && Math.random() < densC * 0.8 * dt && canSpawnRC()) nv_scene.reversible.push(nv_spawnCar('cadiz', 0.5, spdC));
+      const updateLane = (cars, dirSign) => {
+        cars.sort((a, b) => dirSign > 0 ? b.t - a.t : a.t - b.t); // leader first
         for (let i = 0; i < cars.length; i++) {
           const c = cars[i], leader = cars[i - 1];
-          let tv = c.brake ? Math.abs(c.vx) * 0.3 : Math.abs(c.vx);
-          if (leader) { const gap = (leader.x - c.x) * dirSign - (leader.w / 2 + c.w / 2); if (gap < 24) tv = Math.min(tv, Math.abs(leader.vx) * Math.max(0, Math.min(1, (gap - 4) / 20))); }
-          if (c.brake) { c.brakeTimer -= dt; if (c.brakeTimer <= 0) c.brake = false; }
-          let nx = c.x + dirSign * tv * dt;
-          if (leader) { const mx = leader.x - dirSign * (leader.w / 2 + c.w / 2 + 4); nx = dirSign > 0 ? Math.min(nx, mx) : Math.max(nx, mx); }
-          c.x = nx;
-          if ((dirSign > 0 && c.x > 840) || (dirSign < 0 && c.x < -40)) { cars.splice(i, 1); i--; }
+          let tv = Math.abs(c.vt);
+          if (leader) { const gap = (leader.t - c.t) * dirSign; if (gap < 0.05) tv = Math.min(tv, Math.abs(leader.vt) * Math.max(0, gap / 0.05)); }
+          if (c.brake) { c.brakeTimer -= dt; if (c.brakeTimer <= 0) c.brake = false; tv *= 0.3; }
+          c.t += dirSign * tv * dt;
+          if ((dirSign > 0 && c.t > 1.02) || (dirSign < 0 && c.t < -0.02)) cars.splice(i--, 1);
         }
       };
-      updateCars(nv_scene.huelva, -1);
-      updateCars(nv_scene.cadiz, 1);
-      const cap = avgSpd < 20 ? 55 : 38;
-      if (nv_scene.huelva.length > cap) nv_scene.huelva.splice(0, nv_scene.huelva.length - cap);
-      if (nv_scene.cadiz.length  > cap) nv_scene.cadiz.splice(0, nv_scene.cadiz.length - cap);
-      nv_renderCars();
-      const hc = byId('nv-sceneHuelvaCount'); if (hc) hc.textContent = nv_scene.huelva.length;
-      const cc = byId('nv-sceneCadizCount'); if (cc) cc.textContent = nv_scene.cadiz.length;
-      const st = byId('nv-sceneTempo'); if (st) st.textContent = 'media ' + Math.round(avgSpd) + ' km/h';
+      updateLane(nv_scene.huelva, 1); updateLane(nv_scene.cadiz, -1);
+      if (rev === 'positive') updateLane(nv_scene.reversible, 1);
+      else if (rev === 'negative') updateLane(nv_scene.reversible, -1);
+      else { for (let i = nv_scene.reversible.length - 1; i >= 0; i--) { const c = nv_scene.reversible[i]; c.t += c.vt * dt; if (c.t < -0.02 || c.t > 1.02) nv_scene.reversible.splice(i, 1); } }
+      const capH = spdH < 20 ? 44 : 26, capC = spdC < 20 ? 44 : 26;
+      if (nv_scene.huelva.length > capH) nv_scene.huelva.splice(0, nv_scene.huelva.length - capH);
+      if (nv_scene.cadiz.length > capC) nv_scene.cadiz.splice(0, nv_scene.cadiz.length - capC);
+      if (nv_scene.reversible.length > 22) nv_scene.reversible.splice(0, nv_scene.reversible.length - 22);
+      // Render with Three.js
+      const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+      if (nv3_ensure(isDark)) { nv3_renderCars(rev); nv3.renderer.render(nv3.scene, nv3.cam); }
+      const totalH = nv_scene.huelva.length + (rev === 'positive' ? nv_scene.reversible.length : 0);
+      const totalC = nv_scene.cadiz.length  + (rev === 'negative' ? nv_scene.reversible.length : 0);
+      const hc = byId('nv-sceneHuelvaCount'); if (hc) hc.textContent = totalH;
+      const cc = byId('nv-sceneCadizCount'); if (cc) cc.textContent = totalC;
+      const st = byId('nv-sceneTempo'); if (st) st.textContent = `H:${Math.round(spdH)} · C:${Math.round(spdC)} km/h`;
       nv_scene.raf = requestAnimationFrame(nv_stepScene);
     }
 
     function nv_startScene() {
       if (nv_scene.raf) return;
-      nv_initSceneSvg();
-      nv_updateRevVisual();
+      if (!window.THREE) { setTimeout(nv_startScene, 200); return; }
       nv_scene.lastTs = 0;
       nv_scene.raf = requestAnimationFrame(nv_stepScene);
     }
 
     function nv_stopScene() {
       if (nv_scene.raf) { cancelAnimationFrame(nv_scene.raf); nv_scene.raf = null; }
-      nv_scene.huelva = []; nv_scene.cadiz = [];
+      nv_scene.huelva = []; nv_scene.reversible = []; nv_scene.cadiz = [];
+      if (nv3 && nv3.pool) { nv3.pool.forEach(p => { p.body.visible=false; p.cab.visible=false; p.head.visible=false; p.rl.visible=false; }); nv3.renderer.render(nv3.scene, nv3.cam); }
     }
 
     loadDashboard().catch((error) => {
@@ -3928,6 +3978,15 @@ CONTENT_PAGES = {
 }
 
 
+# URLs antiguas (set editorial retirado) → páginas vigentes. 301 para no
+# romper enlaces que Google ya pudiera haber indexado.
+_LEGACY_REDIRECTS = {
+    "/sobre-el-puente": "/puente",
+    "/como-funciona": "/metodologia",
+    "/preguntas-frecuentes": "/faq",
+}
+
+
 _SITE_BASE_URL = "https://5centenario.es"
 
 ROBOTS_TXT = f"""User-agent: *
@@ -4120,6 +4179,9 @@ class DashboardServer:
                 if content_path in CONTENT_PAGES:
                     self._send_html(CONTENT_PAGES[content_path])
                     return
+                if content_path in _LEGACY_REDIRECTS:
+                    self._send_redirect(_LEGACY_REDIRECTS[content_path])
+                    return
                 if parsed.path in ("/favicon.svg", "/favicon.ico"):
                     body = _FAVICON_SVG.encode("utf-8")
                     self.send_response(HTTPStatus.OK)
@@ -4144,7 +4206,7 @@ class DashboardServer:
                     self._send_xml(SITEMAP_XML)
                     return
                 if parsed.path in ("/admin", "/admin/"):
-                    self._send_html(HTML_PAGE)
+                    self._send_html(HTML_PAGE, track=False)
                     return
                 if parsed.path == "/api/dashboard":
                     self._send_json(service.dashboard_data())
@@ -4245,7 +4307,13 @@ class DashboardServer:
                 self.end_headers()
                 self.wfile.write(body)
 
-            def _send_html(self, html: str, status: int = 200) -> None:
+            def _send_html(self, html: str, status: int = 200, track: bool = True) -> None:
+                if track and UMAMI_WEBSITE_ID:
+                    umami_tag = (
+                        f'<script defer src="/umami/script.js"'
+                        f' data-website-id="{UMAMI_WEBSITE_ID}"></script>\n'
+                    )
+                    html = html.replace("</head>", umami_tag + "</head>", 1)
                 body = html.encode("utf-8")
                 self.send_response(status)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -4263,6 +4331,13 @@ class DashboardServer:
                 self._send_common_headers()
                 self.end_headers()
                 self.wfile.write(body)
+
+            def _send_redirect(self, location: str) -> None:
+                self.send_response(HTTPStatus.MOVED_PERMANENTLY)
+                self.send_header("Location", location)
+                self.send_header("Content-Length", "0")
+                self._send_common_headers()
+                self.end_headers()
 
             def _send_xml(self, xml: str, status: int = 200) -> None:
                 body = xml.encode("utf-8")
