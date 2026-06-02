@@ -3651,26 +3651,217 @@ _FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
 </svg>"""
 
 
-_PRIVACIDAD_PAGE = """<!DOCTYPE html>
+# --- Páginas de contenido estáticas -----------------------------------------
+# Plantilla compartida para todas las páginas informativas (privacidad, guías,
+# metodología, FAQ...). Cada una es una URL propia con texto original y
+# navegación interna entre ellas: estructura que los buscadores indexan como
+# contenido de valor, a diferencia de las pestañas dinámicas del dashboard.
+
+_CONTENT_NAV_LINKS = (
+    ("/", "Monitor"),
+    ("/puente", "El puente"),
+    ("/carril-reversible", "Carril reversible"),
+    ("/metodologia", "Cómo medimos"),
+    ("/faq", "Preguntas frecuentes"),
+    ("/sobre", "Sobre el sitio"),
+    ("/privacidad", "Privacidad"),
+)
+
+
+def _content_page(slug: str, title: str, description: str, body: str) -> str:
+    """Envuelve el cuerpo HTML de una página informativa en la plantilla común."""
+    adsense_meta = (
+        f'  <meta name="google-adsense-account" content="{ADSENSE_CLIENT_ID}">\n'
+        if ADSENSE_CLIENT_ID
+        else ""
+    )
+    nav = "\n".join(
+        '      <a href="{href}"{cls}>{label}</a>'.format(
+            href=href,
+            label=label,
+            cls=' aria-current="page" class="active"' if href == slug else "",
+        )
+        for href, label in _CONTENT_NAV_LINKS
+    )
+    return f"""<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="google-adsense-account" content="ca-pub-1589098356793173">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <title>Política de Privacidad · 5centenario.es</title>
+  <meta name="description" content="{description}">
+{adsense_meta}  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="canonical" href="https://5centenario.es{slug if slug != '/' else ''}">
+  <title>{title} · 5centenario.es</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.7; }
-    h1 { font-size: 1.6rem; margin-bottom: 8px; }
-    h2 { font-size: 1.1rem; margin-top: 32px; margin-bottom: 8px; }
-    p, li { font-size: 0.95rem; color: #444; }
-    a { color: #B8141C; }
-    footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #e0e0e0; font-size: 0.85rem; color: #888; }
+    :root {{ --red: #B8141C; }}
+    * {{ box-sizing: border-box; }}
+    body {{ font-family: system-ui, -apple-system, sans-serif; max-width: 760px; margin: 0 auto; padding: 0 20px 64px; color: #1a1a1a; line-height: 1.7; }}
+    nav.site {{ display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; padding: 16px 0; margin-bottom: 8px; border-bottom: 1px solid #e6e6e6; font-size: 0.85rem; }}
+    nav.site a {{ color: #555; text-decoration: none; }}
+    nav.site a:hover {{ color: var(--red); }}
+    nav.site a.active {{ color: var(--red); font-weight: 600; }}
+    h1 {{ font-size: 1.7rem; margin: 28px 0 8px; line-height: 1.25; }}
+    h2 {{ font-size: 1.15rem; margin-top: 36px; margin-bottom: 8px; }}
+    h3 {{ font-size: 1rem; margin-top: 24px; margin-bottom: 6px; }}
+    p, li {{ font-size: 0.97rem; color: #333; }}
+    ul, ol {{ padding-left: 22px; }}
+    li {{ margin-bottom: 6px; }}
+    a {{ color: var(--red); }}
+    .lead {{ font-size: 1.05rem; color: #222; }}
+    .updated {{ font-size: 0.85rem; color: #999; margin-top: 0; }}
+    table {{ width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.92rem; }}
+    th, td {{ text-align: left; padding: 8px 10px; border-bottom: 1px solid #e6e6e6; vertical-align: top; }}
+    th {{ color: #666; font-weight: 600; }}
+    .note {{ background: #faf6f6; border-left: 3px solid var(--red); padding: 12px 16px; border-radius: 6px; margin: 18px 0; font-size: 0.92rem; }}
+    footer {{ margin-top: 56px; padding-top: 18px; border-top: 1px solid #e6e6e6; font-size: 0.85rem; color: #888; }}
+    footer a {{ color: #888; }}
   </style>
 </head>
 <body>
-  <h1>Política de Privacidad</h1>
-  <p>Última actualización: mayo de 2026</p>
+  <nav class="site">
+{nav}
+  </nav>
+  {body}
+  <footer>
+    <p>5centenario.es · Monitor del tráfico del Puente del Centenario (SE-30, Sevilla). Proyecto personal e independiente, sin relación con la DGT, el Ministerio de Transportes ni TomTom.</p>
+    <p><a href="/">Volver al monitor en tiempo real</a></p>
+  </footer>
+</body>
+</html>"""
+
+
+_PUENTE_BODY = """  <h1>El Puente del Centenario de Sevilla</h1>
+  <p class="updated">Ficha informativa · actualizada en junio de 2026</p>
+  <p class="lead">El Puente del Centenario es el gran puente atirantado que cruza la dársena del Guadalquivir al sur de Sevilla y une las dos orillas dentro de la circunvalación SE-30. Por él pasan más de <strong>100.000 vehículos al día</strong>, lo que lo convierte en uno de los puntos de tráfico más sensibles de toda Andalucía.</p>
+
+  <h2>Datos básicos</h2>
+  <table>
+    <tr><th>Ubicación</th><td>SE-30, p.k. 10+000 a 12+000 · Sevilla</td></tr>
+    <tr><th>Inauguración</th><td>15 de noviembre de 1991, dentro de las obras previas a la Exposición Universal de 1992</td></tr>
+    <tr><th>Tipo</th><td>Puente atirantado sobre dos viaductos de acceso</td></tr>
+    <tr><th>Vano atirantado</th><td>564 m de longitud, con un vano central de 265 m</td></tr>
+    <tr><th>Tirantes</th><td>88 cables (22 pares por pila)</td></tr>
+    <tr><th>Tráfico medio</th><td>Más de 100.000 vehículos/día, con cerca de un 9 % de pesados</td></tr>
+  </table>
+
+  <h2>Por qué se satura</h2>
+  <p>El puente nació pequeño para la demanda que tendría. Ya en marzo de 1992, pocos meses después de abrirse, hubo que adoptar una solución de urgencia: eliminar la mediana de hormigón y los arcenes para habilitar un tercer carril por sentido. Pero en la zona atirantada central no cabían tres carriles por sentido, así que esa parte quedó con una configuración de <strong>2 carriles + 1 carril reversible + 2 carriles</strong>.</p>
+  <p>Ese carril reversible es, desde entonces, el gran cuello de botella del puente: en hora punta concentra toda la presión de tráfico de la SE-30 en un único tramo de capacidad reducida.</p>
+
+  <h2>Las obras de ampliación</h2>
+  <p>En abril de 2021 se adjudicó el proyecto de <strong>sustitución de los 88 tirantes</strong> y ampliación de la plataforma. La idea de fondo es que, una vez instalada la nueva familia de tirantes que sostiene el tablero, se puedan retirar los antiguos y reaprovechar el espacio para llegar a una configuración final de <strong>tres carriles por sentido en toda la longitud del puente</strong>, eliminando así el cuello de botella del carril reversible.</p>
+  <div class="note">Mientras esas obras avanzan, el carril reversible sigue en uso y su sentido puede cambiar a lo largo del día. Este sitio existe precisamente para estimar, a partir de datos públicos, en qué estado se encuentra el tráfico del tramo en cada momento.</div>
+
+  <p>¿Quieres saber cómo funciona ese carril? Consulta la <a href="/carril-reversible">guía del carril reversible</a>. ¿Te interesa de dónde salen los datos? Mira <a href="/metodologia">cómo medimos el tráfico</a>.</p>"""
+
+
+_CARRIL_BODY = """  <h1>Cómo funciona el carril reversible del Puente del Centenario</h1>
+  <p class="updated">Guía práctica · actualizada en junio de 2026</p>
+  <p class="lead">En la zona atirantada del puente, la calzada se organiza como <strong>2 carriles + 1 carril reversible + 2 carriles</strong>. Ese carril central no pertenece de forma fija a ningún sentido: se asigna a la dirección con más tráfico en cada franja horaria para repartir mejor la capacidad.</p>
+
+  <h2>Qué es un carril reversible</h2>
+  <p>Un carril reversible es un carril que cambia de sentido de circulación según la hora del día. Cuando la mayoría del tráfico va en una dirección (por ejemplo, por la mañana hacia un lado y por la tarde hacia el otro), dedicarle un carril extra a ese sentido aumenta la capacidad sin necesidad de construir más calzada.</p>
+
+  <h2>Cómo saber qué sentido está abierto</h2>
+  <p>El sentido del carril reversible lo fijan los gestores de la vía y se señaliza sobre el propio puente con <strong>aspas rojas y flechas verdes</strong> en pórticos sobre cada carril:</p>
+  <ul>
+    <li><strong>Flecha verde (↓):</strong> el carril está abierto en tu sentido, puedes circular por él.</li>
+    <li><strong>Aspa roja (✕):</strong> el carril está cerrado en tu sentido; no debes invadirlo porque puede tener tráfico de frente.</li>
+  </ul>
+  <div class="note"><strong>Norma de oro:</strong> haz caso siempre a la señalización luminosa del propio puente. Una estimación en una web —incluida esta— nunca sustituye a las aspas y flechas reales sobre la calzada.</div>
+
+  <h2>Patrón habitual de uso</h2>
+  <p>Como en casi todos los carriles reversibles urbanos, el reparto sigue el patrón de los desplazamientos diarios: más capacidad hacia el sentido de entrada a la ciudad por la mañana y hacia el de salida por la tarde. Aun así, el horario concreto puede variar por obras, incidentes o decisiones puntuales de tráfico, por lo que no publicamos un horario fijo: lo que hacemos es <a href="/metodologia">estimar el estado en tiempo real</a> a partir de la velocidad y los avisos de los paneles.</p>
+
+  <h2>Cómo lo estima este sitio</h2>
+  <p>No tenemos acceso directo al sistema de señalización del puente. Lo que hacemos es inferir el estado probable combinando varias señales públicas: la diferencia de velocidad entre ambos sentidos, los mensajes de los paneles informativos (VMS) de la DGT y las incidencias registradas en el tramo. El resultado se acompaña siempre de un <strong>nivel de confianza</strong>, porque es una estimación, no una lectura oficial.</p>
+  <p>Puedes ver esa estimación, junto con la velocidad por sentido, en el <a href="/">monitor en tiempo real</a>.</p>"""
+
+
+_METODOLOGIA_BODY = """  <h1>Cómo medimos el tráfico del puente</h1>
+  <p class="updated">Metodología · actualizada en junio de 2026</p>
+  <p class="lead">Este sitio no instala sensores propios ni tiene acceso interno a los sistemas de tráfico. Combina <strong>fuentes de datos públicas</strong> para estimar el estado del tramo SE-30 km 10–12 y lo resume en un nivel de congestión y una probabilidad de carril reversible, siempre con un indicador de confianza.</p>
+
+  <h2>Fuentes de datos</h2>
+  <table>
+    <tr><th>Paneles VMS (DGT)</th><td>Mensajes de los paneles informativos del tramo, vía feed público DATEX2. Es la señal más directa de cortes, obras o reversibilidad activa.</td></tr>
+    <tr><th>Incidencias (DGT)</th><td>Accidentes, cortes y retenciones publicados en el feed DATEX2 de incidencias.</td></tr>
+    <tr><th>Velocidad (TomTom)</th><td>Se calculan dos rutas, una por sentido (hacia Huelva y hacia Cádiz), para estimar la velocidad media real frente a la velocidad en condiciones libres.</td></tr>
+  </table>
+  <div class="note">Los datos se refrescan aproximadamente cada 5 minutos. En un tramo tan corto (2 km), la velocidad media es sensible a eventos puntuales, por eso interpretamos las cifras como tendencia, no como medida exacta.</div>
+
+  <h2>Cómo se calcula el estado</h2>
+  <p>A partir de esas señales construimos una <strong>puntuación de tráfico</strong> (<em>traffic score</em>) que pondera cada fuente: palabras clave y pictogramas de los paneles, gravedad de las incidencias y la caída de velocidad respecto al flujo libre. La puntuación se normaliza para que no dependa de cuántos sensores estén activos en ese momento.</p>
+  <p>Con esa puntuación clasificamos el tráfico en cuatro niveles:</p>
+  <ul>
+    <li><strong>Fluido</strong> — circulación normal, sin retenciones apreciables.</li>
+    <li><strong>Denso</strong> — tráfico intenso pero en movimiento.</li>
+    <li><strong>Retenciones</strong> — velocidad reducida y colas intermitentes.</li>
+    <li><strong>Congestión fuerte</strong> — circulación muy lenta o detenida.</li>
+  </ul>
+
+  <h2>La estimación del carril reversible</h2>
+  <p>El estado probable del <a href="/carril-reversible">carril reversible</a> se infiere combinando la presión de tráfico de cada sentido con una ventana temporal que evita que la predicción oscile de forma brusca. El resultado se ajusta con una línea base histórica que aprende de los patrones de las horas y días anteriores.</p>
+
+  <h2>Limitaciones honestas</h2>
+  <p>Es importante entenderlo bien:</p>
+  <ul>
+    <li>Es una <strong>estimación</strong>, no un dato oficial. La señalización del puente siempre manda.</li>
+    <li>El tramo es corto, así que un solo vehículo lento puede mover la velocidad media varios km/h.</li>
+    <li>Las fuentes públicas pueden tener retardos o quedarse temporalmente sin actualizar.</li>
+  </ul>
+  <p>Por eso cada estimación se muestra con un nivel de confianza. Cuando las fuentes no son fiables, lo decimos.</p>"""
+
+
+_FAQ_BODY = """  <h1>Preguntas frecuentes</h1>
+  <p class="updated">Actualizada en junio de 2026</p>
+  <p class="lead">Dudas habituales sobre el Puente del Centenario, su carril reversible y cómo funciona este monitor de tráfico.</p>
+
+  <h2>¿En qué sentido está ahora el carril reversible?</h2>
+  <p>Mostramos una <strong>estimación</strong> del estado en el <a href="/">monitor en tiempo real</a>, basada en la velocidad por sentido y los avisos de los paneles. No es una lectura oficial: para circular, haz siempre caso a las aspas rojas y flechas verdes señalizadas sobre el propio puente. Más detalle en la <a href="/carril-reversible">guía del carril reversible</a>.</p>
+
+  <h2>¿A qué hora cambia de sentido?</h2>
+  <p>No publicamos un horario fijo porque puede variar por obras, incidentes o decisiones puntuales de tráfico. El reparto suele seguir el patrón de los desplazamientos diarios (entrada a la ciudad por la mañana, salida por la tarde), pero lo que ofrecemos es una estimación en tiempo real, no un calendario.</p>
+
+  <h2>¿De dónde salen los datos?</h2>
+  <p>De fuentes públicas: los paneles informativos (VMS) y las incidencias de la DGT mediante feeds DATEX2, y la velocidad por sentido a partir de la API de rutas de TomTom. Lo explicamos en detalle en <a href="/metodologia">cómo medimos el tráfico</a>.</p>
+
+  <h2>¿Cada cuánto se actualiza?</h2>
+  <p>Aproximadamente cada 5 minutos. La interfaz refresca la vista de forma automática mientras la tienes abierta.</p>
+
+  <h2>¿Por qué a veces el panel y la velocidad no coinciden?</h2>
+  <p>Porque miden cosas distintas y pueden llevar retardos diferentes. Un panel puede seguir mostrando un aviso de obras antiguo mientras el tráfico ya circula con fluidez, o la velocidad puede caer por un incidente que aún no aparece en ningún feed. Por eso combinamos varias señales y mostramos un nivel de confianza.</p>
+
+  <h2>¿Por qué se está ampliando el puente?</h2>
+  <p>Para eliminar el cuello de botella del carril reversible. Las obras sustituyen los 88 tirantes y buscan una configuración final de tres carriles por sentido en toda la longitud. Lo contamos en la ficha de <a href="/puente">el Puente del Centenario</a>.</p>
+
+  <h2>¿Este sitio es oficial?</h2>
+  <p>No. Es un proyecto personal e independiente, sin relación con la DGT, el Ministerio de Transportes ni TomTom. Más información en <a href="/sobre">sobre el sitio</a>.</p>"""
+
+
+_SOBRE_BODY = """  <h1>Sobre 5centenario.es</h1>
+  <p class="updated">Actualizada en junio de 2026</p>
+  <p class="lead">5centenario.es es un proyecto personal e independiente que monitoriza en tiempo real el tráfico del Puente del Centenario, en la SE-30 de Sevilla (km 10–12).</p>
+
+  <h2>Por qué existe</h2>
+  <p>El Puente del Centenario es uno de los puntos de tráfico más conflictivos de Sevilla, y su carril reversible hace que el estado de la circulación cambie a lo largo del día. La idea de este sitio es sencilla: reunir en un solo lugar, de forma clara, las señales públicas que ayudan a entender cómo está el tráfico del puente en cada momento, con una estimación del estado del carril reversible.</p>
+
+  <h2>Cómo funciona</h2>
+  <p>Recogemos datos abiertos de la DGT (paneles e incidencias) y de TomTom (velocidad por sentido), los combinamos y los resumimos en un nivel de congestión y una probabilidad de carril reversible. Todo el detalle está en <a href="/metodologia">cómo medimos el tráfico</a>.</p>
+
+  <h2>Independencia</h2>
+  <p>Este sitio <strong>no es oficial</strong> y no está afiliado a la DGT, al Ministerio de Transportes y Movilidad Sostenible ni a TomTom. Las marcas y datos citados pertenecen a sus respectivos titulares y se usan únicamente para identificar el origen de la información pública.</p>
+
+  <h2>Aviso importante</h2>
+  <div class="note">La información de este sitio es una <strong>estimación orientativa</strong> y puede contener errores o retardos. No debe usarse como única referencia para la conducción. Respeta siempre la señalización de la vía y las indicaciones de las autoridades de tráfico.</div>
+
+  <h2>Contacto</h2>
+  <p>¿Sugerencias, erratas o algo que no cuadra? Escríbenos a <a href="mailto:bis_ceros.7v@icloud.com">bis_ceros.7v@icloud.com</a>.</p>
+  <p>Consulta también nuestra <a href="/privacidad">política de privacidad</a>.</p>"""
+
+
+_PRIVACIDAD_BODY = """  <h1>Política de Privacidad</h1>
+  <p class="updated">Última actualización: junio de 2026</p>
 
   <h2>Responsable</h2>
   <p>Este sitio web, <strong>5centenario.es</strong>, es un proyecto personal sin ánimo de lucro que monitoriza el tráfico en el Puente del Centenario (SE-30, Sevilla). No existe una entidad legal asociada. Para cualquier consulta: <a href="mailto:bis_ceros.7v@icloud.com">bis_ceros.7v@icloud.com</a></p>
@@ -3693,13 +3884,76 @@ _PRIVACIDAD_PAGE = """<!DOCTYPE html>
   <p>No se recogen, almacenan ni comparten datos de identificación de vehículos ni conductores.</p>
 
   <h2>Tus derechos</h2>
-  <p>Dado que no procesamos datos personales identificables, no aplican los derechos de acceso, rectificación o eliminación de datos personales del RGPD. Si tienes dudas, contáctanos en <a href="mailto:bis_ceros.7v@icloud.com">bis_ceros.7v@icloud.com</a>.</p>
+  <p>Dado que no procesamos datos personales identificables, no aplican los derechos de acceso, rectificación o eliminación de datos personales del RGPD. Si tienes dudas, contáctanos en <a href="mailto:bis_ceros.7v@icloud.com">bis_ceros.7v@icloud.com</a>.</p>"""
 
-  <footer>
-    <a href="/">← Volver al monitor de tráfico</a>
-  </footer>
-</body>
-</html>"""
+
+# Mapa ruta → página renderizada. Las rutas con y sin barra final apuntan aquí.
+CONTENT_PAGES = {
+    "/puente": _content_page(
+        "/puente",
+        "El Puente del Centenario de Sevilla",
+        "Historia, datos técnicos y obras del Puente del Centenario (SE-30, Sevilla): un puente atirantado con más de 100.000 vehículos al día.",
+        _PUENTE_BODY,
+    ),
+    "/carril-reversible": _content_page(
+        "/carril-reversible",
+        "Cómo funciona el carril reversible del Puente del Centenario",
+        "Guía del carril reversible del Puente del Centenario: qué es, cómo saber qué sentido está abierto y cómo estimamos su estado.",
+        _CARRIL_BODY,
+    ),
+    "/metodologia": _content_page(
+        "/metodologia",
+        "Cómo medimos el tráfico del Puente del Centenario",
+        "Fuentes de datos (DGT, TomTom), cálculo de la puntuación de tráfico, niveles de congestión y limitaciones de este monitor.",
+        _METODOLOGIA_BODY,
+    ),
+    "/faq": _content_page(
+        "/faq",
+        "Preguntas frecuentes",
+        "Dudas habituales sobre el Puente del Centenario, su carril reversible y cómo funciona este monitor de tráfico en tiempo real.",
+        _FAQ_BODY,
+    ),
+    "/sobre": _content_page(
+        "/sobre",
+        "Sobre el sitio y contacto",
+        "Qué es 5centenario.es, por qué existe, su independencia respecto a la DGT y TomTom, y cómo contactar.",
+        _SOBRE_BODY,
+    ),
+    "/privacidad": _content_page(
+        "/privacidad",
+        "Política de Privacidad",
+        "Política de privacidad de 5centenario.es: datos que recogemos, cookies, publicidad de Google AdSense y tus derechos.",
+        _PRIVACIDAD_BODY,
+    ),
+}
+
+
+_SITE_BASE_URL = "https://5centenario.es"
+
+ROBOTS_TXT = f"""User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: {_SITE_BASE_URL}/sitemap.xml
+"""
+
+
+def _build_sitemap() -> str:
+    urls = ["/"] + list(CONTENT_PAGES.keys())
+    entries = "\n".join(
+        f"  <url><loc>{_SITE_BASE_URL}{path if path != '/' else '/'}</loc></url>"
+        for path in urls
+    )
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{entries}\n"
+        "</urlset>\n"
+    )
+
+
+SITEMAP_XML = _build_sitemap()
 
 
 def _build_public_page(admin_html: str) -> str:
@@ -3784,8 +4038,11 @@ def _build_public_page(admin_html: str) -> str:
       <h1>Monitor de tráfico · Puente del Centenario (SE-30, Sevilla)</h1>
       <p>
         Seguimiento en tiempo real del estado del tráfico en el <strong>Puente del Centenario</strong> (SE-30, km 10–12, Sevilla).
-        Datos actualizados cada 5 minutos a partir de fuentes oficiales de la DGT y TomTom.
-        Se muestran velocidades por sentido (Huelva / Cádiz), nivel de congestión y estado estimado del carril reversible.
+        Datos actualizados cada 5 minutos a partir de fuentes públicas de la DGT y TomTom.
+        Se muestran velocidades por sentido (Huelva / Cádiz), nivel de congestión y estado estimado del
+        <a href="/carril-reversible">carril reversible</a>.
+        Consulta <a href="/metodologia">cómo medimos el tráfico</a>, la ficha del <a href="/puente">puente</a>
+        o las <a href="/faq">preguntas frecuentes</a>.
       </p>
     </section>\n"""
 
@@ -3809,8 +4066,15 @@ def _build_public_page(admin_html: str) -> str:
         "    <!-- Footer -->\n"
         "    <footer class=\"nd-footer\">\n"
         "      <span class=\"nd-eyebrow\">Actualización automática cada 60 s</span>\n"
-        "      <span class=\"nd-eyebrow\">SE-30 km 10–12 · Ambos sentidos · Sevilla"
-        " · <a href=\"/privacidad\" style=\"color:inherit;opacity:0.7;\">Privacidad</a></span>\n"
+        "      <span class=\"nd-eyebrow\">SE-30 km 10–12 · Ambos sentidos · Sevilla</span>\n"
+        "      <nav class=\"nd-eyebrow\" style=\"display:flex;flex-wrap:wrap;gap:6px 14px;\">\n"
+        "        <a href=\"/puente\" style=\"color:inherit;opacity:0.7;\">El puente</a>\n"
+        "        <a href=\"/carril-reversible\" style=\"color:inherit;opacity:0.7;\">Carril reversible</a>\n"
+        "        <a href=\"/metodologia\" style=\"color:inherit;opacity:0.7;\">Cómo medimos</a>\n"
+        "        <a href=\"/faq\" style=\"color:inherit;opacity:0.7;\">Preguntas frecuentes</a>\n"
+        "        <a href=\"/sobre\" style=\"color:inherit;opacity:0.7;\">Sobre el sitio</a>\n"
+        "        <a href=\"/privacidad\" style=\"color:inherit;opacity:0.7;\">Privacidad</a>\n"
+        "      </nav>\n"
         "    </footer>"
     )
     trimmed = trimmed.replace(old_footer, new_footer, 1)
@@ -3852,8 +4116,9 @@ class DashboardServer:
                 if parsed.path == "/":
                     self._send_html(PUBLIC_PAGE)
                     return
-                if parsed.path in ("/privacidad", "/privacidad/"):
-                    self._send_html(_PRIVACIDAD_PAGE)
+                content_path = parsed.path.rstrip("/") or "/"
+                if content_path in CONTENT_PAGES:
+                    self._send_html(CONTENT_PAGES[content_path])
                     return
                 if parsed.path in ("/favicon.svg", "/favicon.ico"):
                     body = _FAVICON_SVG.encode("utf-8")
@@ -3871,6 +4136,12 @@ class DashboardServer:
                         self._send_text(body)
                     else:
                         self.send_error(HTTPStatus.NOT_FOUND, "ads.txt no configurado")
+                    return
+                if parsed.path == "/robots.txt":
+                    self._send_text(ROBOTS_TXT)
+                    return
+                if parsed.path in ("/sitemap.xml", "/sitemap"):
+                    self._send_xml(SITEMAP_XML)
                     return
                 if parsed.path in ("/admin", "/admin/"):
                     self._send_html(HTML_PAGE)
@@ -3988,6 +4259,15 @@ class DashboardServer:
                 body = text.encode("utf-8")
                 self.send_response(status)
                 self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self._send_common_headers()
+                self.end_headers()
+                self.wfile.write(body)
+
+            def _send_xml(self, xml: str, status: int = 200) -> None:
+                body = xml.encode("utf-8")
+                self.send_response(status)
+                self.send_header("Content-Type", "application/xml; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
                 self._send_common_headers()
                 self.end_headers()
